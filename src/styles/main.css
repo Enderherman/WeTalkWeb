@@ -425,6 +425,203 @@ textarea:focus-visible {
   color: #686863;
 }
 
+.profile-trigger {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 4px;
+  border: 0;
+  border-radius: 12px;
+  color: var(--wt-text);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-trigger:hover,
+.profile-trigger:focus-visible {
+  background: #ededea;
+}
+
+.profile-overlay {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+  background: rgb(24 29 26 / 28%);
+  backdrop-filter: blur(3px);
+}
+
+.profile-dialog {
+  width: min(100%, 480px);
+  max-height: min(88dvh, 720px);
+  overflow: auto;
+  padding: 26px;
+  border: 1px solid #ecece8;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 24px 80px rgb(17 24 20 / 18%);
+}
+
+.profile-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.profile-dialog-header .eyebrow {
+  margin-bottom: 7px;
+}
+
+.profile-dialog-header h2 {
+  margin: 0;
+  color: var(--wt-text);
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.profile-close {
+  width: 34px;
+  height: 34px;
+  margin: -5px -5px 0 0;
+  color: #656660;
+  font-size: 22px;
+}
+
+.profile-status,
+.profile-load-error {
+  margin: 18px 0 0;
+  font-size: 13px;
+}
+
+.profile-status {
+  color: var(--wt-muted);
+}
+
+.profile-load-error,
+.profile-form-error {
+  color: #a53932;
+}
+
+.profile-details {
+  display: grid;
+  margin: 21px 0 0;
+  padding: 2px 14px;
+  border: 1px solid #ecece8;
+  border-radius: 16px;
+}
+
+.profile-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 11px 0;
+  border-bottom: 1px solid #f0f0ed;
+}
+
+.profile-details > div:last-child {
+  border-bottom: 0;
+}
+
+.profile-details dt {
+  color: var(--wt-muted);
+  font-size: 12px;
+}
+
+.profile-details dd {
+  max-width: 68%;
+  margin: 0;
+  color: var(--wt-text);
+  font-size: 13px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.password-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 21px;
+  padding-top: 19px;
+  border-top: 1px solid #ecece8;
+}
+
+.password-form h3 {
+  margin: 0;
+  color: var(--wt-text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.password-note {
+  margin: 5px 0 5px;
+  color: var(--wt-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.password-form label {
+  margin-top: 3px;
+  color: #555650;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.password-form input {
+  width: 100%;
+  min-height: 45px;
+  padding: 0 13px;
+  border: 1px solid #deded9;
+  border-radius: 12px;
+  outline: none;
+  color: var(--wt-text);
+  background: #fff;
+  font: inherit;
+  font-size: 14px;
+}
+
+.password-form input:focus {
+  border-color: #7f9e8f;
+  box-shadow: 0 0 0 3px rgb(71 112 92 / 12%);
+}
+
+.password-form input::placeholder {
+  color: #a0a09b;
+  font-size: 12px;
+}
+
+.profile-form-error {
+  margin: 1px 0 0;
+  font-size: 12px;
+}
+
+.password-submit {
+  min-height: 45px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: 12px;
+  color: #fff;
+  background: #315d4e;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.password-submit:hover:not(:disabled) {
+  background: #284e41;
+}
+
+.password-submit:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 .chat-main {
   position: relative;
   display: flex;
@@ -596,6 +793,19 @@ textarea:focus-visible {
   .composer-preview {
     width: calc(100% - 24px);
     margin-bottom: 4px;
+  }
+
+  .profile-overlay {
+    align-items: end;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .profile-dialog {
+    width: 100%;
+    max-height: min(88dvh, 720px);
+    padding: 21px 18px max(18px, env(safe-area-inset-bottom));
+    border-radius: 22px 22px 14px 14px;
   }
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validateAuthForm } from '@/utils/authValidation'
+import { validateAuthForm, validatePassword } from '@/utils/authValidation'
 
 const validLogin = {
   email: 'student@example.com',
@@ -32,5 +32,16 @@ describe('validateAuthForm', () => {
     })
     expect(errors.nickName).toBe('请输入昵称')
     expect(errors.confirmPassword).toBe('两次输入的密码不一致')
+  })
+})
+
+describe('validatePassword', () => {
+  it('accepts a password that matches the backend rule', () => {
+    expect(validatePassword('NewPassword123')).toBeNull()
+  })
+
+  it('rejects mismatched length and missing letter or number requirements', () => {
+    expect(validatePassword('short')).toContain('8–18')
+    expect(validatePassword('12345678')).toContain('8–18')
   })
 })
