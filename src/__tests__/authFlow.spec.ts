@@ -12,6 +12,7 @@ import AuthView from '@/views/AuthView.vue'
 import ChatHome from '@/views/ChatHome.vue'
 import { useChatStore } from '@/stores/chat'
 import { useAuthStore } from '@/stores/auth'
+import { textMessageCache } from '@/storage/textMessageCache'
 
 vi.mock('@/api/auth', () => ({
   authApi: {
@@ -243,6 +244,18 @@ describe('authentication flow', () => {
     expect(wrapper.get('.profile-dialog').text()).toContain('Current Name')
     expect(authStore.session?.nickName).toBe('Current Name')
     expect(authStore.session?.admin).toBe(true)
+  })
+
+  it('clears only the signed-in account text cache from the profile panel', async () => {
+    const clearCache = vi.spyOn(textMessageCache, 'clearAccount').mockResolvedValue(undefined)
+    const { wrapper } = await mountChat()
+    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+    await wrapper.get('[data-testid="clear-text-cache"]').trigger('click')
+    await flushPromises()
+
+    expect(clearCache).toHaveBeenCalledWith('U100')
+    expect(wrapper.get('.cache-status').text()).toBe('本机文字缓存已清除')
+    clearCache.mockRestore()
   })
 
   it('starts a realtime connection with the active session token', async () => {

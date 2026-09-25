@@ -6,6 +6,7 @@ import type { UserProfile } from '@/api/auth'
 import { chatApi } from '@/api/chat'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
+import { textMessageCache } from '@/storage/textMessageCache'
 import { validatePassword } from '@/utils/authValidation'
 
 const router = useRouter()
@@ -21,6 +22,8 @@ const profile = ref<UserProfile | null>(null)
 const passwordForm = reactive({ password: '', confirmPassword: '' })
 const passwordError = ref('')
 const changingPassword = ref(false)
+const clearingTextCache = ref(false)
+const cacheNotice = ref('')
 
 const displayName = computed(() => profile.value?.nickName || authStore.session?.nickName || 'WeTalk 用户')
 const avatarInitial = computed(() => displayName.value.slice(0, 1).toUpperCase())
@@ -80,8 +83,8 @@ watch(selectedMessages, async () => {
 
 onMounted(() => {
   void loadProfile()
-  const token = authStore.session?.token
-  if (token) chatStore.connect(token)
+  const session = authStore.session
+  if (session?.token) chatStore.connect(session.token, session.userId)
 })
 
 onBeforeUnmount(() => {
@@ -97,6 +100,21 @@ async function loadLatestHistory(sessionId: string) {
 
   historyLoading.value = true
   try {
+    const accountId = authStore.session?.userId
+    if (accountId) {
+      try {
+        const cachedMessages = await textMessageCache.getLatestTextMessages(accountId, sessionId, 30)
+        if (
+          requestId === historyRequestId &&
+          selectedSessionId.value === sessionId &&
+          cachedMessages.length > 0
+        ) {
+          chatStore.mergeCachedMessages(sessionId, cachedMessages)
+        }
+      } catch {
+        // IndexedDB is optional; continue with the authoritative server request.
+      }
+    }
     const page = await chatApi.loadHistory(session.contactId)
     if (requestId !== historyRequestId || selectedSessionId.value !== sessionId) return
     chatStore.setHistoryPage(sessionId, page)
@@ -168,6 +186,21 @@ function closeProfile() {
   profileOpen.value = false
 }
 
+async function clearLocalTextCache() {
+  const accountId = authStore.session?.userId
+  if (!accountId || clearingTextCache.value) return
+  clearingTextCache.value = true
+  cacheNotice.value = ''
+  try {
+    await textMessageCache.clearAccount(accountId)
+    cacheNotice.value = '本机文字缓存已清除'
+  } catch {
+    cacheNotice.value = '缓存暂时无法清除，请稍后重试'
+  } finally {
+    clearingTextCache.value = false
+  }
+}
+
 async function changePassword() {
   passwordError.value = validatePassword(passwordForm.password) || ''
   if (passwordError.value) return
@@ -179,6 +212,7 @@ async function changePassword() {
   changingPassword.value = true
   try {
     await authApi.updatePassword(passwordForm.password)
+    chatStore.clear()
     authStore.clearSession()
     await router.replace({ name: 'login', query: { passwordUpdated: '1' } })
   } catch (error: unknown) {
@@ -216,6 +250,7 @@ async function signOut() {
   } catch {
     // Clear the browser session even if the server is unreachable.
   } finally {
+    chatStore.clear()
     authStore.clearSession()
     signingOut.value = false
     await router.replace({ name: 'login' })
@@ -428,6 +463,23 @@ async function signOut() {
             <dd>{{ profile?.userId || authStore.session?.userId || '—' }}</dd>
           </div>
         </dl>
+
+        <div class="text-cache-controls">
+          <div>
+            <h3>本机文字缓存</h3>
+            <p>按当前账号保存最近查看的文字消息，不保存 token、密码或附件。</p>
+          </div>
+          <button
+            class="text-cache-clear"
+            data-testid="clear-text-cache"
+            type="button"
+            :disabled="clearingTextCache"
+            @click="clearLocalTextCache"
+          >
+            {{ clearingTextCache ? '正在清除…' : '清除缓存' }}
+          </button>
+          <p v-if="cacheNotice" class="cache-status" role="status">{{ cacheNotice }}</p>
+        </div>
 
         <form class="password-form" data-testid="password-form" @submit.prevent="changePassword">
           <div>

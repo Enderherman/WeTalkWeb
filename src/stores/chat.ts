@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { createRealtimeClient, type RealtimeStatus, type ServerMessage } from '@/api/realtime'
+import { textMessageCache } from '@/storage/textMessageCache'
 import { AUTH_EXPIRED_EVENT } from '@/utils/authEvents'
 
 export interface ChatSessionSummary {
@@ -48,6 +49,7 @@ let realtimeClient: ReturnType<typeof createRealtimeClient> | null = null
 export const useChatStore = defineStore('chat', {
   state: () => ({
     connectionStatus: 'idle' as RealtimeStatus,
+    accountId: '',
     initialized: false,
     sessionList: [] as ChatSessionSummary[],
     initialMessages: [] as InitialChatMessage[],
@@ -56,8 +58,16 @@ export const useChatStore = defineStore('chat', {
     connectionError: '',
   }),
   actions: {
-    connect(token: string) {
+    connect(token: string, accountId: string) {
       this.disconnect()
+      if (this.accountId && this.accountId !== accountId) {
+        this.initialized = false
+        this.sessionList = []
+        this.initialMessages = []
+        this.historyBySession = {}
+        this.applyCount = 0
+      }
+      this.accountId = accountId
       this.connectionError = ''
       this.connectionStatus = 'connecting'
       realtimeClient = createRealtimeClient(token, {
@@ -91,6 +101,9 @@ export const useChatStore = defineStore('chat', {
         )
         this.applyCount = Number(data.applyCount) || 0
         this.initialized = true
+        if (this.accountId) {
+          void textMessageCache.saveTextMessages(this.accountId, data.chatMessageList).catch(() => undefined)
+        }
         return
       }
 
@@ -107,6 +120,9 @@ export const useChatStore = defineStore('chat', {
     appendMessage(message: InitialChatMessage, sentByCurrentUser: boolean) {
       if (this.initialMessages.some((item) => item.messageId === message.messageId)) return
       this.initialMessages = [...this.initialMessages, message].sort((a, b) => a.sendTime - b.sendTime)
+      if (this.accountId) {
+        void textMessageCache.saveTextMessages(this.accountId, [message]).catch(() => undefined)
+      }
       const session = this.sessionList.find((item) => item.sessionId === message.sessionId)
       if (session) {
         session.lastMessage = sentByCurrentUser
@@ -115,6 +131,14 @@ export const useChatStore = defineStore('chat', {
         session.lastReceiveTime = message.sendTime
       }
       this.sessionList = [...this.sessionList].sort((a, b) => b.lastReceiveTime - a.lastReceiveTime)
+    },
+    mergeCachedMessages(sessionId: string, messages: InitialChatMessage[]) {
+      const existing = this.initialMessages.filter((message) => message.sessionId === sessionId)
+      const otherSessions = this.initialMessages.filter((message) => message.sessionId !== sessionId)
+      const merged = new Map<number, InitialChatMessage>()
+      for (const message of [...existing, ...messages]) merged.set(message.messageId, message)
+      const sessionMessages = [...merged.values()].sort((a, b) => a.sendTime - b.sendTime)
+      this.initialMessages = [...otherSessions, ...sessionMessages].sort((a, b) => a.sendTime - b.sendTime)
     },
     setHistoryPage(sessionId: string, page: ChatHistoryPage, appendOlder = false) {
       const pageMessages = page.list || []
@@ -137,6 +161,9 @@ export const useChatStore = defineStore('chat', {
           loaded: true,
         },
       }
+      if (this.accountId) {
+        void textMessageCache.saveTextMessages(this.accountId, pageMessages).catch(() => undefined)
+      }
     },
     clear() {
       this.disconnect()
@@ -144,6 +171,7 @@ export const useChatStore = defineStore('chat', {
       this.sessionList = []
       this.initialMessages = []
       this.historyBySession = {}
+      this.accountId = ''
       this.applyCount = 0
       this.connectionError = ''
     },
