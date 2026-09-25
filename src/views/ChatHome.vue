@@ -33,10 +33,16 @@ const selectedMessages = computed(() =>
     .sort((a, b) => a.sendTime - b.sendTime)
     .slice(-80),
 )
+const currentHistory = computed(() => chatStore.historyBySession[selectedSessionId.value] || null)
 const messageDraft = ref('')
 const sendingMessage = ref(false)
 const messageError = ref('')
 const messagePanel = ref<HTMLElement | null>(null)
+const historyLoading = ref(false)
+const olderMessagesLoading = ref(false)
+const historyError = ref('')
+const preservingScroll = ref(false)
+let historyRequestId = 0
 const connectionLabel = computed(() => {
   switch (chatStore.connectionStatus) {
     case 'connected':
@@ -62,7 +68,12 @@ watch(
   { immediate: true },
 )
 
+watch(selectedSessionId, (sessionId) => {
+  void loadLatestHistory(sessionId)
+})
+
 watch(selectedMessages, async () => {
+  if (preservingScroll.value) return
   await nextTick()
   if (messagePanel.value) messagePanel.value.scrollTop = messagePanel.value.scrollHeight
 })
@@ -73,7 +84,55 @@ onMounted(() => {
   if (token) chatStore.connect(token)
 })
 
-onBeforeUnmount(() => chatStore.disconnect())
+onBeforeUnmount(() => {
+  historyRequestId += 1
+  chatStore.disconnect()
+})
+
+async function loadLatestHistory(sessionId: string) {
+  const requestId = ++historyRequestId
+  historyError.value = ''
+  const session = chatStore.sessionList.find((item) => item.sessionId === sessionId)
+  if (!sessionId || !session || chatStore.historyBySession[sessionId]?.loaded) return
+
+  historyLoading.value = true
+  try {
+    const page = await chatApi.loadHistory(session.contactId)
+    if (requestId !== historyRequestId || selectedSessionId.value !== sessionId) return
+    chatStore.setHistoryPage(sessionId, page)
+  } catch (error: unknown) {
+    if (requestId === historyRequestId) {
+      historyError.value = error instanceof Error ? error.message : '历史消息暂时无法加载'
+    }
+  } finally {
+    if (requestId === historyRequestId) historyLoading.value = false
+  }
+}
+
+async function loadOlderMessages() {
+  const session = selectedSession.value
+  const history = currentHistory.value
+  if (!session || !history?.hasMore || history.beforeMessageId === null || olderMessagesLoading.value) return
+
+  const sessionId = session.sessionId
+  const beforeMessageId = history.beforeMessageId
+  const previousHeight = messagePanel.value?.scrollHeight || 0
+  olderMessagesLoading.value = true
+  historyError.value = ''
+  try {
+    const page = await chatApi.loadHistory(session.contactId, beforeMessageId)
+    if (selectedSessionId.value !== sessionId) return
+    preservingScroll.value = true
+    chatStore.setHistoryPage(sessionId, page, true)
+    await nextTick()
+    if (messagePanel.value) messagePanel.value.scrollTop += messagePanel.value.scrollHeight - previousHeight
+  } catch (error: unknown) {
+    historyError.value = error instanceof Error ? error.message : '更早的消息暂时无法加载'
+  } finally {
+    preservingScroll.value = false
+    olderMessagesLoading.value = false
+  }
+}
 
 async function loadProfile() {
   profileLoading.value = true
@@ -257,13 +316,30 @@ async function signOut() {
       </header>
 
       <div v-if="selectedSession" ref="messagePanel" class="conversation-panel" data-testid="message-panel">
-        <div v-if="selectedMessages.length === 0" class="conversation-empty">
+        <div v-if="historyLoading && selectedMessages.length === 0" class="conversation-empty">
+          <p class="eyebrow">正在加载历史消息</p>
+          <p class="welcome-copy">正在从服务器读取这个会话的文字记录。</p>
+          <p v-if="historyError" class="message-history-error" role="alert">{{ historyError }}</p>
+        </div>
+        <div v-else-if="selectedMessages.length === 0" class="conversation-empty">
           <div class="welcome-mark" aria-hidden="true">{{ (selectedSession.contactName || 'W').slice(0, 1) }}</div>
           <p class="eyebrow">会话已同步</p>
           <h1>{{ selectedSession.contactName || selectedSession.contactId }}</h1>
           <p class="welcome-copy">还没有文字消息，发送一条消息开始对话。</p>
+          <p v-if="historyError" class="message-history-error" role="alert">{{ historyError }}</p>
         </div>
         <div v-else class="message-list" role="log" aria-label="聊天消息" aria-live="polite">
+          <p v-if="historyError" class="message-history-error" role="alert">{{ historyError }}</p>
+          <button
+            v-if="currentHistory?.hasMore"
+            class="load-older-button"
+            data-testid="load-older-messages"
+            type="button"
+            :disabled="olderMessagesLoading"
+            @click="loadOlderMessages"
+          >
+            {{ olderMessagesLoading ? '正在加载…' : '加载更早的消息' }}
+          </button>
           <article
             v-for="message in selectedMessages"
             :key="message.messageId"

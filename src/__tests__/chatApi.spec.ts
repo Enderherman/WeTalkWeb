@@ -27,4 +27,16 @@ describe('chat API', () => {
       messageType: 2,
     })
   })
+
+  it('requests older history using the message ID cursor', async () => {
+    const page = { pageNo: 1, pageSize: 30, pageTotal: 1, totalCount: 1, list: [] }
+    vi.mocked(postForm).mockResolvedValue(page)
+
+    await expect(chatApi.loadHistory('U200', 42, 30)).resolves.toEqual(page)
+    expect(postForm).toHaveBeenCalledWith('/chat/loadHistory', {
+      contactId: 'U200',
+      beforeMessageId: 42,
+      pageSize: 30,
+    })
+  })
 })

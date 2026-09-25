@@ -23,6 +23,20 @@ export interface InitialChatMessage {
   contactId: string
 }
 
+export interface ChatHistoryPage {
+  pageNo: number
+  pageSize: number
+  pageTotal: number
+  totalCount: number
+  list: InitialChatMessage[]
+}
+
+export interface SessionHistoryState {
+  beforeMessageId: number | null
+  hasMore: boolean
+  loaded: boolean
+}
+
 interface InitialData {
   chatSessionList: ChatSessionSummary[]
   chatMessageList: InitialChatMessage[]
@@ -37,6 +51,7 @@ export const useChatStore = defineStore('chat', {
     initialized: false,
     sessionList: [] as ChatSessionSummary[],
     initialMessages: [] as InitialChatMessage[],
+    historyBySession: {} as Record<string, SessionHistoryState>,
     applyCount: 0,
     connectionError: '',
   }),
@@ -64,8 +79,16 @@ export const useChatStore = defineStore('chat', {
       if (message.messageType === 0) {
         const data = message.extentData as Partial<InitialData> | null | undefined
         if (!data || !Array.isArray(data.chatSessionList) || !Array.isArray(data.chatMessageList)) return
+        const sessionIds = new Set(data.chatSessionList.map((session) => session.sessionId))
+        const retainedMessages = this.initialMessages.filter((item) => sessionIds.has(item.sessionId))
+        const merged = new Map<number, InitialChatMessage>()
+        for (const item of retainedMessages) merged.set(item.messageId, item)
+        for (const item of data.chatMessageList) merged.set(item.messageId, item)
         this.sessionList = data.chatSessionList
-        this.initialMessages = data.chatMessageList
+        this.initialMessages = [...merged.values()].sort((a, b) => a.sendTime - b.sendTime)
+        this.historyBySession = Object.fromEntries(
+          Object.entries(this.historyBySession).filter(([sessionId]) => sessionIds.has(sessionId)),
+        )
         this.applyCount = Number(data.applyCount) || 0
         this.initialized = true
         return
@@ -93,11 +116,34 @@ export const useChatStore = defineStore('chat', {
       }
       this.sessionList = [...this.sessionList].sort((a, b) => b.lastReceiveTime - a.lastReceiveTime)
     },
+    setHistoryPage(sessionId: string, page: ChatHistoryPage, appendOlder = false) {
+      const pageMessages = page.list || []
+      const existing = this.initialMessages.filter((item) => item.sessionId === sessionId)
+      const otherSessions = this.initialMessages.filter((item) => item.sessionId !== sessionId)
+      const newestPageId = pageMessages.reduce((latest, item) => Math.max(latest, item.messageId), 0)
+      const keepLiveMessages = appendOlder
+        ? existing
+        : existing.filter((item) => item.messageId > newestPageId)
+      const merged = new Map<number, InitialChatMessage>()
+      for (const item of [...pageMessages, ...keepLiveMessages]) merged.set(item.messageId, item)
+      const sessionMessages = [...merged.values()].sort((a, b) => a.sendTime - b.sendTime)
+      const previous = this.historyBySession[sessionId]
+      this.initialMessages = [...otherSessions, ...sessionMessages].sort((a, b) => a.sendTime - b.sendTime)
+      this.historyBySession = {
+        ...this.historyBySession,
+        [sessionId]: {
+          beforeMessageId: pageMessages[0]?.messageId ?? previous?.beforeMessageId ?? null,
+          hasMore: page.pageNo < page.pageTotal,
+          loaded: true,
+        },
+      }
+    },
     clear() {
       this.disconnect()
       this.initialized = false
       this.sessionList = []
       this.initialMessages = []
+      this.historyBySession = {}
       this.applyCount = 0
       this.connectionError = ''
     },

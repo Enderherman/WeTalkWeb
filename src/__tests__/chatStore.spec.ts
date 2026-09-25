@@ -76,6 +76,41 @@ describe('chat initialization state', () => {
     expect(chatStore.sessionList[0]?.lastReceiveTime).toBe(2000)
   })
 
+  it('merges older history pages in chronological order and updates the cursor', () => {
+    setActivePinia(createPinia())
+    const chatStore = useChatStore()
+    const message = (messageId: number) => ({
+      messageId,
+      sessionId: 'S100',
+      messageType: 2,
+      messageContent: `message-${messageId}`,
+      sendUserId: 'U200',
+      sendUserNickName: 'Friend',
+      sendTime: messageId * 1000,
+      contactId: 'U100',
+    })
+
+    chatStore.setHistoryPage('S100', {
+      pageNo: 1,
+      pageSize: 2,
+      pageTotal: 2,
+      totalCount: 3,
+      list: [message(2), message(3)],
+    })
+    expect(chatStore.historyBySession.S100).toEqual({ beforeMessageId: 2, hasMore: true, loaded: true })
+
+    chatStore.setHistoryPage('S100', {
+      pageNo: 1,
+      pageSize: 2,
+      pageTotal: 1,
+      totalCount: 1,
+      list: [message(1)],
+    }, true)
+
+    expect(chatStore.initialMessages.map((item) => item.messageId)).toEqual([1, 2, 3])
+    expect(chatStore.historyBySession.S100).toEqual({ beforeMessageId: 1, hasMore: false, loaded: true })
+  })
+
   it('notifies the app when the server sends a forced-offline message', () => {
     setActivePinia(createPinia())
     const chatStore = useChatStore()

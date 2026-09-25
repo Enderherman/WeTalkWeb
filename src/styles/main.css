@@ -896,6 +896,35 @@ textarea:focus-visible {
   padding: 18px 0;
 }
 
+.load-older-button {
+  align-self: center;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--wt-accent);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.load-older-button:hover:not(:disabled) {
+  background: #f1f5f2;
+}
+
+.load-older-button:disabled {
+  color: #92928c;
+  cursor: wait;
+}
+
+.message-history-error {
+  align-self: center;
+  margin: 5px 0 10px;
+  color: #a53932;
+  font-size: 12px;
+  text-align: center;
+}
+
 .message-row {
   display: flex;
   justify-content: flex-start;

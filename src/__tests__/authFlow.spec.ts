@@ -27,6 +27,7 @@ vi.mock('@/api/auth', () => ({
 vi.mock('@/api/chat', () => ({
   chatApi: {
     sendTextMessage: vi.fn(),
+    loadHistory: vi.fn(),
   },
 }))
 
@@ -88,6 +89,13 @@ beforeEach(() => {
     admin: false,
   })
   vi.mocked(authApi.updatePassword).mockResolvedValue(undefined)
+  vi.mocked(chatApi.loadHistory).mockResolvedValue({
+    pageNo: 1,
+    pageSize: 30,
+    pageTotal: 1,
+    totalCount: 0,
+    list: [],
+  })
 })
 
 describe('authentication flow', () => {
@@ -285,6 +293,48 @@ describe('authentication flow', () => {
     expect(chatApi.sendTextMessage).toHaveBeenCalledWith('U200', 'Hello from the web')
     expect(chatStore.initialMessages).toContainEqual(sentMessage)
     expect(wrapper.get('[data-testid="message-101"]').text()).toContain('Hello from the web')
+  })
+
+  it('loads older messages with a cursor and preserves chronological order', async () => {
+    const message = (messageId: number) => ({
+      messageId,
+      sessionId: 'S200',
+      messageType: 2,
+      messageContent: `Message ${messageId}`,
+      sendUserId: 'U200',
+      sendUserNickName: 'Friend',
+      sendTime: messageId * 1000,
+      contactId: 'U100',
+    })
+    vi.mocked(chatApi.loadHistory)
+      .mockResolvedValueOnce({ pageNo: 1, pageSize: 2, pageTotal: 2, totalCount: 3, list: [message(2), message(3)] })
+      .mockResolvedValueOnce({ pageNo: 1, pageSize: 2, pageTotal: 1, totalCount: 1, list: [message(1)] })
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200',
+          contactId: 'U200',
+          contactName: 'Friend',
+          lastMessage: 'Message 3',
+          lastReceiveTime: 3000,
+          contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+
+    expect(chatApi.loadHistory).toHaveBeenCalledWith('U200')
+    expect(wrapper.find('[data-testid="message-2"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="load-older-messages"]').trigger('click')
+    await flushPromises()
+
+    expect(chatApi.loadHistory).toHaveBeenLastCalledWith('U200', 2)
+    expect(chatStore.initialMessages.map((item) => item.messageId)).toEqual([1, 2, 3])
+    expect(wrapper.text()).toContain('Message 1')
   })
 
   it('rejects mismatched passwords before calling the backend', async () => {

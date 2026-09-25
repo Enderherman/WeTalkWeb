@@ -1,5 +1,5 @@
 import { postForm } from '@/api/http'
-import type { InitialChatMessage } from '@/stores/chat'
+import type { ChatHistoryPage, InitialChatMessage } from '@/stores/chat'
 
 export const chatApi = {
   sendTextMessage: (contactId: string, messageContent: string): Promise<InitialChatMessage> =>
@@ -8,4 +8,10 @@ export const chatApi = {
       messageContent,
       messageType: 2,
     }),
+  loadHistory: (
+    contactId: string,
+    beforeMessageId: number | null = null,
+    pageSize = 30,
+  ): Promise<ChatHistoryPage> =>
+    postForm<ChatHistoryPage>('/chat/loadHistory', { contactId, beforeMessageId, pageSize }),
 }
