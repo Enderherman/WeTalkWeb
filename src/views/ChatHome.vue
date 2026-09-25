@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import { textMessageCache } from '@/storage/textMessageCache'
 import { validatePassword } from '@/utils/authValidation'
+import { formatMessageTimeDivider, shouldShowMessageTime } from '@/utils/messageTime'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -375,21 +376,28 @@ async function signOut() {
           >
             {{ olderMessagesLoading ? '正在加载…' : '加载更早的消息' }}
           </button>
-          <article
-            v-for="message in selectedMessages"
-            :key="message.messageId"
-            class="message-row"
-            :class="{ 'is-mine': message.sendUserId === authStore.session?.userId }"
-            :data-testid="`message-${message.messageId}`"
-          >
-            <div class="message-bubble">
-              <strong v-if="message.sendUserId !== authStore.session?.userId" class="message-sender">
-                {{ message.sendUserNickName }}
-              </strong>
-              <p>{{ message.messageContent }}</p>
-              <time>{{ formatMessageTime(message.sendTime) }}</time>
-            </div>
-          </article>
+          <template v-for="(message, index) in selectedMessages" :key="message.messageId">
+            <time
+              v-if="shouldShowMessageTime(message, selectedMessages[index - 1])"
+              class="message-time-divider"
+              :datetime="new Date(message.sendTime).toISOString()"
+            >
+              {{ formatMessageTimeDivider(message.sendTime) }}
+            </time>
+            <article
+              class="message-row"
+              :class="{ 'is-mine': message.sendUserId === authStore.session?.userId }"
+              :data-testid="`message-${message.messageId}`"
+            >
+              <div class="message-bubble">
+                <strong v-if="message.sendUserId !== authStore.session?.userId" class="message-sender">
+                  {{ message.sendUserNickName }}
+                </strong>
+                <p>{{ message.messageContent }}</p>
+                <time>{{ formatMessageTime(message.sendTime) }}</time>
+              </div>
+            </article>
+          </template>
         </div>
       </div>
 
