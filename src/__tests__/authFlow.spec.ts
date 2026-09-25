@@ -4,6 +4,8 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { authApi } from '@/api/auth'
 import type { AuthUser } from '@/api/auth'
+import App from '@/App.vue'
+import { AUTH_EXPIRED_EVENT } from '@/utils/authEvents'
 import AuthView from '@/views/AuthView.vue'
 import ChatHome from '@/views/ChatHome.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -84,6 +86,32 @@ describe('authentication flow', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('密码已修改，请使用新密码登录')
+  })
+
+  it('clears an expired session and shows the re-login notice', async () => {
+    const pinia = createPinia()
+    const router = createTestRouter()
+    const authStore = useAuthStore(pinia)
+    authStore.setSession({
+      token: 'expired-token',
+      userId: 'U100',
+      email: 'student@example.com',
+      nickName: 'Student',
+      admin: false,
+    })
+    await router.push('/chat')
+    const wrapper = mount(App, { global: { plugins: [pinia, router] } })
+    await flushPromises()
+
+    window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
+    window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
+    await flushPromises()
+
+    expect(authStore.session).toBeNull()
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(router.currentRoute.value.query.expired).toBe('1')
+    expect(wrapper.text()).toContain('登录状态已过期，请重新登录')
+    wrapper.unmount()
   })
 
   it('loads the backend image captcha on the login page', async () => {

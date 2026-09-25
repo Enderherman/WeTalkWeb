@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { readStoredSession } from '@/stores/auth'
+import { notifySessionExpired } from '@/utils/authEvents'
 
 export interface BaseResponse<T> {
   status: string
@@ -16,6 +17,14 @@ export class ApiError extends Error {
     super(message)
     this.name = 'ApiError'
   }
+}
+
+export function unwrapResponse<T>(response: BaseResponse<T>): T {
+  if (response.code !== 200) {
+    if (response.code === 901) notifySessionExpired()
+    throw new ApiError(response.message || '请求失败', response.code)
+  }
+  return response.data
 }
 
 const client = axios.create({
@@ -42,14 +51,12 @@ export async function postForm<T>(
     const response = await client.post<BaseResponse<T>>(path, body, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
     })
-    if (response.data.code !== 200) {
-      throw new ApiError(response.data.message || '请求失败', response.data.code)
-    }
-    return response.data.data
+    return unwrapResponse(response.data)
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error
     if (axios.isAxiosError(error)) {
       const responseBody = error.response?.data as Partial<BaseResponse<unknown>> | undefined
+      if (responseBody?.code === 901) notifySessionExpired()
       throw new ApiError(
         typeof responseBody?.message === 'string' ? responseBody.message : '连接服务器失败，请稍后重试',
         typeof responseBody?.code === 'number' ? responseBody.code : null,

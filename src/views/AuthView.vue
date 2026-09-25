@@ -13,6 +13,7 @@ const authStore = useAuthStore()
 const isRegister = computed(() => route.name === 'register')
 const registeredNotice = computed(() => route.query.registered === '1')
 const passwordUpdatedNotice = computed(() => route.query.passwordUpdated === '1')
+const expiredNotice = computed(() => route.query.expired === '1')
 const form = reactive({ email: '', nickName: '', password: '', confirmPassword: '', checkCode: '' })
 const fieldErrors = ref<Record<string, string>>({})
 const pageError = ref('')
@@ -132,6 +133,7 @@ function toSession(user: AuthUser, emailFallback: string) {
 
       <p v-if="registeredNotice" class="notice notice-success" role="status">注册成功，请登录</p>
       <p v-if="passwordUpdatedNotice" class="notice notice-success" role="status">密码已修改，请使用新密码登录</p>
+      <p v-if="expiredNotice" class="notice notice-error" role="status">登录状态已过期，请重新登录</p>
       <p v-if="pageError" class="notice notice-error" role="alert">{{ pageError }}</p>
 
       <form class="auth-form" novalidate @submit.prevent="submit">
