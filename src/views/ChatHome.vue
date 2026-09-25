@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { authApi } from '@/api/auth'
 import type { UserProfile } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
+import { useChatStore } from '@/stores/chat'
 import { validatePassword } from '@/utils/authValidation'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const chatStore = useChatStore()
 const sidebarOpen = ref(false)
 const signingOut = ref(false)
+const selectedSessionId = ref('')
 const profileOpen = ref(false)
 const profileLoading = ref(false)
 const profileError = ref('')
@@ -20,10 +23,44 @@ const changingPassword = ref(false)
 
 const displayName = computed(() => profile.value?.nickName || authStore.session?.nickName || 'WeTalk 用户')
 const avatarInitial = computed(() => displayName.value.slice(0, 1).toUpperCase())
+const selectedSession = computed(
+  () => chatStore.sessionList.find((session) => session.sessionId === selectedSessionId.value) || null,
+)
+const selectedMessageCount = computed(
+  () => chatStore.initialMessages.filter((message) => message.sessionId === selectedSessionId.value).length,
+)
+const connectionLabel = computed(() => {
+  switch (chatStore.connectionStatus) {
+    case 'connected':
+      return '实时已连接'
+    case 'connecting':
+      return '正在连接'
+    case 'reconnecting':
+      return '正在重连'
+    case 'offline':
+      return '连接中断'
+    default:
+      return '未连接'
+  }
+})
+
+watch(
+  () => chatStore.sessionList,
+  (sessions) => {
+    if (!sessions.some((session) => session.sessionId === selectedSessionId.value)) {
+      selectedSessionId.value = sessions[0]?.sessionId || ''
+    }
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   void loadProfile()
+  const token = authStore.session?.token
+  if (token) chatStore.connect(token)
 })
+
+onBeforeUnmount(() => chatStore.disconnect())
 
 async function loadProfile() {
   profileLoading.value = true
@@ -121,7 +158,29 @@ async function signOut() {
 
       <section class="history-section" aria-label="聊天记录">
         <p class="sidebar-label">最近的聊天</p>
-        <p class="history-empty">聊天记录接入后会显示在这里</p>
+        <p v-if="!chatStore.initialized" class="history-empty">
+          {{ chatStore.connectionError || connectionLabel }}
+        </p>
+        <p v-else-if="chatStore.sessionList.length === 0" class="history-empty">还没有聊天会话</p>
+        <div v-else class="chat-session-list">
+          <button
+            v-for="session in chatStore.sessionList"
+            :key="session.sessionId"
+            class="chat-session-entry"
+            :class="{ 'is-active': session.sessionId === selectedSessionId }"
+            type="button"
+            @click="selectedSessionId = session.sessionId"
+          >
+            <span class="session-avatar" aria-hidden="true">{{ (session.contactName || 'W').slice(0, 1) }}</span>
+            <span class="session-entry-copy">
+              <strong>{{ session.contactName || session.contactId }}</strong>
+              <small>{{ session.lastMessage || '开始一段新对话' }}</small>
+            </span>
+          </button>
+        </div>
+        <p v-if="chatStore.initialized && chatStore.applyCount > 0" class="pending-apply-count">
+          好友申请 {{ chatStore.applyCount }}
+        </p>
       </section>
 
       <div class="sidebar-bottom">
@@ -157,21 +216,36 @@ async function signOut() {
         <button class="icon-button mobile-menu-open" type="button" aria-label="打开导航菜单" @click="sidebarOpen = true">
           ☰
         </button>
-        <span>WeTalk</span>
+        <span class="chat-topbar-title">{{ selectedSession?.contactName || 'WeTalk' }}</span>
+        <span class="connection-status" :class="`is-${chatStore.connectionStatus}`" data-testid="connection-status">
+          <i aria-hidden="true"></i>{{ connectionLabel }}
+        </span>
       </header>
 
-      <div class="chat-welcome">
+      <div v-if="selectedSession" class="chat-welcome">
+        <div class="welcome-mark" aria-hidden="true">{{ (selectedSession.contactName || 'W').slice(0, 1) }}</div>
+        <p class="eyebrow">会话已同步</p>
+        <h1>{{ selectedSession.contactName || selectedSession.contactId }}</h1>
+        <p class="welcome-copy">
+          已同步 {{ selectedMessageCount }} 条最近消息。历史分页和消息发送会在下一阶段接入。
+        </p>
+        <p v-if="selectedSession.lastMessage" class="last-message-preview">{{ selectedSession.lastMessage }}</p>
+      </div>
+
+      <div v-else class="chat-welcome">
         <div class="welcome-mark" aria-hidden="true">W</div>
-        <p class="eyebrow">账号已登录</p>
+        <p class="eyebrow">{{ chatStore.initialized ? '会话已同步' : connectionLabel }}</p>
         <h1>今天想聊点什么？</h1>
-        <p class="welcome-copy">聊天会话和实时消息正在接入。你的账号入口已经准备好。</p>
+        <p class="welcome-copy">
+          {{ chatStore.initialized ? '当前还没有聊天会话。' : '正在从服务器同步会话和最近消息。' }}
+        </p>
       </div>
 
       <div class="composer-preview" aria-label="聊天输入框预览">
         <textarea disabled rows="1" placeholder="聊天发送会在下一阶段接入"></textarea>
         <button class="composer-send" type="button" disabled aria-label="发送消息">↑</button>
       </div>
-      <p class="chat-disclaimer">当前切片完成账号认证；聊天功能将在后续阶段启用。</p>
+      <p class="chat-disclaimer">实时连接与会话初始化已接入；消息查看、历史分页和发送功能仍在开发中。</p>
     </section>
 
     <div v-if="profileOpen" class="profile-overlay" data-testid="profile-overlay" @click.self="closeProfile">

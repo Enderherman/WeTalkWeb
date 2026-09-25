@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { authApi } from '@/api/auth'
 import type { AuthUser } from '@/api/auth'
 import App from '@/App.vue'
+import { createRealtimeClient } from '@/api/realtime'
 import { AUTH_EXPIRED_EVENT } from '@/utils/authEvents'
 import AuthView from '@/views/AuthView.vue'
 import ChatHome from '@/views/ChatHome.vue'
@@ -19,6 +20,10 @@ vi.mock('@/api/auth', () => ({
     updatePassword: vi.fn(),
     logout: vi.fn(),
   },
+}))
+
+vi.mock('@/api/realtime', () => ({
+  createRealtimeClient: vi.fn(() => ({ disconnect: vi.fn() })),
 }))
 
 function createTestRouter() {
@@ -221,6 +226,18 @@ describe('authentication flow', () => {
     expect(wrapper.get('.profile-dialog').text()).toContain('Current Name')
     expect(authStore.session?.nickName).toBe('Current Name')
     expect(authStore.session?.admin).toBe(true)
+  })
+
+  it('starts a realtime connection with the active session token', async () => {
+    await mountChat()
+
+    expect(createRealtimeClient).toHaveBeenCalledWith(
+      'web-token',
+      expect.objectContaining({
+        onMessage: expect.any(Function),
+        onStatus: expect.any(Function),
+      }),
+    )
   })
 
   it('rejects mismatched passwords before calling the backend', async () => {

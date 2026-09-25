@@ -437,6 +437,72 @@ textarea:focus-visible {
   line-height: 1.5;
 }
 
+.chat-session-list {
+  display: grid;
+  gap: 3px;
+}
+
+.chat-session-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 0;
+  border-radius: 12px;
+  color: var(--wt-text);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat-session-entry:hover,
+.chat-session-entry.is-active {
+  background: #ecece9;
+}
+
+.session-avatar {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #315d4e;
+  background: #e2ebe5;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.session-entry-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.session-entry-copy strong,
+.session-entry-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-entry-copy strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.session-entry-copy small {
+  color: var(--wt-muted);
+  font-size: 11px;
+}
+
+.pending-apply-count {
+  margin: 14px 8px 0;
+  color: #777772;
+  font-size: 11px;
+}
+
 .sidebar-bottom {
   gap: 10px;
   min-width: 0;
@@ -723,6 +789,43 @@ textarea:focus-visible {
   font-weight: 600;
 }
 
+.chat-topbar-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connection-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  color: #85857f;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.connection-status i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #b2b2ad;
+}
+
+.connection-status.is-connected i {
+  background: #3b8a66;
+}
+
+.connection-status.is-reconnecting i,
+.connection-status.is-connecting i {
+  background: #d7a94a;
+}
+
+.connection-status.is-offline i {
+  background: #b94a43;
+}
+
 .mobile-menu-open,
 .mobile-menu-close,
 .sidebar-backdrop {
@@ -761,6 +864,19 @@ textarea:focus-visible {
   color: var(--wt-muted);
   font-size: 14px;
   line-height: 1.65;
+}
+
+.last-message-preview {
+  max-width: min(100%, 560px);
+  margin: 20px 0 0;
+  padding: 13px 18px;
+  border: 1px solid #ecece8;
+  border-radius: 16px;
+  color: #5c5c57;
+  background: #fafaf8;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 .composer-preview {
