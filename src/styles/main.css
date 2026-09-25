@@ -67,6 +67,87 @@ textarea:focus-visible {
   font-weight: 700;
 }
 
+.not-found-page {
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 76px 22px 58px;
+  background: #fafaf8;
+}
+
+.not-found-brand {
+  position: absolute;
+  top: max(24px, env(safe-area-inset-top));
+  left: max(30px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--wt-text);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.not-found-content {
+  width: min(100%, 620px);
+  text-align: center;
+}
+
+.not-found-code {
+  margin: 0 0 16px;
+  color: var(--wt-accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.not-found-content h1 {
+  margin: 0;
+  color: var(--wt-text);
+  font-size: clamp(28px, 5vw, 42px);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1.2;
+}
+
+.not-found-content > p:not(.not-found-code) {
+  max-width: 440px;
+  margin: 18px auto 0;
+  color: var(--wt-muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.not-found-action {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 27px;
+  padding: 0 20px;
+  border-radius: 14px;
+  color: #fff;
+  background: var(--wt-accent);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 140ms ease;
+}
+
+.not-found-action:hover {
+  background: var(--wt-accent-hover);
+}
+
+.not-found-footer {
+  position: absolute;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  color: #a1a19b;
+  font-size: 11px;
+}
+
 .eyebrow {
   margin: 0 0 10px;
   color: var(--wt-muted);
@@ -732,6 +813,19 @@ textarea:focus-visible {
 }
 
 @media (max-width: 760px) {
+  .not-found-page {
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+
+  .not-found-brand {
+    left: max(20px, env(safe-area-inset-left));
+  }
+
+  .not-found-content > p:not(.not-found-code) {
+    font-size: 14px;
+  }
+
   .auth-page {
     padding-right: 18px;
     padding-left: 18px;
