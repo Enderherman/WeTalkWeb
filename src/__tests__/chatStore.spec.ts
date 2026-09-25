@@ -45,6 +45,37 @@ describe('chat initialization state', () => {
     expect(chatStore.applyCount).toBe(2)
   })
 
+  it('adds a live text message once and updates its session summary', () => {
+    setActivePinia(createPinia())
+    const chatStore = useChatStore()
+    const session = {
+      sessionId: 'S100',
+      contactId: 'U200',
+      contactName: 'Friend',
+      lastMessage: '',
+      lastReceiveTime: 1000,
+      contactType: 0,
+    }
+    chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [session], chatMessageList: [], applyCount: 0 } })
+    const message = {
+      messageId: 12,
+      sessionId: 'S100',
+      messageType: 2,
+      messageContent: 'Hi there',
+      sendUserId: 'U200',
+      sendUserNickName: 'Friend',
+      sendTime: 2000,
+      contactId: 'U100',
+    }
+
+    chatStore.receiveMessage(message)
+    chatStore.receiveMessage(message)
+
+    expect(chatStore.initialMessages).toHaveLength(1)
+    expect(chatStore.sessionList[0]?.lastMessage).toBe('Friend: Hi there')
+    expect(chatStore.sessionList[0]?.lastReceiveTime).toBe(2000)
+  })
+
   it('notifies the app when the server sends a forced-offline message', () => {
     setActivePinia(createPinia())
     const chatStore = useChatStore()

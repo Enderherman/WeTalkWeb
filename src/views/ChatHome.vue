@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { authApi } from '@/api/auth'
 import type { UserProfile } from '@/api/auth'
+import { chatApi } from '@/api/chat'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import { validatePassword } from '@/utils/authValidation'
@@ -26,9 +27,16 @@ const avatarInitial = computed(() => displayName.value.slice(0, 1).toUpperCase()
 const selectedSession = computed(
   () => chatStore.sessionList.find((session) => session.sessionId === selectedSessionId.value) || null,
 )
-const selectedMessageCount = computed(
-  () => chatStore.initialMessages.filter((message) => message.sessionId === selectedSessionId.value).length,
+const selectedMessages = computed(() =>
+  chatStore.initialMessages
+    .filter((message) => message.sessionId === selectedSessionId.value && message.messageType === 2)
+    .sort((a, b) => a.sendTime - b.sendTime)
+    .slice(-80),
 )
+const messageDraft = ref('')
+const sendingMessage = ref(false)
+const messageError = ref('')
+const messagePanel = ref<HTMLElement | null>(null)
 const connectionLabel = computed(() => {
   switch (chatStore.connectionStatus) {
     case 'connected':
@@ -53,6 +61,11 @@ watch(
   },
   { immediate: true },
 )
+
+watch(selectedMessages, async () => {
+  await nextTick()
+  if (messagePanel.value) messagePanel.value.scrollTop = messagePanel.value.scrollHeight
+})
 
 onMounted(() => {
   void loadProfile()
@@ -114,6 +127,27 @@ async function changePassword() {
   } finally {
     changingPassword.value = false
   }
+}
+
+async function sendTextMessage() {
+  const content = messageDraft.value.trim()
+  if (!selectedSession.value || !content || sendingMessage.value) return
+
+  sendingMessage.value = true
+  messageError.value = ''
+  try {
+    const message = await chatApi.sendTextMessage(selectedSession.value.contactId, content)
+    chatStore.appendMessage(message, true)
+    messageDraft.value = ''
+  } catch (error: unknown) {
+    messageError.value = error instanceof Error ? error.message : '消息发送失败，请稍后重试'
+  } finally {
+    sendingMessage.value = false
+  }
+}
+
+function formatMessageTime(sendTime: number) {
+  return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(sendTime))
 }
 
 async function signOut() {
@@ -222,14 +256,30 @@ async function signOut() {
         </span>
       </header>
 
-      <div v-if="selectedSession" class="chat-welcome">
-        <div class="welcome-mark" aria-hidden="true">{{ (selectedSession.contactName || 'W').slice(0, 1) }}</div>
-        <p class="eyebrow">会话已同步</p>
-        <h1>{{ selectedSession.contactName || selectedSession.contactId }}</h1>
-        <p class="welcome-copy">
-          已同步 {{ selectedMessageCount }} 条最近消息。历史分页和消息发送会在下一阶段接入。
-        </p>
-        <p v-if="selectedSession.lastMessage" class="last-message-preview">{{ selectedSession.lastMessage }}</p>
+      <div v-if="selectedSession" ref="messagePanel" class="conversation-panel" data-testid="message-panel">
+        <div v-if="selectedMessages.length === 0" class="conversation-empty">
+          <div class="welcome-mark" aria-hidden="true">{{ (selectedSession.contactName || 'W').slice(0, 1) }}</div>
+          <p class="eyebrow">会话已同步</p>
+          <h1>{{ selectedSession.contactName || selectedSession.contactId }}</h1>
+          <p class="welcome-copy">还没有文字消息，发送一条消息开始对话。</p>
+        </div>
+        <div v-else class="message-list" role="log" aria-label="聊天消息" aria-live="polite">
+          <article
+            v-for="message in selectedMessages"
+            :key="message.messageId"
+            class="message-row"
+            :class="{ 'is-mine': message.sendUserId === authStore.session?.userId }"
+            :data-testid="`message-${message.messageId}`"
+          >
+            <div class="message-bubble">
+              <strong v-if="message.sendUserId !== authStore.session?.userId" class="message-sender">
+                {{ message.sendUserNickName }}
+              </strong>
+              <p>{{ message.messageContent }}</p>
+              <time>{{ formatMessageTime(message.sendTime) }}</time>
+            </div>
+          </article>
+        </div>
       </div>
 
       <div v-else class="chat-welcome">
@@ -241,11 +291,29 @@ async function signOut() {
         </p>
       </div>
 
-      <div class="composer-preview" aria-label="聊天输入框预览">
-        <textarea disabled rows="1" placeholder="聊天发送会在下一阶段接入"></textarea>
-        <button class="composer-send" type="button" disabled aria-label="发送消息">↑</button>
+      <p v-if="messageError" class="composer-error" role="alert">{{ messageError }}</p>
+      <div class="composer-preview" aria-label="聊天输入框">
+        <textarea
+          v-model="messageDraft"
+          :disabled="!selectedSession || sendingMessage"
+          rows="2"
+          maxlength="500"
+          placeholder="发送文字消息，Enter 发送，Shift+Enter 换行"
+          data-testid="message-composer"
+          @keydown.enter.exact.prevent="sendTextMessage"
+        ></textarea>
+        <button
+          class="composer-send"
+          type="button"
+          :disabled="!selectedSession || !messageDraft.trim() || sendingMessage"
+          aria-label="发送消息"
+          data-testid="send-message"
+          @click="sendTextMessage"
+        >
+          ↑
+        </button>
       </div>
-      <p class="chat-disclaimer">实时连接与会话初始化已接入；消息查看、历史分页和发送功能仍在开发中。</p>
+      <p class="chat-disclaimer">文字消息通过 WeTalk 后端保存并实时同步；历史分页和本地缓存仍在开发中。</p>
     </section>
 
     <div v-if="profileOpen" class="profile-overlay" data-testid="profile-overlay" @click.self="closeProfile">

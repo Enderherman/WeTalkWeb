@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { chatApi } from '@/api/chat'
 import { authApi } from '@/api/auth'
 import type { AuthUser } from '@/api/auth'
 import App from '@/App.vue'
@@ -9,6 +10,7 @@ import { createRealtimeClient } from '@/api/realtime'
 import { AUTH_EXPIRED_EVENT } from '@/utils/authEvents'
 import AuthView from '@/views/AuthView.vue'
 import ChatHome from '@/views/ChatHome.vue'
+import { useChatStore } from '@/stores/chat'
 import { useAuthStore } from '@/stores/auth'
 
 vi.mock('@/api/auth', () => ({
@@ -19,6 +21,12 @@ vi.mock('@/api/auth', () => ({
     getUserInfo: vi.fn(),
     updatePassword: vi.fn(),
     logout: vi.fn(),
+  },
+}))
+
+vi.mock('@/api/chat', () => ({
+  chatApi: {
+    sendTextMessage: vi.fn(),
   },
 }))
 
@@ -53,6 +61,7 @@ async function mountChat() {
   await router.push('/chat')
   await router.isReady()
   const authStore = useAuthStore(pinia)
+  const chatStore = useChatStore(pinia)
   authStore.setSession({
     token: 'web-token',
     userId: 'U100',
@@ -62,7 +71,7 @@ async function mountChat() {
   })
   const wrapper = mount(ChatHome, { global: { plugins: [pinia, router] } })
   await flushPromises()
-  return { wrapper, router, pinia, authStore }
+  return { wrapper, router, pinia, authStore, chatStore }
 }
 
 beforeEach(() => {
@@ -238,6 +247,44 @@ describe('authentication flow', () => {
         onStatus: expect.any(Function),
       }),
     )
+  })
+
+  it('sends a selected-session text message and adds the saved message to the view', async () => {
+    const sentMessage = {
+      messageId: 101,
+      sessionId: 'S200',
+      messageType: 2,
+      messageContent: 'Hello from the web',
+      sendUserId: 'U100',
+      sendUserNickName: 'Old Name',
+      sendTime: 2000,
+      contactId: 'U200',
+    }
+    vi.mocked(chatApi.sendTextMessage).mockResolvedValue(sentMessage)
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200',
+          contactId: 'U200',
+          contactName: 'Friend',
+          lastMessage: '',
+          lastReceiveTime: 1000,
+          contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+    await wrapper.get('[data-testid="message-composer"]').setValue('Hello from the web')
+    await wrapper.get('[data-testid="send-message"]').trigger('click')
+    await flushPromises()
+
+    expect(chatApi.sendTextMessage).toHaveBeenCalledWith('U200', 'Hello from the web')
+    expect(chatStore.initialMessages).toContainEqual(sentMessage)
+    expect(wrapper.get('[data-testid="message-101"]').text()).toContain('Hello from the web')
   })
 
   it('rejects mismatched passwords before calling the backend', async () => {

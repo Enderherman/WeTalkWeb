@@ -866,17 +866,90 @@ textarea:focus-visible {
   line-height: 1.65;
 }
 
-.last-message-preview {
-  max-width: min(100%, 560px);
-  margin: 20px 0 0;
-  padding: 13px 18px;
-  border: 1px solid #ecece8;
-  border-radius: 16px;
-  color: #5c5c57;
-  background: #fafaf8;
-  font-size: 13px;
-  line-height: 1.55;
+.conversation-panel {
+  display: flex;
+  width: min(100% - 36px, 720px);
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 0 10px;
+}
+
+.conversation-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0 20px;
+  text-align: center;
+}
+
+.message-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 15px;
+  padding: 18px 0;
+}
+
+.message-row {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.message-row.is-mine {
+  justify-content: flex-end;
+}
+
+.message-bubble {
+  max-width: min(84%, 650px);
+  padding: 11px 15px 8px;
+  border: 1px solid #ededeb;
+  border-radius: 17px;
+  color: var(--wt-text);
+  background: #f7f7f5;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 2%);
+}
+
+.message-row.is-mine .message-bubble {
+  border-color: #e0ebe4;
+  background: #edf4ef;
+}
+
+.message-sender {
+  display: block;
+  margin-bottom: 5px;
+  color: #577365;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.message-bubble p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.message-bubble time {
+  display: block;
+  margin-top: 6px;
+  color: #92928c;
+  font-size: 10px;
+  text-align: right;
+}
+
+.composer-error {
+  width: min(100% - 36px, 720px);
+  margin: 0 0 8px;
+  color: #a53932;
+  font-size: 12px;
 }
 
 .composer-preview {
@@ -895,7 +968,8 @@ textarea:focus-visible {
 
 .composer-preview textarea {
   width: 100%;
-  min-height: 30px;
+  min-height: 42px;
+  max-height: 160px;
   resize: none;
   border: 0;
   outline: 0;
@@ -1000,9 +1074,17 @@ textarea:focus-visible {
     padding-top: 18px;
   }
 
+  .conversation-panel {
+    width: calc(100% - 28px);
+  }
+
   .composer-preview {
     width: calc(100% - 24px);
     margin-bottom: 4px;
+  }
+
+  .composer-error {
+    width: calc(100% - 24px);
   }
 
   .profile-overlay {

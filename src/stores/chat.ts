@@ -71,10 +71,27 @@ export const useChatStore = defineStore('chat', {
         return
       }
 
+      if (message.messageType === 2) {
+        this.appendMessage(message as unknown as InitialChatMessage, false)
+        return
+      }
+
       if (message.messageType === 7) {
         this.disconnect()
         if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
       }
+    },
+    appendMessage(message: InitialChatMessage, sentByCurrentUser: boolean) {
+      if (this.initialMessages.some((item) => item.messageId === message.messageId)) return
+      this.initialMessages = [...this.initialMessages, message].sort((a, b) => a.sendTime - b.sendTime)
+      const session = this.sessionList.find((item) => item.sessionId === message.sessionId)
+      if (session) {
+        session.lastMessage = sentByCurrentUser
+          ? message.messageContent
+          : `${message.sendUserNickName}: ${message.messageContent}`
+        session.lastReceiveTime = message.sendTime
+      }
+      this.sessionList = [...this.sessionList].sort((a, b) => b.lastReceiveTime - a.lastReceiveTime)
     },
     clear() {
       this.disconnect()
