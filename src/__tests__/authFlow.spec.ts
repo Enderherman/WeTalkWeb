@@ -40,7 +40,9 @@ vi.mock('@/api/contacts', () => ({
     loadApplications: vi.fn(),
     handleApplication: vi.fn(),
     loadContacts: vi.fn(),
+    loadOwnedGroups: vi.fn(),
     getContactUserInfo: vi.fn(),
+    getGroupInfo: vi.fn(),
     deleteContact: vi.fn(),
     blockContact: vi.fn(),
   },
@@ -107,7 +109,11 @@ beforeEach(() => {
   vi.mocked(contactApi.loadApplications).mockResolvedValue({ totalCount: 0, pageSize: 15, pageNo: 1, pageTotal: 0, list: [] })
   vi.mocked(contactApi.handleApplication).mockResolvedValue(null)
   vi.mocked(contactApi.loadContacts).mockResolvedValue([])
+  vi.mocked(contactApi.loadOwnedGroups).mockResolvedValue([])
   vi.mocked(contactApi.getContactUserInfo).mockResolvedValue({ userId: 'U200' })
+  vi.mocked(contactApi.getGroupInfo).mockResolvedValue({
+    groupId: 'G300', groupName: 'Group', groupOwnId: 'U100', joinType: 1, status: 1, memberCount: 1,
+  })
   vi.mocked(contactApi.deleteContact).mockResolvedValue(null)
   vi.mocked(contactApi.blockContact).mockResolvedValue(null)
   vi.mocked(chatApi.loadHistory).mockResolvedValue({
@@ -465,5 +471,14 @@ describe('authentication flow', () => {
 
     expect(wrapper.find('[data-testid="contact-directory-overlay"]').exists()).toBe(true)
     expect(contactApi.loadContacts).toHaveBeenCalledWith('USER')
+  })
+
+  it('opens the group directory from the chat sidebar', async () => {
+    const { wrapper } = await mountChat()
+    await wrapper.get('[data-testid="open-group-directory"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="group-directory-overlay"]').exists()).toBe(true)
+    expect(contactApi.loadContacts).toHaveBeenCalledWith('GROUP')
   })
 })

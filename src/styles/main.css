@@ -437,7 +437,8 @@ textarea:focus-visible {
 }
 
 .contact-add-button,
-.contact-directory-button {
+.contact-directory-button,
+.group-directory-button {
   margin-top: 8px;
   color: var(--wt-text);
   cursor: pointer;
@@ -446,7 +447,9 @@ textarea:focus-visible {
 .contact-add-button:hover,
 .contact-add-button:focus-visible,
 .contact-directory-button:hover,
-.contact-directory-button:focus-visible {
+.contact-directory-button:focus-visible,
+.group-directory-button:hover,
+.group-directory-button:focus-visible {
   border-color: #d5ddd7;
   background: #f0f4f1;
 }
@@ -1119,6 +1122,61 @@ textarea:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.group-directory-dialog {
+  width: min(100%, 760px);
+}
+
+.group-directory-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(220px, 0.9fr);
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.group-directory-list {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.group-directory-entry {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid #ecece8;
+  border-radius: 14px;
+  color: var(--wt-text);
+  background: #fbfbfa;
+  text-align: left;
+  cursor: pointer;
+}
+
+.group-directory-entry:hover,
+.group-directory-entry.is-selected {
+  border-color: #cad9ce;
+  background: #f5f8f5;
+}
+
+.group-directory-avatar {
+  display: grid;
+  width: 39px;
+  height: 39px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 13px;
+  color: #315d4e;
+  background: #e2ebe5;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.group-notice-row dd {
+  white-space: pre-wrap;
+}
+
 .profile-dialog-header {
   display: flex;
   align-items: flex-start;
@@ -1701,6 +1759,10 @@ textarea:focus-visible {
   }
 
   .contact-directory-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .group-directory-layout {
     grid-template-columns: minmax(0, 1fr);
   }
 }

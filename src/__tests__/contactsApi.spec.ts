@@ -63,4 +63,20 @@ describe('contact API', () => {
     expect(postForm).toHaveBeenNthCalledWith(2, '/contact/delContact', { contactId: 'U200' })
     expect(postForm).toHaveBeenNthCalledWith(3, '/contact/addContact2BlackList', { contactId: 'U200' })
   })
+
+  it('loads group details by group ID', async () => {
+    const group = { groupId: 'G300', groupName: 'Student Group', groupOwnId: 'U100', joinType: 1, status: 1, memberCount: 5 }
+    vi.mocked(postForm).mockResolvedValue(group)
+
+    await expect(contactApi.getGroupInfo('G300')).resolves.toEqual(group)
+    expect(postForm).toHaveBeenCalledWith('/group/getGroupInfo', { groupId: 'G300' })
+  })
+
+  it('loads groups owned by the current user', async () => {
+    const groups = [{ groupId: 'G300', groupName: 'Student Group', groupOwnId: 'U100', joinType: 1, status: 1, memberCount: 5 }]
+    vi.mocked(postForm).mockResolvedValue(groups)
+
+    await expect(contactApi.loadOwnedGroups()).resolves.toEqual(groups)
+    expect(postForm).toHaveBeenCalledWith('/group/loadMyGroup', {})
+  })
 })

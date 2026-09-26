@@ -52,6 +52,17 @@ export interface ContactProfile {
   contactStatus?: number | null
 }
 
+export interface GroupProfile {
+  groupId: string
+  groupName: string
+  groupOwnId: string
+  createTime?: string | null
+  groupNotice?: string | null
+  joinType: 0 | 1
+  status: number
+  memberCount: number
+}
+
 export const contactApi = {
   search: (contactId: string): Promise<ContactSearchResult | null> =>
     postForm<ContactSearchResult | null>('/contact/search', { contactId }),
@@ -63,8 +74,12 @@ export const contactApi = {
     postForm<null>('/contact/dealWithApply', { applyId, status }),
   loadContacts: (contactType: 'USER' | 'GROUP' = 'USER'): Promise<UserContactEntry[]> =>
     postForm<UserContactEntry[]>('/contact/loadContact', { contactType }),
+  loadOwnedGroups: (): Promise<GroupProfile[]> =>
+    postForm<GroupProfile[]>('/group/loadMyGroup', {}),
   getContactUserInfo: (contactId: string): Promise<ContactProfile> =>
     postForm<ContactProfile>('/contact/getContactUserInfo', { contactId }),
+  getGroupInfo: (groupId: string): Promise<GroupProfile> =>
+    postForm<GroupProfile>('/group/getGroupInfo', { groupId }),
   deleteContact: (contactId: string): Promise<null> =>
     postForm<null>('/contact/delContact', { contactId }),
   blockContact: (contactId: string): Promise<null> =>

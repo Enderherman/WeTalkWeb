@@ -7,6 +7,7 @@ import { chatApi } from '@/api/chat'
 import ContactApplicationsDialog from '@/components/ContactApplicationsDialog.vue'
 import ContactDirectoryDialog from '@/components/ContactDirectoryDialog.vue'
 import ContactSearchDialog from '@/components/ContactSearchDialog.vue'
+import GroupDirectoryDialog from '@/components/GroupDirectoryDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import { textMessageCache } from '@/storage/textMessageCache'
@@ -22,6 +23,7 @@ const selectedSessionId = ref('')
 const contactSearchOpen = ref(false)
 const contactApplicationsOpen = ref(false)
 const contactDirectoryOpen = ref(false)
+const groupDirectoryOpen = ref(false)
 const profileOpen = ref(false)
 const profileLoading = ref(false)
 const profileError = ref('')
@@ -203,6 +205,11 @@ function openContactDirectory() {
   contactDirectoryOpen.value = true
 }
 
+function openGroupDirectory() {
+  sidebarOpen.value = false
+  groupDirectoryOpen.value = true
+}
+
 function refreshChatSession() {
   const session = authStore.session
   if (session?.token) chatStore.connect(session.token, session.userId)
@@ -327,6 +334,15 @@ async function signOut() {
       >
         <span aria-hidden="true">☷</span>
         联系人
+      </button>
+      <button
+        class="new-chat-button group-directory-button"
+        data-testid="open-group-directory"
+        type="button"
+        @click="openGroupDirectory"
+      >
+        <span aria-hidden="true">▦</span>
+        群聊
       </button>
 
       <section class="history-section" aria-label="聊天记录">
@@ -504,6 +520,11 @@ async function signOut() {
       v-if="contactDirectoryOpen"
       @close="contactDirectoryOpen = false"
       @contacts-changed="refreshChatSession"
+    />
+
+    <GroupDirectoryDialog
+      v-if="groupDirectoryOpen"
+      @close="groupDirectoryOpen = false"
     />
 
     <ContactApplicationsDialog
