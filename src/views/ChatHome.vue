@@ -370,6 +370,12 @@ function openProfile() {
   passwordError.value = ''
 }
 
+function openAbout() {
+  profileOpen.value = false
+  sidebarOpen.value = false
+  void router.push({ name: 'about' })
+}
+
 function openContactSearch() {
   sidebarOpen.value = false
   contactSearchOpen.value = true
@@ -1246,6 +1252,10 @@ async function signOut() {
             <dd>{{ profile?.userId || authStore.session?.userId || '—' }}</dd>
           </div>
         </dl>
+
+        <button class="about-link-button" data-testid="open-about" type="button" @click="openAbout">
+          关于 WeTalk Web
+        </button>
 
         <div class="text-cache-controls">
           <div>

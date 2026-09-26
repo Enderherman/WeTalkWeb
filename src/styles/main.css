@@ -90,6 +90,124 @@ textarea:focus-visible {
   background: #fafaf8;
 }
 
+.about-page {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  flex-direction: column;
+  padding: max(22px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+  background: var(--wt-soft);
+}
+
+.about-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.about-back-button,
+.about-link-button {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--wt-muted);
+  background: transparent;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.about-back-button:hover,
+.about-link-button:hover {
+  color: var(--wt-text);
+  background: var(--wt-neutral-100);
+}
+
+.about-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.about-brand .brand-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+}
+
+.about-card {
+  width: min(100%, 600px);
+  margin: auto;
+  padding: clamp(24px, 5vw, 42px);
+  border: 1px solid var(--wt-line);
+  border-radius: 24px;
+  background: var(--wt-white);
+  box-shadow: 0 18px 48px rgb(25 35 30 / 5%);
+}
+
+.about-card h1 {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 38px);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.about-description {
+  margin: 12px 0 26px;
+  color: var(--wt-muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.about-details {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid var(--wt-line);
+}
+
+.about-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--wt-line);
+}
+
+.about-details dt {
+  flex: 0 0 auto;
+  color: var(--wt-muted);
+  font-size: 12px;
+}
+
+.about-details dd {
+  margin: 0;
+  color: var(--wt-text);
+  text-align: right;
+  font-size: 12px;
+}
+
+.about-chat-button {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 22px;
+  border: 0;
+  border-radius: 13px;
+  color: var(--wt-white);
+  background: var(--wt-accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.about-footer {
+  margin: 18px 0 0;
+  color: var(--wt-muted);
+  text-align: center;
+  font-size: 11px;
+}
+
 .not-found-brand {
   position: absolute;
   top: max(24px, env(safe-area-inset-top));

@@ -8,6 +8,7 @@ const router = createRouter({
     { path: '/login', name: 'login', component: () => import('@/views/AuthView.vue') },
     { path: '/register', name: 'register', component: () => import('@/views/AuthView.vue') },
     { path: '/chat', name: 'chat', component: () => import('@/views/ChatHome.vue') },
+    { path: '/about', name: 'about', component: () => import('@/views/AboutView.vue') },
     { path: '/service-error', name: 'service-error', component: () => import('@/views/ServiceErrorView.vue') },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') },
   ],
