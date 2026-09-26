@@ -32,6 +32,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/app/loadUpdateList',
       '/app/postUpdate',
       '/app/saveUpdate',
+      '/chat/cancelAiMessage',
       '/chat/downloadFile',
       '/chat/loadHistory',
       '/chat/sendMessage',
@@ -217,6 +218,17 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(contract.paths['/chat/downloadFile'].post.responses['200'].content['application/octet-stream'].schema.format).toBe(
       'binary',
     )
+  })
+
+  it('documents AI cancellation and persisted terminal statuses', () => {
+    expect(contract.paths['/chat/cancelAiMessage'].post.security).toEqual([
+      { tokenHeader: [] }, { cookieSession: [] },
+    ])
+    expect(contract.paths['/chat/cancelAiMessage'].post.requestBody.content['application/x-www-form-urlencoded'].schema.$ref)
+      .toBe('#/components/schemas/CancelAiMessageRequest')
+    expect(contract.components.schemas.CancelAiMessageRequest.properties.messageId.minimum).toBe(1)
+    expect(contract.components.schemas.ChatMessage.properties.status.enum).toEqual([0, 1, 2, 3])
+    expect(contract.components.schemas.MessageSendDTO.properties.status.enum).toEqual([0, 1, 2, 3])
   })
 
   it('documents account settings and profile-save fields without secrets', () => {

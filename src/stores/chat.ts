@@ -34,6 +34,7 @@ export interface InitialChatMessage {
   status?: number
   uploadProgress?: number
   uploadError?: string
+  aiStatus?: 'waiting' | 'streaming' | 'complete' | 'interrupted' | 'cancelled' | 'failed'
 }
 
 export interface ChatHistoryPage {
@@ -57,6 +58,32 @@ interface InitialData {
 }
 
 let realtimeClient: ReturnType<typeof createRealtimeClient> | null = null
+const aiResponseTimeoutMs = 30_000
+const aiResponseTimeouts = new Map<number, ReturnType<typeof setTimeout>>()
+
+function clearAiResponseTimeout(messageId: number) {
+  const timer = aiResponseTimeouts.get(messageId)
+  if (timer !== undefined) clearTimeout(timer)
+  aiResponseTimeouts.delete(messageId)
+}
+
+function scheduleAiResponseTimeout(messageId: number, onTimeout: () => void) {
+  clearAiResponseTimeout(messageId)
+  aiResponseTimeouts.set(messageId, setTimeout(() => {
+    aiResponseTimeouts.delete(messageId)
+    onTimeout()
+  }, aiResponseTimeoutMs))
+}
+
+function normalizeHistoryMessage(message: InitialChatMessage): InitialChatMessage {
+  if (message.messageType !== 14) return message
+  if (message.status === 2) return { ...message, aiStatus: 'cancelled' }
+  if (message.status === 3) return { ...message, aiStatus: 'failed' }
+  return {
+    ...message,
+    aiStatus: message.messageContent.trim() ? 'complete' : 'waiting',
+  }
+}
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -121,7 +148,15 @@ export const useChatStore = defineStore('chat', {
         const retainedMessages = this.initialMessages.filter((item) => sessionIds.has(item.sessionId))
         const merged = new Map<number, InitialChatMessage>()
         for (const item of retainedMessages) merged.set(item.messageId, item)
-        for (const item of data.chatMessageList) merged.set(item.messageId, item)
+        for (const item of data.chatMessageList) {
+          const normalized = normalizeHistoryMessage(item)
+          const previous = merged.get(item.messageId)
+          if (normalized.aiStatus === 'waiting' && previous?.messageType === 14 && previous.messageContent) {
+            merged.set(item.messageId, { ...normalized, messageContent: previous.messageContent, aiStatus: 'streaming' })
+          } else {
+            merged.set(item.messageId, normalized)
+          }
+        }
         const currentGroupState = new Map(
           this.sessionList.map((session) => [
             session.contactId,
@@ -144,6 +179,16 @@ export const useChatStore = defineStore('chat', {
           }
         })
         this.initialMessages = [...merged.values()].sort((a, b) => a.sendTime - b.sendTime)
+        const pendingAiIds = new Set<number>()
+        for (const item of this.initialMessages) {
+          if (item.messageType === 14 && (item.aiStatus === 'waiting' || item.aiStatus === 'streaming')) {
+            pendingAiIds.add(item.messageId)
+            scheduleAiResponseTimeout(item.messageId, () => this.markAiResponseInterrupted(item.messageId))
+          }
+        }
+        for (const messageId of aiResponseTimeouts.keys()) {
+          if (!pendingAiIds.has(messageId)) clearAiResponseTimeout(messageId)
+        }
         this.historyBySession = Object.fromEntries(
           Object.entries(this.historyBySession).filter(([sessionId]) => sessionIds.has(sessionId)),
         )
@@ -167,6 +212,11 @@ export const useChatStore = defineStore('chat', {
 
       if (message.messageType === 6) {
         this.markFileUploadComplete(Number(message.messageId))
+        return
+      }
+
+      if (message.messageType === 14 || message.messageType === 15 || message.messageType === 16) {
+        this.receiveAiMessage(message)
         return
       }
 
@@ -274,6 +324,84 @@ export const useChatStore = defineStore('chat', {
       this.groupEventVersion += 1
       this.sessionList = [...this.sessionList].sort((a, b) => b.lastReceiveTime - a.lastReceiveTime)
     },
+    receiveAiMessage(message: ServerMessage) {
+      const messageId = Number(message.messageId)
+      const sessionId = typeof message.sessionId === 'string' ? message.sessionId : ''
+      if (!Number.isSafeInteger(messageId) || messageId < 1 || !sessionId) return
+
+      const content = typeof message.messageContent === 'string' ? message.messageContent : ''
+      const messageType = Number(message.messageType)
+      const messageStatus = typeof message.status === 'number' ? message.status : null
+      const aiStatus = messageStatus === 2
+        ? 'cancelled'
+        : messageStatus === 3
+          ? 'failed'
+          : messageType === 16
+            ? 'complete'
+            : messageType === 15
+              ? 'streaming'
+              : content
+                ? 'complete'
+                : 'waiting'
+      const previous = this.initialMessages.find((item) => item.messageId === messageId)
+      const aiMessage: InitialChatMessage = {
+        ...(previous || {} as InitialChatMessage),
+        ...message as unknown as Partial<InitialChatMessage>,
+        messageId,
+        sessionId,
+        messageType: 14,
+        messageContent: content,
+        sendUserId: typeof message.sendUserId === 'string' ? message.sendUserId : previous?.sendUserId || null,
+        sendUserNickName: typeof message.sendUserNickName === 'string'
+          ? message.sendUserNickName
+          : previous?.sendUserNickName || null,
+        sendTime: Number(message.sendTime) || previous?.sendTime || Date.now(),
+        contactId: typeof message.contactId === 'string' ? message.contactId : previous?.contactId || '',
+        status: messageStatus ?? previous?.status,
+        aiStatus,
+      }
+      if (previous) {
+        this.initialMessages = this.initialMessages.map((item) => item.messageId === messageId ? aiMessage : item)
+      } else {
+        this.initialMessages = [...this.initialMessages, aiMessage].sort((a, b) => a.sendTime - b.sendTime)
+      }
+
+      const session = this.sessionList.find((item) => item.sessionId === sessionId)
+      if (session) {
+        if (!previous && messageType === 14 && session.sessionId !== this.activeSessionId) {
+          session.noReadCount = (session.noReadCount || 0) + 1
+        }
+        const preview = content || (aiStatus === 'complete'
+          ? 'AI 没有返回文本'
+          : aiStatus === 'cancelled'
+            ? 'AI 生成已停止'
+            : aiStatus === 'failed'
+              ? 'AI 生成失败，请重试'
+              : 'AI 正在思考…')
+        session.lastMessage = `${aiMessage.sendUserNickName || session.contactName}: ${preview}`
+        session.lastReceiveTime = aiMessage.sendTime
+        this.sessionList = [...this.sessionList].sort((a, b) => b.lastReceiveTime - a.lastReceiveTime)
+      }
+
+      if (aiStatus === 'complete' || aiStatus === 'cancelled' || aiStatus === 'failed') {
+        clearAiResponseTimeout(messageId)
+      } else {
+        scheduleAiResponseTimeout(messageId, () => this.markAiResponseInterrupted(messageId))
+      }
+      if (content && this.accountId) {
+        void textMessageCache.saveTextMessages(this.accountId, [aiMessage]).catch(() => undefined)
+      }
+    },
+    markAiResponseInterrupted(messageId: number) {
+      const message = this.initialMessages.find((item) => item.messageId === messageId)
+      if (!message || ['complete', 'cancelled', 'failed'].includes(message.aiStatus || '')) return
+      message.aiStatus = 'interrupted'
+      this.initialMessages = [...this.initialMessages]
+      const session = this.sessionList.find((item) => item.sessionId === message.sessionId)
+      if (session && !message.messageContent) {
+        session.lastMessage = `${message.sendUserNickName || session.contactName}: AI 回复中断，请重新发送问题`
+      }
+    },
     appendMessage(message: InitialChatMessage, sentByCurrentUser: boolean) {
       if (this.initialMessages.some((item) => item.messageId === message.messageId)) return
       this.initialMessages = [...this.initialMessages, message].sort((a, b) => a.sendTime - b.sendTime)
@@ -318,12 +446,24 @@ export const useChatStore = defineStore('chat', {
       const otherSessions = this.initialMessages.filter((message) => message.sessionId !== sessionId)
       const merged = new Map<number, InitialChatMessage>()
       for (const message of [...existing, ...messages]) merged.set(message.messageId, message)
+      for (const [messageId, message] of merged) {
+        if (message.messageType === 14 && !['complete', 'cancelled', 'failed'].includes(message.aiStatus || '')) {
+          merged.set(messageId, { ...message, aiStatus: 'interrupted' })
+        }
+      }
       const sessionMessages = [...merged.values()].sort((a, b) => a.sendTime - b.sendTime)
       this.initialMessages = [...otherSessions, ...sessionMessages].sort((a, b) => a.sendTime - b.sendTime)
     },
     setHistoryPage(sessionId: string, page: ChatHistoryPage, appendOlder = false) {
-      const pageMessages = page.list || []
       const existing = this.initialMessages.filter((item) => item.sessionId === sessionId)
+      const existingById = new Map(existing.map((item) => [item.messageId, item]))
+      const pageMessages = (page.list || []).map((message) => {
+        const normalized = normalizeHistoryMessage(message)
+        const previous = existingById.get(message.messageId)
+        return normalized.aiStatus === 'waiting' && previous?.messageType === 14 && previous.messageContent
+          ? { ...normalized, messageContent: previous.messageContent, aiStatus: 'streaming' as const }
+          : normalized
+      })
       const otherSessions = this.initialMessages.filter((item) => item.sessionId !== sessionId)
       const newestPageId = pageMessages.reduce((latest, item) => Math.max(latest, item.messageId), 0)
       const keepLiveMessages = appendOlder
@@ -334,6 +474,13 @@ export const useChatStore = defineStore('chat', {
       const sessionMessages = [...merged.values()].sort((a, b) => a.sendTime - b.sendTime)
       const previous = this.historyBySession[sessionId]
       this.initialMessages = [...otherSessions, ...sessionMessages].sort((a, b) => a.sendTime - b.sendTime)
+      for (const item of sessionMessages) {
+        if (item.messageType === 14 && (item.aiStatus === 'waiting' || item.aiStatus === 'streaming')) {
+          scheduleAiResponseTimeout(item.messageId, () => this.markAiResponseInterrupted(item.messageId))
+        } else if (item.messageType === 14) {
+          clearAiResponseTimeout(item.messageId)
+        }
+      }
       this.historyBySession = {
         ...this.historyBySession,
         [sessionId]: {
@@ -347,6 +494,7 @@ export const useChatStore = defineStore('chat', {
       }
     },
     clear() {
+      for (const messageId of aiResponseTimeouts.keys()) clearAiResponseTimeout(messageId)
       this.disconnect()
       this.initialized = false
       this.sessionList = []

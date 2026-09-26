@@ -28,6 +28,14 @@ describe('chat API', () => {
     })
   })
 
+  it('requests cancellation of an AI message using its server message ID', async () => {
+    const ended = { messageType: 16, messageId: 12, status: 2 }
+    vi.mocked(postForm).mockResolvedValue(ended)
+
+    await expect(chatApi.cancelAiMessage(12)).resolves.toEqual(ended)
+    expect(postForm).toHaveBeenCalledWith('/chat/cancelAiMessage', { messageId: 12 })
+  })
+
   it('creates file-message metadata before uploading a generic file', async () => {
     const file = new File(['notes'], 'notes.txt', { type: 'text/plain' })
     vi.mocked(postForm).mockResolvedValue({ messageId: 42 })

@@ -65,7 +65,7 @@ export class TextMessageCache {
         const cursor = request.result
         if (!cursor || rows.length >= limit) return
         const row = cursor.value as CachedTextMessage
-        if (row.messageType === 2) rows.push(row)
+        if (row.messageType === 2 || (row.messageType === 14 && Boolean(row.messageContent))) rows.push(row)
         cursor.continue()
       }
       request.onerror = () => reject(request.error || new Error('无法读取本机文字缓存'))
@@ -78,7 +78,11 @@ export class TextMessageCache {
   }
 
   async saveTextMessages(accountId: string, messages: InitialChatMessage[]): Promise<void> {
-    const textMessages = messages.filter((message) => message.messageType === 2 && message.sessionId && message.messageId)
+    const textMessages = messages.filter((message) =>
+      (message.messageType === 2 || (message.messageType === 14 && Boolean(message.messageContent))) &&
+      message.sessionId &&
+      message.messageId,
+    )
     if (textMessages.length === 0) return
     const db = await this.openDatabase()
     if (!db) return
@@ -90,12 +94,16 @@ export class TextMessageCache {
         accountId,
         sessionId: message.sessionId,
         messageId: message.messageId,
-        messageType: 2,
+        messageType: message.messageType,
         messageContent: message.messageContent,
         sendUserId: message.sendUserId,
         sendUserNickName: message.sendUserNickName,
         sendTime: message.sendTime,
         contactId: message.contactId,
+        ...(message.messageType === 14 ? {
+          aiStatus: message.aiStatus || 'complete',
+          status: message.status,
+        } : {}),
       }
       store.put(record)
     }

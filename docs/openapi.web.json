@@ -1269,6 +1269,55 @@
         }
       }
     },
+    "/chat/cancelAiMessage": {
+      "post": {
+        "tags": ["Chat"],
+        "operationId": "cancelAiMessage",
+        "summary": "Stop the current user’s AI response",
+        "description": "Stops the active provider stream for an AI response created by the authenticated user. The partial answer is persisted. Repeating the request for a finished response returns its existing terminal state; an orphaned placeholder after a server restart is marked as failed.",
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": { "$ref": "#/components/schemas/CancelAiMessageRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "AI stream end frame. status 1 is complete, 2 is stopped, and 3 is failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/MessageSendResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                },
+                "example": {
+                  "status": "success",
+                  "code": 200,
+                  "data": {
+                    "messageId": 501,
+                    "sessionId": "U10001_Urobot",
+                    "sendUserId": "Urobot",
+                    "sendUserNickName": "WeTalk Robot",
+                    "contactId": "U10001",
+                    "messageContent": "Partial answer",
+                    "messageType": 16,
+                    "sendTime": 1780000000000,
+                    "contactType": 0,
+                    "status": 2
+                  }
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
     "/chat/downloadFile": {
       "post": {
         "tags": ["Files"],
@@ -2135,6 +2184,13 @@
           "cover": { "type": "string", "format": "binary", "description": "Optional cover or thumbnail image." }
         }
       },
+      "CancelAiMessageRequest": {
+        "type": "object",
+        "required": ["messageId"],
+        "properties": {
+          "messageId": { "type": "integer", "minimum": 1, "description": "AI response message ID returned by WebSocket type 14." }
+        }
+      },
       "SendChatMessageRequest": {
         "type": "object",
         "required": ["contactId", "messageContent", "messageType"],
@@ -2162,7 +2218,7 @@
           "sendTime": { "type": "integer", "format": "int64", "description": "Unix epoch milliseconds." },
           "contactType": { "type": "integer", "description": "0 for direct contact, 1 for group." },
           "extentData": {},
-          "status": { "type": "integer", "enum": [0, 1], "description": "0 sending; 1 sent." },
+          "status": { "type": "integer", "enum": [0, 1, 2, 3], "description": "0 sending; 1 sent/completed; 2 AI generation stopped; 3 AI generation failed." },
           "fileSize": { "type": "integer", "format": "int64" },
           "fileName": { "type": "string" },
           "fileType": { "type": "integer" },
@@ -2203,7 +2259,7 @@
           "fileSize": { "type": "integer", "format": "int64" },
           "fileName": { "type": "string" },
           "fileType": { "type": "integer" },
-          "status": { "type": "integer", "enum": [0, 1] }
+          "status": { "type": "integer", "enum": [0, 1, 2, 3], "description": "0 sending; 1 sent/completed; 2 AI generation stopped; 3 AI generation failed." }
         }
       },
       "ChatHistoryPage": {

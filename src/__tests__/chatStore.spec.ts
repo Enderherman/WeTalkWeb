@@ -4,7 +4,11 @@ import { useChatStore } from '@/stores/chat'
 import { AUTH_EXPIRED_EVENT } from '@/utils/authEvents'
 
 describe('chat initialization state', () => {
-  afterEach(() => vi.restoreAllMocks())
+  afterEach(() => {
+    useChatStore().clear()
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
 
   it('stores the sessions, recent messages, and unread application count from INIT', () => {
     setActivePinia(createPinia())
@@ -398,6 +402,174 @@ describe('chat initialization state', () => {
     expect(chatStore.initialMessages[0]?.status).toBe(1)
     expect(chatStore.initialMessages[0]?.uploadProgress).toBe(100)
     expect(chatStore.sessionList[0]?.lastMessage).toBe('notes.txt')
+  })
+
+  it('replaces the same AI message with cumulative stream content and completes it once', () => {
+    setActivePinia(createPinia())
+    const chatStore = useChatStore()
+    chatStore.accountId = 'U100'
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'Srobot',
+          contactId: 'Urobot',
+          contactName: 'WeTalk Robot',
+          lastMessage: '',
+          lastReceiveTime: 1000,
+          contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    chatStore.setActiveSession('Srobot')
+
+    chatStore.receiveMessage({
+      messageId: 80,
+      sessionId: 'Srobot',
+      messageType: 14,
+      messageContent: '',
+      sendUserId: 'Urobot',
+      sendUserNickName: 'WeTalk Robot',
+      sendTime: 2000,
+      contactId: 'U100',
+    })
+    expect(chatStore.initialMessages[0]?.aiStatus).toBe('waiting')
+
+    chatStore.receiveMessage({
+      messageId: 80,
+      sessionId: 'Srobot',
+      messageType: 15,
+      messageContent: 'Hello',
+      sendUserId: 'Urobot',
+      sendUserNickName: 'WeTalk Robot',
+      sendTime: 3000,
+      contactId: 'U100',
+    })
+    chatStore.receiveMessage({
+      messageId: 80,
+      sessionId: 'Srobot',
+      messageType: 16,
+      messageContent: 'Hello from WeTalk',
+      sendUserId: 'Urobot',
+      sendUserNickName: 'WeTalk Robot',
+      sendTime: 4000,
+      contactId: 'U100',
+    })
+
+    expect(chatStore.initialMessages).toHaveLength(1)
+    expect(chatStore.initialMessages[0]).toMatchObject({
+      messageType: 14,
+      messageContent: 'Hello from WeTalk',
+      aiStatus: 'complete',
+    })
+  })
+
+  it('maps AI cancellation and provider failures from persisted end status', () => {
+    setActivePinia(createPinia())
+    const chatStore = useChatStore()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'Srobot', contactId: 'Urobot', contactName: 'WeTalk Robot',
+          lastMessage: '', lastReceiveTime: 1000, contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    chatStore.receiveMessage({
+      messageType: 16, messageId: 83, sessionId: 'Srobot', contactId: 'U100',
+      sendUserId: 'Urobot', sendUserNickName: 'WeTalk Robot', sendTime: 2000,
+      messageContent: 'Partial answer', status: 2,
+    })
+    chatStore.receiveMessage({
+      messageType: 16, messageId: 84, sessionId: 'Srobot', contactId: 'U100',
+      sendUserId: 'Urobot', sendUserNickName: 'WeTalk Robot', sendTime: 3000,
+      messageContent: '', status: 3,
+    })
+
+    expect(chatStore.initialMessages.map(({ aiStatus, status }) => ({ aiStatus, status }))).toEqual([
+      { aiStatus: 'cancelled', status: 2 },
+      { aiStatus: 'failed', status: 3 },
+    ])
+    expect(chatStore.sessionList[0]?.lastMessage).toContain('AI 生成失败，请重试')
+  })
+
+  it('marks an AI response interrupted when its stream stops before the timeout', () => {
+    vi.useFakeTimers()
+    setActivePinia(createPinia())
+    const chatStore = useChatStore()
+    chatStore.receiveMessage({
+      messageType: 14,
+      messageId: 81,
+      sessionId: 'Srobot',
+      contactId: 'U100',
+      sendUserId: 'Urobot',
+      sendUserNickName: 'WeTalk Robot',
+      sendTime: 2000,
+      messageContent: '',
+    })
+
+    vi.advanceTimersByTime(30_000)
+
+    expect(chatStore.initialMessages[0]?.aiStatus).toBe('interrupted')
+    vi.useRealTimers()
+  })
+
+  it('keeps partial AI output when an INIT refresh still contains an empty placeholder', () => {
+    setActivePinia(createPinia())
+    const chatStore = useChatStore()
+    const session = {
+      sessionId: 'Srobot',
+      contactId: 'Urobot',
+      contactName: 'WeTalk Robot',
+      lastMessage: '',
+      lastReceiveTime: 1000,
+      contactType: 0,
+    }
+    chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [session], chatMessageList: [], applyCount: 0 } })
+    chatStore.receiveMessage({
+      messageId: 82,
+      sessionId: 'Srobot',
+      messageType: 14,
+      messageContent: '',
+      sendUserId: 'Urobot',
+      sendUserNickName: 'WeTalk Robot',
+      sendTime: 2000,
+      contactId: 'U100',
+    })
+    chatStore.receiveMessage({
+      messageId: 82,
+      sessionId: 'Srobot',
+      messageType: 15,
+      messageContent: 'Partial reply',
+      sendUserId: 'Urobot',
+      sendUserNickName: 'WeTalk Robot',
+      sendTime: 3000,
+      contactId: 'U100',
+    })
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [session],
+        chatMessageList: [{
+          messageId: 82,
+          sessionId: 'Srobot',
+          messageType: 14,
+          messageContent: '',
+          sendUserId: 'Urobot',
+          sendUserNickName: 'WeTalk Robot',
+          sendTime: 2000,
+          contactId: 'U100',
+        }],
+        applyCount: 0,
+      },
+    })
+
+    expect(chatStore.initialMessages[0]).toMatchObject({ messageContent: 'Partial reply', aiStatus: 'streaming' })
   })
 
   it('marks a dissolved group as closed and retains its system message', () => {

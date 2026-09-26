@@ -60,4 +60,36 @@ describe('text-only IndexedDB cache', () => {
     expect(await cache.getLatestTextMessages('U100', 'S1')).toEqual([])
     expect((await cache.getLatestTextMessages('U200', 'S1'))[0]?.messageId).toBe(3)
   })
+
+  it('caches completed AI text but skips empty placeholders and stream frames', async () => {
+    const cache = createCache()
+    const aiReply = { ...textMessage(10, 'Srobot', 10_000), messageType: 14, messageContent: 'Hello from WeTalk', aiStatus: 'complete' as const }
+    const placeholder = { ...aiReply, messageId: 11, messageContent: '' }
+    const streamFrame = { ...aiReply, messageId: 12, messageType: 15, aiStatus: 'streaming' as const }
+
+    await cache.saveTextMessages('U100', [aiReply, placeholder, streamFrame])
+
+    const saved = await cache.getLatestTextMessages('U100', 'Srobot')
+    expect(saved).toHaveLength(1)
+    expect(saved[0]).toMatchObject({ messageId: 10, messageType: 14, messageContent: 'Hello from WeTalk', aiStatus: 'complete' })
+  })
+
+  it('retains the stopped status for a partial AI response in local cache', async () => {
+    const cache = createCache()
+    const stoppedReply = {
+      ...textMessage(13, 'Srobot', 13_000),
+      messageType: 14,
+      messageContent: 'Partial answer',
+      aiStatus: 'cancelled' as const,
+      status: 2,
+    }
+
+    await cache.saveTextMessages('U100', [stoppedReply])
+
+    expect((await cache.getLatestTextMessages('U100', 'Srobot'))[0]).toMatchObject({
+      messageId: 13,
+      aiStatus: 'cancelled',
+      status: 2,
+    })
+  })
 })

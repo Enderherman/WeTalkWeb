@@ -52,6 +52,7 @@ vi.mock('@/api/auth', () => ({
 vi.mock('@/api/chat', () => ({
   chatApi: {
     sendTextMessage: vi.fn(),
+    cancelAiMessage: vi.fn(),
     sendFileMessage: vi.fn(),
     uploadFile: vi.fn(),
     downloadFile: vi.fn(),
@@ -357,6 +358,119 @@ describe('authentication flow', () => {
 
     expect(downloadPreferences.setMode).toHaveBeenCalledWith('ask')
     expect(wrapper.get('[data-testid="download-preferences"]').text()).toContain('下载偏好已保存')
+  })
+
+  it('renders the AI initialization, cumulative stream, and final answer as one assistant message', async () => {
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'Srobot',
+          contactId: 'Urobot',
+          contactName: 'WeTalk Robot',
+          lastMessage: '',
+          lastReceiveTime: 1000,
+          contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+    await wrapper.get('[data-testid="chat-session-Srobot"]').trigger('click')
+    await flushPromises()
+    chatStore.receiveMessage({
+      messageId: 90,
+      sessionId: 'Srobot',
+      messageType: 14,
+      messageContent: '',
+      sendUserId: 'Urobot',
+      sendUserNickName: 'WeTalk Robot',
+      sendTime: 2000,
+      contactId: 'U100',
+    })
+    await flushPromises()
+    expect(wrapper.get('[data-testid="ai-waiting"]').text()).toContain('正在思考')
+
+    chatStore.receiveMessage({
+      messageId: 90,
+      sessionId: 'Srobot',
+      messageType: 15,
+      messageContent: 'Hello',
+      sendUserId: 'Urobot',
+      sendUserNickName: 'WeTalk Robot',
+      sendTime: 3000,
+      contactId: 'U100',
+    })
+    await flushPromises()
+    expect(wrapper.get('[data-testid="message-90"] .ai-message-content').text()).toContain('Hello')
+    expect(wrapper.find('[data-testid="message-90"] .ai-stream-cursor').exists()).toBe(true)
+
+    chatStore.receiveMessage({
+      messageId: 90,
+      sessionId: 'Srobot',
+      messageType: 16,
+      messageContent: 'Hello from WeTalk',
+      sendUserId: 'Urobot',
+      sendUserNickName: 'WeTalk Robot',
+      sendTime: 4000,
+      contactId: 'U100',
+    })
+    await flushPromises()
+    expect(wrapper.get('[data-testid="message-90"] .ai-message-content').text()).toContain('Hello from WeTalk')
+    expect(wrapper.find('[data-testid="message-90"] .ai-stream-cursor').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="message-90"]').findAll('p')).toHaveLength(1)
+    expect(chatStore.initialMessages.filter((message) => message.messageId === 90)).toHaveLength(1)
+  })
+
+  it('stops an AI reply through the backend and renders its saved partial answer', async () => {
+    vi.mocked(chatApi.cancelAiMessage).mockResolvedValue({
+      messageType: 16,
+      messageId: 91,
+      sessionId: 'Srobot',
+      contactId: 'U100',
+      sendUserId: 'Urobot',
+      sendUserNickName: 'WeTalk Robot',
+      sendTime: 5000,
+      messageContent: 'Partial answer',
+      status: 2,
+    })
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'Srobot', contactId: 'Urobot', contactName: 'WeTalk Robot',
+          lastMessage: '', lastReceiveTime: 1000, contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+    await wrapper.get('[data-testid="chat-session-Srobot"]').trigger('click')
+    chatStore.receiveMessage({
+      messageType: 14, messageId: 91, sessionId: 'Srobot', contactId: 'U100',
+      sendUserId: 'Urobot', sendUserNickName: 'WeTalk Robot', sendTime: 2000, messageContent: '',
+    })
+    chatStore.receiveMessage({
+      messageType: 15, messageId: 91, sessionId: 'Srobot', contactId: 'U100',
+      sendUserId: 'Urobot', sendUserNickName: 'WeTalk Robot', sendTime: 3000, messageContent: 'Partial answer',
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="cancel-ai-91"]').trigger('click')
+    await flushPromises()
+
+    expect(chatApi.cancelAiMessage).toHaveBeenCalledWith(91)
+    expect(chatStore.initialMessages.find((message) => message.messageId === 91)).toMatchObject({
+      messageContent: 'Partial answer',
+      aiStatus: 'cancelled',
+      status: 2,
+    })
+    expect(wrapper.get('[data-testid="message-91"]').text()).toContain('已停止生成')
+    expect(wrapper.find('[data-testid="cancel-ai-91"]').exists()).toBe(false)
   })
 
   it('clears only the signed-in account text cache from the profile panel', async () => {

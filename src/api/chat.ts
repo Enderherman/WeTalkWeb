@@ -1,4 +1,5 @@
 import { postDownload, postForm, postMultipart } from '@/api/http'
+import type { ServerMessage } from '@/api/realtime'
 import type { ChatHistoryPage, InitialChatMessage } from '@/stores/chat'
 
 export const chatApi = {
@@ -8,6 +9,8 @@ export const chatApi = {
       messageContent,
       messageType: 2,
     }),
+  cancelAiMessage: (messageId: number): Promise<ServerMessage> =>
+    postForm<ServerMessage>('/chat/cancelAiMessage', { messageId }),
   sendFileMessage: (contactId: string, file: File, fileType: 0 | 1 | 2 = 2): Promise<InitialChatMessage> =>
     postForm<InitialChatMessage>('/chat/sendMessage', {
       contactId,

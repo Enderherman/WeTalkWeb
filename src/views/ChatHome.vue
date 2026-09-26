@@ -71,7 +71,7 @@ const messageSearchQuery = ref('')
 const searchJumpMessageId = ref<number | null>(null)
 const conversationMessages = computed(() =>
   chatStore.initialMessages
-    .filter((message) => message.sessionId === selectedSessionId.value && [2, 3, 5, 8, 9, 11, 12].includes(message.messageType))
+    .filter((message) => message.sessionId === selectedSessionId.value && [2, 3, 5, 8, 9, 11, 12, 14].includes(message.messageType))
     .sort((a, b) => a.sendTime - b.sendTime)
 )
 const selectedMessages = computed(() => {
@@ -86,7 +86,7 @@ const messageSearchResults = computed(() => {
   const query = messageSearchQuery.value.trim().toLocaleLowerCase()
   if (!query) return []
   return chatStore.initialMessages
-    .filter((message) => message.sessionId === selectedSessionId.value && [2, 5].includes(message.messageType))
+    .filter((message) => message.sessionId === selectedSessionId.value && [2, 5, 14].includes(message.messageType))
     .filter((message) => [message.messageContent, message.fileName, message.sendUserNickName]
       .some((value) => typeof value === 'string' && value.toLocaleLowerCase().includes(query)))
     .sort((a, b) => b.sendTime - a.sendTime)
@@ -96,6 +96,9 @@ const currentHistory = computed(() => chatStore.historyBySession[selectedSession
 const messageDraft = ref('')
 const sendingMessage = ref(false)
 const messageError = ref('')
+const stoppingAiMessageId = ref<number | null>(null)
+const aiActionErrorMessageId = ref<number | null>(null)
+const aiActionError = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 const fileUploadError = ref('')
 const fileUploading = ref(false)
@@ -538,6 +541,22 @@ async function sendTextMessage() {
   }
 }
 
+async function stopAiGeneration(message: InitialChatMessage) {
+  if (stoppingAiMessageId.value !== null) return
+  stoppingAiMessageId.value = message.messageId
+  aiActionErrorMessageId.value = null
+  aiActionError.value = ''
+  try {
+    const endedMessage = await chatApi.cancelAiMessage(message.messageId)
+    chatStore.receiveAiMessage(endedMessage)
+  } catch (error: unknown) {
+    aiActionErrorMessageId.value = message.messageId
+    aiActionError.value = error instanceof Error ? error.message : '停止 AI 回复失败，请稍后重试'
+  } finally {
+    stoppingAiMessageId.value = null
+  }
+}
+
 function chooseAttachment() {
   fileUploadError.value = ''
   fileInput.value?.click()
@@ -714,6 +733,10 @@ function fileUploadStatus(message: InitialChatMessage) {
 
 function formatMessageTime(sendTime: number) {
   return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(sendTime))
+}
+
+function isAiMessage(message: InitialChatMessage) {
+  return message.messageType === 14 || message.messageType === 15 || message.messageType === 16
 }
 
 async function signOut() {
@@ -1028,12 +1051,12 @@ async function signOut() {
             </time>
             <article
               class="message-row"
-              :class="{ 'is-mine': (message.messageType === 2 || message.messageType === 5) && message.sendUserId === authStore.session?.userId, 'is-system': message.messageType !== 2 && message.messageType !== 5 }"
+              :class="{ 'is-mine': (message.messageType === 2 || message.messageType === 5) && message.sendUserId === authStore.session?.userId, 'is-system': ![2, 5, 14, 15, 16].includes(message.messageType), 'is-ai': isAiMessage(message) }"
               :data-testid="`message-${message.messageId}`"
             >
               <div class="message-bubble">
                 <strong
-                  v-if="(message.messageType === 2 || message.messageType === 5) && message.sendUserId !== authStore.session?.userId"
+                  v-if="((message.messageType === 2 || message.messageType === 5) && message.sendUserId !== authStore.session?.userId) || isAiMessage(message)"
                   class="message-sender"
                 >
                   {{ message.sendUserNickName }}
@@ -1078,7 +1101,33 @@ async function signOut() {
                     {{ fileDownloadErrors.get(message.messageId) }}
                   </small>
                 </div>
+                <p v-else-if="isAiMessage(message)" class="ai-message-content" aria-live="polite">
+                  <span v-if="!message.messageContent && message.aiStatus === 'waiting'" data-testid="ai-waiting">WeTalk 正在思考…</span>
+                  <span v-else-if="!message.messageContent && message.aiStatus === 'interrupted'" data-testid="ai-interrupted">
+                    AI 回复中断，请重新发送问题。
+                  </span>
+                  <span v-else-if="!message.messageContent && message.aiStatus === 'cancelled'" data-testid="ai-cancelled">已停止生成。</span>
+                  <span v-else-if="!message.messageContent && message.aiStatus === 'failed'" data-testid="ai-failed">AI 暂时无法完成回复，请重试。</span>
+                  <template v-else>{{ message.messageContent }}</template>
+                  <span v-if="message.aiStatus === 'streaming'" class="ai-stream-cursor" aria-hidden="true">▍</span>
+                  <small v-if="message.aiStatus === 'interrupted' && message.messageContent" class="ai-interrupted-note">
+                    回复中断，请在输入框重新发送问题。
+                  </small>
+                  <small v-if="message.aiStatus === 'cancelled' && message.messageContent" class="ai-interrupted-note">已停止生成。</small>
+                  <small v-if="message.aiStatus === 'failed' && message.messageContent" class="ai-interrupted-note">AI 生成失败，请重试。</small>
+                </p>
                 <p v-else>{{ message.messageContent }}</p>
+                <button
+                  v-if="isAiMessage(message) && ['waiting', 'streaming', 'interrupted'].includes(message.aiStatus || '')"
+                  class="ai-stop-button"
+                  :data-testid="`cancel-ai-${message.messageId}`"
+                  type="button"
+                  :disabled="stoppingAiMessageId !== null"
+                  @click="stopAiGeneration(message)"
+                >{{ stoppingAiMessageId === message.messageId ? '正在停止…' : '停止生成' }}</button>
+                <small v-if="aiActionErrorMessageId === message.messageId && aiActionError" class="ai-interrupted-note" role="alert">
+                  {{ aiActionError }}
+                </small>
                 <div class="message-footer">
                   <time>{{ formatMessageTime(message.sendTime) }}</time>
                   <span
