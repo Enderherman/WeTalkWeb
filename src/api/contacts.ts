@@ -33,6 +33,25 @@ export interface ContactApplicationsPage {
 
 export type ContactApplicationDecision = 1 | 2 | 3
 
+export interface UserContactEntry {
+  userId: string
+  contactId: string
+  contactType: 0 | 1
+  status: number
+  contactName?: string | null
+  sex?: number | null
+  memberCount?: number | null
+}
+
+export interface ContactProfile {
+  userId: string
+  nickName?: string | null
+  sex?: number | null
+  personalSignature?: string | null
+  areaName?: string | null
+  contactStatus?: number | null
+}
+
 export const contactApi = {
   search: (contactId: string): Promise<ContactSearchResult | null> =>
     postForm<ContactSearchResult | null>('/contact/search', { contactId }),
@@ -42,4 +61,12 @@ export const contactApi = {
     postForm<ContactApplicationsPage>('/contact/loadApply', { pageNo }),
   handleApplication: (applyId: number, status: ContactApplicationDecision): Promise<null> =>
     postForm<null>('/contact/dealWithApply', { applyId, status }),
+  loadContacts: (contactType: 'USER' | 'GROUP' = 'USER'): Promise<UserContactEntry[]> =>
+    postForm<UserContactEntry[]>('/contact/loadContact', { contactType }),
+  getContactUserInfo: (contactId: string): Promise<ContactProfile> =>
+    postForm<ContactProfile>('/contact/getContactUserInfo', { contactId }),
+  deleteContact: (contactId: string): Promise<null> =>
+    postForm<null>('/contact/delContact', { contactId }),
+  blockContact: (contactId: string): Promise<null> =>
+    postForm<null>('/contact/addContact2BlackList', { contactId }),
 }

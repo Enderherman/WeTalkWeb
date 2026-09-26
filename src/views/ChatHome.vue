@@ -5,6 +5,7 @@ import { authApi } from '@/api/auth'
 import type { UserProfile } from '@/api/auth'
 import { chatApi } from '@/api/chat'
 import ContactApplicationsDialog from '@/components/ContactApplicationsDialog.vue'
+import ContactDirectoryDialog from '@/components/ContactDirectoryDialog.vue'
 import ContactSearchDialog from '@/components/ContactSearchDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
@@ -20,6 +21,7 @@ const signingOut = ref(false)
 const selectedSessionId = ref('')
 const contactSearchOpen = ref(false)
 const contactApplicationsOpen = ref(false)
+const contactDirectoryOpen = ref(false)
 const profileOpen = ref(false)
 const profileLoading = ref(false)
 const profileError = ref('')
@@ -196,6 +198,11 @@ function openContactApplications() {
   contactApplicationsOpen.value = true
 }
 
+function openContactDirectory() {
+  sidebarOpen.value = false
+  contactDirectoryOpen.value = true
+}
+
 function refreshChatSession() {
   const session = authStore.session
   if (session?.token) chatStore.connect(session.token, session.userId)
@@ -311,6 +318,15 @@ async function signOut() {
       >
         <span aria-hidden="true">＋</span>
         添加好友
+      </button>
+      <button
+        class="new-chat-button contact-directory-button"
+        data-testid="open-contact-directory"
+        type="button"
+        @click="openContactDirectory"
+      >
+        <span aria-hidden="true">☷</span>
+        联系人
       </button>
 
       <section class="history-section" aria-label="聊天记录">
@@ -483,6 +499,12 @@ async function signOut() {
       </div>
       <p class="chat-disclaimer">文字消息由 WeTalk 后端保存并实时同步；历史记录支持分页，本机仅缓存纯文字消息。</p>
     </section>
+
+    <ContactDirectoryDialog
+      v-if="contactDirectoryOpen"
+      @close="contactDirectoryOpen = false"
+      @contacts-changed="refreshChatSession"
+    />
 
     <ContactApplicationsDialog
       v-if="contactApplicationsOpen"

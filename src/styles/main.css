@@ -436,14 +436,17 @@ textarea:focus-visible {
   cursor: not-allowed;
 }
 
-.contact-add-button {
+.contact-add-button,
+.contact-directory-button {
   margin-top: 8px;
   color: var(--wt-text);
   cursor: pointer;
 }
 
 .contact-add-button:hover,
-.contact-add-button:focus-visible {
+.contact-add-button:focus-visible,
+.contact-directory-button:hover,
+.contact-directory-button:focus-visible {
   border-color: #d5ddd7;
   background: #f0f4f1;
 }
@@ -976,6 +979,144 @@ textarea:focus-visible {
 .applications-pagination button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.contacts-directory-dialog {
+  width: min(100%, 760px);
+}
+
+.contact-directory-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(220px, 0.9fr);
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.contact-directory-list {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.contact-directory-card {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid #ecece8;
+  border-radius: 14px;
+  background: #fbfbfa;
+}
+
+.contact-directory-card.is-selected {
+  border-color: #cad9ce;
+  background: #f5f8f5;
+}
+
+.contact-directory-select {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  color: var(--wt-text);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.contact-directory-actions {
+  display: flex;
+  gap: 7px;
+  margin: 10px 0 0 52px;
+}
+
+.contact-directory-actions button,
+.contact-action-confirm button {
+  min-height: 31px;
+  padding: 0 10px;
+  border: 1px solid #deded9;
+  border-radius: 9px;
+  color: #555650;
+  background: #fff;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.contact-directory-actions button:hover,
+.contact-action-confirm button:hover:not(:disabled) {
+  background: #f3f4f1;
+}
+
+.contact-action-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin: 10px 0 0 52px;
+}
+
+.contact-action-confirm p {
+  width: 100%;
+  margin: 0;
+  color: #705550;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.contact-action-confirm .contact-confirm-button {
+  border-color: #a9524b;
+  color: #fff;
+  background: #a9524b;
+}
+
+.contact-action-confirm .contact-confirm-button:hover:not(:disabled) {
+  background: #90443e;
+}
+
+.contact-action-confirm button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.contact-profile-panel {
+  align-self: start;
+  min-height: 130px;
+  padding: 15px;
+  border: 1px solid #ecece8;
+  border-radius: 15px;
+  background: #fbfbfa;
+}
+
+.contact-profile-details {
+  display: grid;
+  margin: 12px 0 0;
+}
+
+.contact-profile-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0ed;
+}
+
+.contact-profile-details > div:last-child {
+  border-bottom: 0;
+}
+
+.contact-profile-details dt {
+  color: var(--wt-muted);
+  font-size: 10px;
+}
+
+.contact-profile-details dd {
+  max-width: 70%;
+  margin: 0;
+  color: var(--wt-text);
+  font-size: 11px;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .profile-dialog-header {
@@ -1557,6 +1698,10 @@ textarea:focus-visible {
     max-height: min(88dvh, 720px);
     padding: 21px 18px max(18px, env(safe-area-inset-bottom));
     border-radius: 22px 22px 14px 14px;
+  }
+
+  .contact-directory-layout {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

@@ -43,4 +43,24 @@ describe('contact API', () => {
     await expect(contactApi.handleApplication(91, 3)).resolves.toBeNull()
     expect(postForm).toHaveBeenCalledWith('/contact/dealWithApply', { applyId: 91, status: 3 })
   })
+
+  it("loads the current user's friend directory", async () => {
+    const contacts = [{ userId: 'U100', contactId: 'U200', contactType: 0, status: 1, contactName: 'Friend' }]
+    vi.mocked(postForm).mockResolvedValue(contacts)
+
+    await expect(contactApi.loadContacts('USER')).resolves.toEqual(contacts)
+    expect(postForm).toHaveBeenCalledWith('/contact/loadContact', { contactType: 'USER' })
+  })
+
+  it('loads friend details and sends delete or block decisions', async () => {
+    const profile = { userId: 'U200', nickName: 'Friend', sex: 1, areaName: 'Shanghai', contactStatus: 1 }
+    vi.mocked(postForm).mockResolvedValueOnce(profile).mockResolvedValue(null)
+
+    await expect(contactApi.getContactUserInfo('U200')).resolves.toEqual(profile)
+    await expect(contactApi.deleteContact('U200')).resolves.toBeNull()
+    await expect(contactApi.blockContact('U200')).resolves.toBeNull()
+    expect(postForm).toHaveBeenNthCalledWith(1, '/contact/getContactUserInfo', { contactId: 'U200' })
+    expect(postForm).toHaveBeenNthCalledWith(2, '/contact/delContact', { contactId: 'U200' })
+    expect(postForm).toHaveBeenNthCalledWith(3, '/contact/addContact2BlackList', { contactId: 'U200' })
+  })
 })

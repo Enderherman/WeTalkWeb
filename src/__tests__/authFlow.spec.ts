@@ -39,6 +39,10 @@ vi.mock('@/api/contacts', () => ({
     applyAdd: vi.fn(),
     loadApplications: vi.fn(),
     handleApplication: vi.fn(),
+    loadContacts: vi.fn(),
+    getContactUserInfo: vi.fn(),
+    deleteContact: vi.fn(),
+    blockContact: vi.fn(),
   },
 }))
 
@@ -102,6 +106,10 @@ beforeEach(() => {
   vi.mocked(authApi.updatePassword).mockResolvedValue(undefined)
   vi.mocked(contactApi.loadApplications).mockResolvedValue({ totalCount: 0, pageSize: 15, pageNo: 1, pageTotal: 0, list: [] })
   vi.mocked(contactApi.handleApplication).mockResolvedValue(null)
+  vi.mocked(contactApi.loadContacts).mockResolvedValue([])
+  vi.mocked(contactApi.getContactUserInfo).mockResolvedValue({ userId: 'U200' })
+  vi.mocked(contactApi.deleteContact).mockResolvedValue(null)
+  vi.mocked(contactApi.blockContact).mockResolvedValue(null)
   vi.mocked(chatApi.loadHistory).mockResolvedValue({
     pageNo: 1,
     pageSize: 30,
@@ -448,5 +456,14 @@ describe('authentication flow', () => {
 
     expect(wrapper.find('[data-testid="contact-applications-overlay"]').exists()).toBe(true)
     expect(contactApi.loadApplications).toHaveBeenCalledWith(1)
+  })
+
+  it('opens the friend directory from the chat sidebar', async () => {
+    const { wrapper } = await mountChat()
+    await wrapper.get('[data-testid="open-contact-directory"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="contact-directory-overlay"]').exists()).toBe(true)
+    expect(contactApi.loadContacts).toHaveBeenCalledWith('USER')
   })
 })
