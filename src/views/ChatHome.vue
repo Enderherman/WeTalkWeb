@@ -376,6 +376,11 @@ function openAbout() {
   void router.push({ name: 'about' })
 }
 
+function openAdminUsers() {
+  sidebarOpen.value = false
+  void router.push({ name: 'admin-users' })
+}
+
 function openContactSearch() {
   sidebarOpen.value = false
   contactSearchOpen.value = true
@@ -787,6 +792,13 @@ async function signOut() {
             <span>{{ profile?.email || authStore.session?.email }}</span>
           </span>
         </button>
+        <button
+          v-if="authStore.session?.admin"
+          class="sidebar-admin-button"
+          data-testid="open-admin-users"
+          type="button"
+          @click="openAdminUsers"
+        >管理用户</button>
         <button
           class="icon-button signout-button"
           data-testid="signout"
