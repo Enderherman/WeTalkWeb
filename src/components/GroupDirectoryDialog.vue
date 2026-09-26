@@ -33,6 +33,13 @@ const avatarInput = ref<HTMLInputElement | null>(null)
 const creatingGroup = ref(false)
 const createError = ref('')
 const createNotice = ref('')
+const editGroupOpen = ref(false)
+const editForm = reactive({ groupName: '', groupNotice: '', joinType: 1 as 0 | 1 })
+const editAvatarFile = ref<File | null>(null)
+const editAvatarInput = ref<HTMLInputElement | null>(null)
+const editingGroup = ref(false)
+const editError = ref('')
+const editNotice = ref('')
 const friends = ref<UserContactEntry[]>([])
 const selectedMemberIds = ref<string[]>([])
 const addMemberOpen = ref(false)
@@ -152,6 +159,68 @@ async function createGroup() {
     createError.value = error instanceof Error ? error.message : '群聊创建失败，请稍后重试'
   } finally {
     creatingGroup.value = false
+  }
+}
+
+function openEditGroup() {
+  if (!isGroupOwner.value || !groupProfile.value) return
+  createFormOpen.value = false
+  editForm.groupName = groupProfile.value.groupName
+  editForm.groupNotice = groupProfile.value.groupNotice || ''
+  editForm.joinType = groupProfile.value.joinType
+  editAvatarFile.value = null
+  if (editAvatarInput.value) editAvatarInput.value.value = ''
+  editError.value = ''
+  editNotice.value = ''
+  editGroupOpen.value = true
+}
+
+function selectEditAvatar(event: Event) {
+  const input = event.target as HTMLInputElement
+  editAvatarFile.value = input.files?.[0] || null
+  editError.value = ''
+}
+
+async function updateGroup() {
+  const groupId = selectedGroupId.value
+  const groupName = editForm.groupName.trim()
+  const avatar = editAvatarFile.value
+  editError.value = ''
+  editNotice.value = ''
+  if (!groupId || !groupName) {
+    editError.value = '请输入群名称'
+    return
+  }
+  if (groupName.length > 32 || editForm.groupNotice.length > 500) {
+    editError.value = '群名最多 32 个字符，群公告最多 500 个字符'
+    return
+  }
+  if (avatar && (avatar.type !== 'image/png' || !avatar.name.toLowerCase().endsWith('.png'))) {
+    editError.value = '群头像需使用 PNG 格式'
+    return
+  }
+  if (avatar && avatar.size > 10 * 1024 * 1024) {
+    editError.value = '群头像不能超过 10 MB'
+    return
+  }
+
+  editingGroup.value = true
+  try {
+    await groupApi.update({
+      groupId,
+      groupName,
+      groupNotice: editForm.groupNotice.trim(),
+      joinType: editForm.joinType,
+      avatarFile: avatar,
+    })
+    editNotice.value = '群资料已更新'
+    editGroupOpen.value = false
+    emit('groupChanged')
+    await refreshSelectedGroup()
+  } catch (error: unknown) {
+    editError.value = error instanceof Error ? error.message : '群资料更新失败，请稍后重试'
+  } finally {
+    editingGroup.value = false
   }
 }
 
@@ -384,6 +453,43 @@ function formatGroupTime(value?: string | null) {
             <div><dt>创建日期</dt><dd>{{ formatGroupTime(groupProfile.createTime) }}</dd></div>
             <div class="group-notice-row"><dt>群公告</dt><dd>{{ groupProfile.groupNotice || '暂无公告' }}</dd></div>
           </dl>
+          <p v-if="editNotice" class="contact-notice" role="status">{{ editNotice }}</p>
+          <p v-if="editError" class="contact-error" role="alert">{{ editError }}</p>
+          <form v-if="editGroupOpen" class="group-create-form" data-testid="edit-group-form" @submit.prevent="updateGroup">
+            <label for="edit-group-name">群名称</label>
+            <input id="edit-group-name" v-model="editForm.groupName" data-testid="edit-group-name" maxlength="32" :disabled="editingGroup" />
+            <label for="edit-group-notice">群公告</label>
+            <textarea
+              id="edit-group-notice"
+              v-model="editForm.groupNotice"
+              data-testid="edit-group-notice"
+              maxlength="500"
+              rows="3"
+              :disabled="editingGroup"
+            ></textarea>
+            <label for="edit-group-join-type">加入方式</label>
+            <select id="edit-group-join-type" v-model.number="editForm.joinType" data-testid="edit-group-join-type" :disabled="editingGroup">
+              <option :value="0">无需审核</option>
+              <option :value="1">需要群主同意</option>
+            </select>
+            <label for="edit-group-avatar">更换群头像（可选 PNG）</label>
+            <input
+              id="edit-group-avatar"
+              ref="editAvatarInput"
+              data-testid="edit-group-avatar"
+              type="file"
+              accept="image/png,.png"
+              :disabled="editingGroup"
+              @change="selectEditAvatar"
+            />
+            <p v-if="editAvatarFile" class="group-avatar-selected">已选择：{{ editAvatarFile.name }}</p>
+            <div class="group-member-picker-actions">
+              <button type="button" :disabled="editingGroup" @click="editGroupOpen = false">取消</button>
+              <button class="contact-confirm-button" data-testid="save-group-changes" type="submit" :disabled="editingGroup">
+                {{ editingGroup ? '正在保存…' : '保存群资料' }}
+              </button>
+            </div>
+          </form>
           <section v-if="groupInfo" class="group-members-section" aria-label="群成员">
             <header>
               <strong>群成员</strong>
@@ -412,6 +518,7 @@ function formatGroupTime(value?: string | null) {
           <p v-if="groupActionError" class="contact-error" role="alert">{{ groupActionError }}</p>
 
           <div v-if="isGroupOwner" class="group-management-actions">
+            <button type="button" data-testid="open-edit-group" @click="openEditGroup">编辑群资料</button>
             <button type="button" data-testid="open-add-group-members" @click="openMemberPicker">添加成员</button>
             <button type="button" class="is-danger" data-testid="request-dissolve-group" @click="requestDissolveGroup">
               解散群聊

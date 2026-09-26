@@ -22,6 +22,7 @@ vi.mock('@/api/contacts', () => ({
 vi.mock('@/api/groups', () => ({
   groupApi: {
     create: vi.fn(),
+    update: vi.fn(),
     getInfoForChat: vi.fn(),
     manageMembers: vi.fn(),
     leaveGroup: vi.fn(),
@@ -62,6 +63,7 @@ beforeEach(() => {
   vi.mocked(contactApi.loadContacts).mockResolvedValue([group])
   vi.mocked(contactApi.loadOwnedGroups).mockResolvedValue([])
   vi.mocked(groupApi.create).mockResolvedValue(null)
+  vi.mocked(groupApi.update).mockResolvedValue(null)
   vi.mocked(groupApi.getInfoForChat).mockResolvedValue(groupDetails)
   vi.mocked(groupApi.manageMembers).mockResolvedValue('已处理')
   vi.mocked(groupApi.leaveGroup).mockResolvedValue('已退出')
@@ -139,6 +141,28 @@ describe('group directory dialog', () => {
     expect(wrapper.find('[data-testid="group-G300"]').exists()).toBe(true)
     expect(wrapper.emitted('groupChanged')).toHaveLength(1)
     expect(wrapper.get('[role="status"]').text()).toContain('群聊创建成功')
+  })
+
+  it('lets the owner update group name, notice, and join policy without replacing the avatar', async () => {
+    const wrapper = mount(GroupDirectoryDialog, { props: { currentUserId: 'U100' } })
+    await flushPromises()
+    await wrapper.get('[data-testid="group-G300"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="open-edit-group"]').trigger('click')
+    await wrapper.get('[data-testid="edit-group-name"]').setValue('Renamed Group')
+    await wrapper.get('[data-testid="edit-group-notice"]').setValue('Updated notice')
+    await wrapper.get('[data-testid="edit-group-join-type"]').setValue('0')
+    await wrapper.get('[data-testid="edit-group-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(groupApi.update).toHaveBeenCalledWith({
+      groupId: 'G300',
+      groupName: 'Renamed Group',
+      groupNotice: 'Updated notice',
+      joinType: 0,
+      avatarFile: null,
+    })
+    expect(wrapper.emitted('groupChanged')).toHaveLength(1)
   })
 
   it('lets the owner select a friend to add to the group', async () => {

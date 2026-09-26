@@ -28,6 +28,41 @@ describe('group API', () => {
     expect(body.has('coverFile')).toBe(false)
   })
 
+  it('updates group details without requiring a new avatar', async () => {
+    vi.mocked(postMultipart).mockResolvedValue(null)
+
+    await expect(groupApi.update({
+      groupId: 'G300',
+      groupName: 'Renamed Group',
+      groupNotice: 'Updated notice',
+      joinType: 0,
+    })).resolves.toBeNull()
+
+    const [path, body] = vi.mocked(postMultipart).mock.calls[0]!
+    expect(path).toBe('/group/saveGroup')
+    expect(body.get('groupId')).toBe('G300')
+    expect(body.get('groupName')).toBe('Renamed Group')
+    expect(body.get('groupNotice')).toBe('Updated notice')
+    expect(body.get('joinType')).toBe('0')
+    expect(body.has('avatarFile')).toBe(false)
+  })
+
+  it('includes a replacement avatar when provided during a group update', async () => {
+    vi.mocked(postMultipart).mockResolvedValue(null)
+    const avatarFile = new File(['png'], 'new-avatar.png', { type: 'image/png' })
+
+    await groupApi.update({
+      groupId: 'G300',
+      groupName: 'Renamed Group',
+      groupNotice: '',
+      joinType: 1,
+      avatarFile,
+    })
+
+    const [, body] = vi.mocked(postMultipart).mock.calls[0]!
+    expect(body.get('avatarFile')).toBe(avatarFile)
+  })
+
   it('loads group details and member rows for the directory', async () => {
     const details = { groupInfo: { groupId: 'G300' }, userContactList: [{ userId: 'U100', contactId: 'G300' }] }
     vi.mocked(postForm).mockResolvedValue(details)
