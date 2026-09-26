@@ -83,6 +83,7 @@ textarea:focus-visible {
 .not-found-page {
   position: relative;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-height: 100vh;
   min-height: 100dvh;
   place-items: center;
@@ -223,6 +224,7 @@ textarea:focus-visible {
 
 .not-found-content {
   width: min(100%, 620px);
+  min-width: 0;
   text-align: center;
 }
 
@@ -236,20 +238,24 @@ textarea:focus-visible {
 }
 
 .not-found-content h1 {
+  max-width: 100%;
   margin: 0;
   color: var(--wt-text);
   font-size: clamp(28px, 5vw, 42px);
   font-weight: 600;
   letter-spacing: -0.04em;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .not-found-content > p:not(.not-found-code) {
+  width: 100%;
   max-width: 440px;
   margin: 18px auto 0;
   color: var(--wt-muted);
   font-size: 15px;
   line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 
 .not-found-action {
