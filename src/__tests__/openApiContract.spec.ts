@@ -147,7 +147,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
   it('models body-level business errors alongside HTTP 200 success responses', () => {
     for (const pathName of Object.keys(contract.paths)) {
       if (pathName === '/chat/downloadFile') {
-        expect(contract.paths[pathName].post.responses['200'].content['application/x-msdownload'].schema.format).toBe(
+        expect(contract.paths[pathName].post.responses['200'].content['application/octet-stream'].schema.format).toBe(
           'binary',
         )
         continue
@@ -184,8 +184,12 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(
       contract.paths['/chat/uploadFile'].post.requestBody.content['multipart/form-data'].schema.$ref,
     ).toBe('#/components/schemas/UploadChatFileRequest')
-    expect(contract.components.schemas.UploadChatFileRequest.required).toEqual(['messageId', 'file', 'cover'])
-    expect(contract.paths['/chat/downloadFile'].post.responses['200'].content['application/x-msdownload'].schema.format).toBe(
+    expect(contract.components.schemas.UploadChatFileRequest.required).toEqual(['messageId', 'file'])
+    expect(contract.components.schemas.UploadChatFileRequest.properties.cover).toMatchObject({
+      format: 'binary',
+      description: 'Optional cover or thumbnail image.',
+    })
+    expect(contract.paths['/chat/downloadFile'].post.responses['200'].content['application/octet-stream'].schema.format).toBe(
       'binary',
     )
   })
@@ -195,12 +199,14 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(contract.components.schemas.SystemSettings.properties).toHaveProperty('robotWelcome')
     expect(contract.components.schemas.SaveUserInfoRequest.properties.avatarFile.format).toBe('binary')
     expect(contract.components.schemas.SaveUserInfoRequest.properties.coverFile.format).toBe('binary')
+    expect(contract.paths['/account/saveUserInfo'].post.description).toContain('coverFile is an optional thumbnail')
     expect(contract.components.schemas.SaveUserInfoRequest.properties).not.toHaveProperty('password')
     expect(contract.components.schemas.SaveUserInfoRequest.properties).not.toHaveProperty('email')
   })
 
   it('keeps administrative user payloads password-free and documents role limits', () => {
     expect(contract.components.schemas.AdminUserInfo.properties).not.toHaveProperty('password')
+    expect(contract.components.schemas.AdminUserInfo.description).toContain('write-only')
     expect(contract.components.schemas.AdminUserQuery.properties).not.toHaveProperty('password')
     expect(contract.components.schemas.PostAppUpdateRequest.properties.status.enum).toEqual([0, 1, 2])
     expect(contract.paths['/app/checkUpdate'].post.description).toContain('not the admin role')

@@ -3,7 +3,7 @@
   "info": {
     "title": "WeTalk Web API Contract",
     "version": "0.1.0",
-    "description": "This contract covers all 43 current backend REST endpoints used by WeTalkApp and the planned WeTalkWeb client. WebSocket frames and production deployment settings are documented separately.\n\nRequests use application/x-www-form-urlencoded and the same-origin /api prefix unless an operation specifies multipart/form-data or a binary response. Business errors are normally returned in the BaseResponse body, often with HTTP 200; clients must inspect code. Login sends a lowercase MD5 digest for compatibility with the existing Electron client, while registration and password change send the raw password over HTTPS and the server hashes it. This legacy protocol must be replaced before public production use. The admin user schema omits password data; its live response redaction will be verified after the in-progress backend change is committed."
+    "description": "This contract covers all 43 current backend REST endpoints used by WeTalkApp and the planned WeTalkWeb client. WebSocket frames and production deployment settings are documented separately.\n\nRequests use application/x-www-form-urlencoded and the same-origin /api prefix unless an operation specifies multipart/form-data or a binary response. Business errors are normally returned in the BaseResponse body, often with HTTP 200; clients must inspect code. Login sends a lowercase MD5 digest for compatibility with the existing Electron client, while registration and password change send the raw password over HTTPS and the server hashes it. This legacy protocol must be replaced before public production use. Backend 0.0.2 marks the password field write-only, and its serialization test verifies the password is omitted from JSON. A live admin-role endpoint check remains a separate integration item."
   },
   "servers": [
     {
@@ -270,7 +270,7 @@
         "tags": ["Account"],
         "operationId": "saveCurrentUserInfo",
         "summary": "Save the current user's profile",
-        "description": "The authenticated user ID is taken from the token. Email and password fields are server-controlled and must not be sent here. To update the avatar, send avatarFile and coverFile together; the current service dereferences the cover when an avatar upload is present.",
+        "description": "The authenticated user ID is taken from the token. Email and password fields are server-controlled and must not be sent here. Backend 0.0.2 accepts avatarFile without coverFile; coverFile is an optional thumbnail.",
         "security": [{ "tokenHeader": [] }],
         "requestBody": {
           "required": true,
@@ -1179,7 +1179,7 @@
       "post": {
         "tags": ["Files"],
         "operationId": "uploadChatFile",
-        "summary": "Upload a message file and cover image",
+        "summary": "Upload a message file and optional cover image",
         "security": [{ "tokenHeader": [] }],
         "requestBody": {
           "required": true,
@@ -1212,7 +1212,7 @@
         "tags": ["Files"],
         "operationId": "downloadChatFile",
         "summary": "Download an attachment, cover, or avatar",
-        "description": "The request must be authenticated; message files also require conversation membership. The current endpoint returns the full file stream and does not implement HTTP Range requests. On download errors, the controller does not consistently serialize a BaseResponse; this response behavior remains a Phase 5 limitation.",
+        "description": "The request must be authenticated; message files also require conversation membership. Backend 0.0.2 returns the full application/octet-stream stream and does not implement HTTP Range requests. Validation and authorization errors are handled by the standard business-error response before streaming starts; an I/O failure after streaming starts can terminate the connection.",
         "security": [{ "tokenHeader": [] }],
         "requestBody": {
           "required": true,
@@ -1237,7 +1237,7 @@
               "Content-Length": { "schema": { "type": "integer" } }
             },
             "content": {
-              "application/x-msdownload": {
+              "application/octet-stream": {
                 "schema": { "type": "string", "format": "binary" }
               }
             }
@@ -1610,7 +1610,7 @@
       },
       "AdminUserInfo": {
         "type": "object",
-        "description": "Safe fields used by the admin user list. Password hashes are excluded by the contract; live response redaction remains to be rechecked after the backend update is committed.",
+        "description": "Safe fields used by the admin user list. Backend 0.0.2 marks the password field write-only, and the backend serialization test confirms it is omitted from JSON.",
         "properties": {
           "userId": { "type": "string" },
           "email": { "type": "string", "format": "email" },
@@ -2015,11 +2015,11 @@
       },
       "UploadChatFileRequest": {
         "type": "object",
-        "required": ["messageId", "file", "cover"],
+        "required": ["messageId", "file"],
         "properties": {
           "messageId": { "type": "integer", "minimum": 1 },
           "file": { "type": "string", "format": "binary" },
-          "cover": { "type": "string", "format": "binary" }
+          "cover": { "type": "string", "format": "binary", "description": "Optional cover or thumbnail image." }
         }
       },
       "SendTextMessageRequest": {

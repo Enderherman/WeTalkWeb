@@ -79,7 +79,7 @@ WeTalkWeb 是 WeTalk 的浏览器客户端新仓库，使用 Vue 3 + TypeScript 
 
 ## Phase 0：当前网页接口契约
 
-- `docs/openapi.web.json` 使用 OpenAPI 3.2.1，覆盖后端全部 43 个 REST 接口。
+- `docs/openapi.web.json` 使用 OpenAPI 3.2.1，覆盖后端 0.0.2 的全部 43 个 REST 接口；包含可选文件封面、完整下载流及管理员用户敏感字段约束。
 - 文档说明 `/api` 同源前缀、`token` 请求头、URL-encoded 表单、业务响应码和当前登录密码 MD5 兼容协议。
 - WebSocket 帧说明、ER 图、环境变量模板及管理员角色/敏感字段真实回归仍在 Phase 0 待办中。
 
