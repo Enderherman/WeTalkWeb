@@ -70,8 +70,9 @@ export const useChatStore = defineStore('chat', {
     connectionError: '',
   }),
   actions: {
-    connect(token: string, accountId: string) {
+    connect(accountId: string) {
       this.disconnect()
+      if (!accountId) return
       if (this.accountId && this.accountId !== accountId) {
         this.initialized = false
         this.sessionList = []
@@ -83,7 +84,7 @@ export const useChatStore = defineStore('chat', {
       this.accountId = accountId
       this.connectionError = ''
       this.connectionStatus = 'connecting'
-      realtimeClient = createRealtimeClient(token, {
+      realtimeClient = createRealtimeClient({
         onStatus: (status) => {
           this.connectionStatus = status
         },

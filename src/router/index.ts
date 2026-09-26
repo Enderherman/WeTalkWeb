@@ -14,7 +14,7 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  const isAuthenticated = Boolean(readStoredSession()?.token)
+  const isAuthenticated = Boolean(readStoredSession()?.userId)
   const isAuthPage = to.name === 'login' || to.name === 'register'
   const isPublicPage = isAuthPage || to.name === 'not-found' || to.name === 'service-error'
 

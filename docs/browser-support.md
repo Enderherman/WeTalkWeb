@@ -18,7 +18,7 @@
 - JavaScript、WebSocket 和 Blob 对象 URL 用于页面、实时消息和媒体预览。
 - IndexedDB 用于可选的纯文字消息缓存。浏览器禁用 IndexedDB 时应继续从后端读取消息，不阻断登录和聊天。
 - 文件通过浏览器文件选择器上传；下载由浏览器处理。应用不读取任意本地目录，不请求摄像头或麦克风权限。
-- 生产部署要求 HTTPS/WSS。当前网页认证仍使用页面会话存储和 `token` 请求头，HttpOnly Cookie/短期 WebSocket 票据仍在安全登录态待办中。
+- 生产部署要求 HTTPS/WSS。浏览器认证使用 HttpOnly SameSite Strict Cookie；HTTPS 部署将 `WETALK_WEB_AUTH_COOKIE_SECURE=true`。WebSocket 握手使用 60 秒一次性票据。
 
 ## 文件与媒体规则
 

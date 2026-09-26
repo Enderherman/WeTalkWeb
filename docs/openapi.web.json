@@ -3,7 +3,7 @@
   "info": {
     "title": "WeTalk Web API Contract",
     "version": "0.1.0",
-    "description": "This contract covers all 44 current backend REST endpoints used by WeTalkApp and the planned WeTalkWeb client. WebSocket frames and production deployment settings are documented separately.\n\nRequests use application/x-www-form-urlencoded and the same-origin /api prefix unless an operation specifies multipart/form-data or a binary response. Business errors are normally returned in the BaseResponse body, often with HTTP 200; clients must inspect code. Login sends a lowercase MD5 digest for compatibility with the existing Electron client, while registration and password change send the raw password over HTTPS and the server hashes it. This legacy protocol must be replaced before public production use. Backend 0.0.2 marks the password field write-only, and its serialization test verifies the password is omitted from JSON. Admin role and password-free list behavior were verified against the local backend."
+    "description": "This contract covers all 46 current backend REST endpoints used by WeTalkApp and the planned WeTalkWeb client. WebSocket frames and production deployment settings are documented separately.\n\nRequests use application/x-www-form-urlencoded and the same-origin /api prefix unless an operation specifies multipart/form-data or a binary response. Business errors are normally returned in the BaseResponse body, often with HTTP 200; clients must inspect code. Desktop and browser login retain the legacy MD5 password digest. Browser login uses /account/webLogin, returns no token in JSON, and sets an HttpOnly SameSite Strict cookie; Secure is enabled with WETALK_WEB_AUTH_COOKIE_SECURE=true. WebSocket connections use a single-use ticket with a 60-second lifetime, while Electron keeps the legacy token query. This legacy password protocol must be replaced before public production use. Backend 0.0.2 marks the password field write-only, and its serialization test verifies the password is omitted from JSON. Admin role and password-free list behavior were verified against the local backend."
   },
   "servers": [
     {
@@ -136,12 +136,53 @@
         }
       }
     },
+    "/account/webLogin": {
+      "post": {
+        "tags": ["Account"],
+        "operationId": "webLoginAccount",
+        "summary": "Log in to the browser client",
+        "description": "Uses the same MD5 compatibility digest and captcha as desktop login, sets an HttpOnly SameSite Strict session cookie, and omits the token from JSON. Set WETALK_WEB_AUTH_COOKIE_SECURE=true behind HTTPS.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Public account summary; the token is set only in the HttpOnly Set-Cookie header.",
+            "headers": { "Set-Cookie": { "schema": { "type": "string" }, "description": "HttpOnly, SameSite=Strict session cookie." } },
+            "content": {
+              "application/json": {
+                "schema": { "oneOf": [{ "$ref": "#/components/schemas/WebAuthSessionResponse" }, { "$ref": "#/components/schemas/BusinessErrorResponse" }] },
+                "example": { "status": "success", "code": 200, "data": { "userId": "U10001", "email": "student@example.com", "nickName": "Student", "admin": false } }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/account/webSocketTicket": {
+      "post": {
+        "tags": ["Account"],
+        "operationId": "createWebSocketTicket",
+        "summary": "Create a short-lived WebSocket ticket",
+        "description": "Requires an authenticated session. The ticket expires after 60 seconds and is consumed on the first WebSocket handshake. Desktop clients may continue using their legacy token query parameter.",
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
+        "responses": {
+          "200": {
+            "description": "Short-lived single-use connection ticket.",
+            "content": { "application/json": { "schema": { "oneOf": [{ "$ref": "#/components/schemas/WebSocketTicketResponse" }, { "$ref": "#/components/schemas/BusinessErrorResponse" }] } } }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
     "/account/getUserInfo": {
       "post": {
         "tags": ["Account"],
         "operationId": "getCurrentUserInfo",
         "summary": "Read the current user profile",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "responses": {
           "200": {
             "description": "Current profile for the authenticated token.",
@@ -176,7 +217,7 @@
         "operationId": "updatePassword",
         "summary": "Change the current user's password",
         "description": "The request contains the raw new password; the backend hashes it and forces the active user offline. Send this only over HTTPS in production.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -221,7 +262,7 @@
         "tags": ["Account"],
         "operationId": "logoutAccount",
         "summary": "Log out the current user",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "responses": {
           "200": {
             "description": "Logout completed; data is null.",
@@ -246,7 +287,7 @@
         "tags": ["Account"],
         "operationId": "getAccountSystemSettings",
         "summary": "Read client-visible system settings",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "responses": {
           "200": {
             "description": "System settings returned by the current backend configuration.",
@@ -271,7 +312,7 @@
         "operationId": "saveCurrentUserInfo",
         "summary": "Save the current user's profile",
         "description": "The authenticated user ID is taken from the token. Email and password fields are server-controlled and must not be sent here. Backend 0.0.2 accepts avatarFile without coverFile; coverFile is an optional thumbnail.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -304,7 +345,7 @@
         "operationId": "searchContact",
         "summary": "Search for a user or group",
         "description": "Searches by the contact ID. The result includes the relationship status visible to the current user.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -340,7 +381,7 @@
         "tags": ["Contacts"],
         "operationId": "applyToContact",
         "summary": "Apply to add a friend or join a group",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -379,7 +420,7 @@
         "tags": ["Contacts"],
         "operationId": "loadContactApplications",
         "summary": "Load received contact applications",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "content": {
             "application/x-www-form-urlencoded": {
@@ -413,7 +454,7 @@
         "tags": ["Contacts"],
         "operationId": "respondToContactApplication",
         "summary": "Accept, reject, or block a contact application",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -452,7 +493,7 @@
         "tags": ["Contacts"],
         "operationId": "loadContacts",
         "summary": "Load the current user's contacts or groups",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -489,7 +530,7 @@
         "operationId": "getContactInfo",
         "summary": "Read visible information for a contact",
         "description": "This operation may return a user who is not yet a friend, with contactStatus set to the non-friend value.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -525,7 +566,7 @@
         "tags": ["Contacts"],
         "operationId": "getFriendInfo",
         "summary": "Read friend-only user information",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -561,7 +602,7 @@
         "tags": ["Contacts"],
         "operationId": "deleteContact",
         "summary": "Remove a contact",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -597,7 +638,7 @@
         "tags": ["Contacts"],
         "operationId": "blockContact",
         "summary": "Block a contact",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -634,7 +675,7 @@
         "operationId": "saveGroup",
         "summary": "Create a group or update group information",
         "description": "groupId omitted creates a group; supplying groupId updates an existing group owned by the caller. A group avatar file is required by the current service when creating a group. The cover file is optional.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -666,7 +707,7 @@
         "tags": ["Groups"],
         "operationId": "loadMyGroups",
         "summary": "Load groups created by the current user",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "responses": {
           "200": {
             "description": "The caller's active groups, ordered by creation time descending.",
@@ -690,7 +731,7 @@
         "tags": ["Groups"],
         "operationId": "getGroupInfo",
         "summary": "Read group details",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -726,7 +767,7 @@
         "tags": ["Groups"],
         "operationId": "getGroupInfoForChat",
         "summary": "Read group details and members for the chat page",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -762,7 +803,7 @@
         "tags": ["Groups"],
         "operationId": "leaveGroup",
         "summary": "Leave a group",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -799,7 +840,7 @@
         "operationId": "addOrRemoveGroupUsers",
         "summary": "Add or remove group members",
         "description": "Only the group owner may perform this operation. selectContacts is a comma-separated list of user IDs; opType 0 removes members and 1 adds them.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -840,7 +881,7 @@
         "operationId": "dissolveGroup",
         "summary": "Dissolve a group",
         "description": "Only the group owner may dissolve the group.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -877,7 +918,7 @@
         "operationId": "adminLoadUsers",
         "summary": "Load a paged user list",
         "description": "Requires the admin role in addition to the token. The web contract exposes the fields used by the admin list and excludes password data.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/AdminUserQuery" } } }
@@ -894,7 +935,7 @@
         "operationId": "adminUpdateUserStatus",
         "summary": "Enable or disable a user account",
         "description": "Requires the admin role.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/AdminUpdateUserStatusRequest" } } }
@@ -911,7 +952,7 @@
         "operationId": "adminForceUserOffline",
         "summary": "Force a user offline",
         "description": "Requires the admin role.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -932,7 +973,7 @@
         "operationId": "adminLoadGroups",
         "summary": "Load a paged group list",
         "description": "Requires the admin role.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/AdminGroupQuery" } } }
@@ -948,7 +989,7 @@
         "tags": ["Admin"],
         "operationId": "adminDissolveGroup",
         "summary": "Dissolve a group as an administrator",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -973,7 +1014,7 @@
         "operationId": "adminGetSystemSettings",
         "summary": "Read administrative system settings",
         "description": "Requires the admin role. The regular-user settings endpoint is /account/getSysSetting.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "responses": {
           "200": {
             "description": "Current system settings.",
@@ -998,7 +1039,7 @@
         "operationId": "adminSaveSystemSettings",
         "summary": "Save system settings and optional robot avatar",
         "description": "Requires the admin role. Supply robotAvatarFile and robotAvatarCoverFile together when replacing the avatar.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": { "multipart/form-data": { "schema": { "$ref": "#/components/schemas/AdminSystemSettingsRequest" } } }
@@ -1015,7 +1056,7 @@
         "operationId": "adminLoadBeautyAccounts",
         "summary": "Load a paged list of reserved user IDs",
         "description": "Requires the admin role.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/BeautyAccountQuery" } } }
@@ -1032,7 +1073,7 @@
         "operationId": "adminSaveBeautyAccount",
         "summary": "Create or update a reserved user ID",
         "description": "Requires the admin role.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/BeautyAccountRequest" } } }
@@ -1048,7 +1089,7 @@
         "tags": ["Admin"],
         "operationId": "adminDeleteBeautyAccount",
         "summary": "Delete a reserved user ID",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -1069,7 +1110,7 @@
         "operationId": "adminLoadAppUpdates",
         "summary": "Load app update records",
         "description": "Requires the admin role.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/AppUpdateQuery" } } }
@@ -1086,7 +1127,7 @@
         "operationId": "adminSaveAppUpdate",
         "summary": "Create or update an app release",
         "description": "Requires the admin role. file is needed when fileType is 0; outerLink is used for fileType 1.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": { "multipart/form-data": { "schema": { "$ref": "#/components/schemas/AppUpdateSaveRequest" } } }
@@ -1103,7 +1144,7 @@
         "operationId": "adminDeleteAppUpdate",
         "summary": "Delete an app update record",
         "description": "Requires the admin role.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -1124,7 +1165,7 @@
         "operationId": "downloadAppUpdate",
         "summary": "Download a released local app update",
         "description": "Requires a valid token. A full release is available to any authenticated user; a gray release is available only to a listed user. Draft and external-link updates are not served as local packages.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -1145,7 +1186,7 @@
         "operationId": "adminPostAppUpdate",
         "summary": "Publish or stage an app update",
         "description": "Requires the admin role. status 0 is draft, 1 is gray release, and 2 is full release.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -1166,7 +1207,7 @@
         "operationId": "checkForAppUpdate",
         "summary": "Check for a published app update",
         "description": "Requires a valid token but not the admin role. When version is omitted or empty, the server returns an empty success response.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "content": {
             "application/x-www-form-urlencoded": {
@@ -1201,7 +1242,7 @@
         "tags": ["Files"],
         "operationId": "uploadChatFile",
         "summary": "Upload a message file and optional cover image",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -1234,7 +1275,7 @@
         "operationId": "downloadChatFile",
         "summary": "Download an attachment, cover, or avatar",
         "description": "The request must be authenticated; message files also require conversation membership. Backend 0.0.2 returns the full application/octet-stream stream and does not implement HTTP Range requests. Validation and authorization errors are handled by the standard business-error response before streaming starts; an I/O failure after streaming starts can terminate the connection.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -1275,7 +1316,7 @@
         "operationId": "sendChatMessageMetadata",
         "summary": "Create text or file-message metadata",
         "description": "Supports text messageType 2 and file/media messageType 5. For type 5, the client first creates message metadata, then uploads the file with /chat/uploadFile. The backend validates contact membership and persists the message before returning this response.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -1325,7 +1366,7 @@
         "operationId": "loadChatHistory",
         "summary": "Load a cursor-paged conversation history",
         "description": "Returns up to 50 messages. Omit beforeMessageId to load the latest page; when supplied, it is an exclusive cursor and older messages are returned in chronological order. The default page size is 30.",
-        "security": [{ "tokenHeader": [] }],
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -1383,7 +1424,13 @@
         "type": "apiKey",
         "in": "header",
         "name": "token",
-        "description": "Current transitional token header used by the backend. Public production deployment still requires the planned secure-cookie and short-lived WebSocket-ticket design."
+        "description": "Legacy token header retained for Electron and backward compatibility."
+      },
+      "cookieSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "wetalk_session",
+        "description": "Browser session cookie. HttpOnly and SameSite Strict; Secure is enabled with WETALK_WEB_AUTH_COOKIE_SECURE=true."
       }
     },
     "responses": {
@@ -1567,6 +1614,41 @@
             "type": "object",
             "required": ["code", "data"],
             "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/UserInfoVO" } }
+          }
+        ]
+      },
+      "WebAuthSession": {
+        "type": "object",
+        "required": ["userId", "email", "nickName", "admin"],
+        "properties": {
+          "userId": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "nickName": { "type": "string" },
+          "admin": { "type": "boolean" }
+        }
+      },
+      "WebAuthSessionResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/WebAuthSession" } }
+          }
+        ]
+      },
+      "WebSocketTicket": {
+        "type": "object",
+        "required": ["ticket"],
+        "properties": { "ticket": { "type": "string", "format": "uuid" } }
+      },
+      "WebSocketTicketResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/WebSocketTicket" } }
           }
         ]
       },

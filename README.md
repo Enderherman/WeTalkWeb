@@ -6,8 +6,8 @@ WeTalkWeb 是 WeTalk 的浏览器客户端新仓库，使用 Vue 3 + TypeScript 
 
 - 已搭建 Vue/Vite 工程和响应式 ChatGPT 风格页面基础。
 - 已实现注册、登录、图片验证码、个人资料读取、修改密码、登出和认证后聊天页占位壳，支持桌面和窄屏布局。
-- 已接入同源 WebSocket、5 秒心跳、断线重连、INIT 会话初始化、一对一文字收发、历史游标分页、纯文字 IndexedDB 缓存、消息时间分隔，以及联系人搜索/申请、好友目录、群聊目录/创建、成员名单、群成员管理、群资料编辑、群实时同步、普通文件选择/拖放/上传/下载、聊天图片/音视频预览和用户/群头像及封面显示；收到实时申请帧时更新侧栏计数。
-- 138 项认证/资料/密码/路由/聊天/缓存/联系人/群聊/文件/头像/API 错误页/OpenAPI 契约单元测试通过；类型检查和生产构建通过。Vite 代理和临时本地账号完成认证密码闭环、联系人搜索/申请/同意、群号搜索/申请/审批、好友资料、删除/拉黑、群创建 multipart 上传、群主添加/移出成员、成员退群、群主解散、群主修改群资料、群主/成员目录与成员名单、双账号文字发送/接收、历史读回、WebSocket INIT/心跳、HTTP 过期码 901 和服务端断开/恢复验证；双账号真实 WebSocket 验证群创建/加入/改名/退群/移出/解散事件和成员人数，重连后失效群不再出现在会话列表；普通文件与图片、MP4 视频 type 5/6 上传、历史读回和双方下载字节已真实后端验证，群资料更新后从详情和群主列表读回成功，未上传新头像时原头像文件哈希不变；本轮另用鉴权临时账号验证头像和封面下载字节、管理员 `/admin/loadUser` 的未登录 901/普通用户 404/管理员 200 及密码字段脱敏，以及更新包草稿拒绝下载/已发布字节下载/草稿删除。临时账号、更新包记录和文件、群、附件、头像和关联数据已清理。Phase 0 接口抽查确认验证码结构、验证码失败响应、账号设置/资料保存、账号/聊天、联系人、群和文件端点未登录时返回 901；尚未完成自动化浏览器端到端和多视口视觉验收。
+- 已接入 HttpOnly Cookie 会话、一次性 WebSocket 票据、同源 WebSocket、5 秒心跳、断线重连、INIT 会话初始化、一对一文字收发、历史游标分页、纯文字 IndexedDB 缓存、消息时间分隔，以及联系人搜索/申请、好友目录、群聊目录/创建、成员名单、群成员管理、群资料编辑、群实时同步、普通文件选择/拖放/上传/下载、聊天图片/音视频预览和用户/群头像及封面显示；收到实时申请帧时更新侧栏计数。
+- 140 项认证/资料/密码/路由/聊天/缓存/联系人/群聊/文件/头像/API 错误页/OpenAPI 契约单元测试通过；类型检查和生产构建通过。Vite 代理和临时本地账号完成 HttpOnly Cookie 认证闭环、Cookie 保护的资料请求、短期 WebSocket ticket/一次性握手/登出撤销、联系人搜索/申请/同意、群号搜索/申请/审批、好友资料、删除/拉黑、群创建 multipart 上传、群主添加/移出成员、成员退群、群主解散、群主修改群资料、群主/成员目录与成员名单、双账号文字发送/接收、历史读回、HTTP 过期码 901 和服务端断开/恢复验证；双账号真实 WebSocket 验证群创建/加入/改名/退群/移出/解散事件和成员人数，重连后失效群不再出现在会话列表；普通文件与图片、MP4 视频 type 5/6 上传、历史读回和双方下载字节已真实后端验证，群资料更新后从详情和群主列表读回成功，未上传新头像时原头像文件哈希不变；另验证用户/群头像封面、管理员 `/admin/loadUser` 权限/脱敏，以及更新包发布下载/删除。临时账号、Redis ticket、更新包记录和文件、群、附件、头像和关联数据已清理。管理员和更新包 E2E 清单见对应小节；尚未完成自动化浏览器端到端和多视口视觉验收。
 
 ### 首个交付相对空仓库的变化
 
@@ -174,9 +174,15 @@ WeTalkWeb 是 WeTalk 的浏览器客户端新仓库，使用 Vue 3 + TypeScript 
 - Electron 下载请求改为 `application/x-www-form-urlencoded`，`deleteUpdate` 路径去掉尾随空格。
 - 后端 43 项 Maven 测试、WeTalkWeb 138 项测试/类型检查/构建和 Electron 构建通过。真实后端上传并发布临时包后，普通用户下载字节匹配；草稿下载被拒绝，草稿删除成功，临时账号/记录/文件已清理。
 
+### 本轮实现：浏览器安全会话
+
+- 浏览器使用 `/account/webLogin` 登录；响应 JSON 只含公开账号资料，认证 token 通过 HttpOnly、SameSite Strict Cookie 保存。HTTPS 部署设置 `WETALK_WEB_AUTH_COOKIE_SECURE=true`。
+- 每次 WebSocket 初连/重连都通过受 Cookie 保护的 `/account/webSocketTicket` 申请 60 秒一次性票据；服务端用 Redis Lua 脚本原子消费。Electron 继续使用旧 token 头和 WebSocket URL 兼容方式。
+- 后端 49 项 Maven 测试、前端 140 项测试/类型检查/构建通过。真实后端验证 Cookie 资料请求、WS INIT、ticket 重放被拒、登出撤销和旧 Cookie 返回 901；测试账号、Cookie token 和票据均清理。
+
 ## Phase 0：当前网页接口契约
 
-- `docs/openapi.web.json` 使用 OpenAPI 3.2.1，覆盖后端 0.0.2 的全部 44 个 REST 接口；包含可选文件封面、消息文件和更新包下载流及管理员用户敏感字段约束。
+- `docs/openapi.web.json` 使用 OpenAPI 3.2.1，覆盖后端 0.0.2 的全部 46 个 REST 接口；包含可选文件封面、消息文件和更新包下载流及管理员用户敏感字段约束。
 - 文档说明 `/api` 同源前缀、`token` 请求头、URL-encoded 表单、业务响应码和当前登录密码 MD5 兼容协议。
 - [WebSocket 协议说明](docs/websocket-protocol.md)记录类型 0–16、代表性帧、心跳/重连机制和群事件真实联调；[数据库 ER 图](docs/database-erd.md)来自后端空表 SQL 并区分业务关联与数据库外键。管理员列表角色和敏感字段的真实后端回归已通过，见 Phase 0 记录。
 - [浏览器支持与文件规则](docs/browser-support.md)记录桌面/平板/手机验收目标、文件上限、媒体扩展名和浏览器权限要求；矩阵仍需真机视觉验收。
@@ -189,7 +195,7 @@ WeTalkWeb 是 WeTalk 的浏览器客户端新仓库，使用 Vue 3 + TypeScript 
 - Axios 调用现有 Spring Boot API；浏览器请求使用 URL-encoded 表单，文件上传后续使用 multipart。
 - Element Plus 已作为后续表格/对话框控件基础安装；认证页当前用原生表单控件和自定义样式。
 - Vitest + Vue Test Utils 做前端单元/组件测试；Playwright 浏览器端到端测试后续加入。
-- 登录 token 暂存在 sessionStorage 以兼容现有后端请求头；这是开发过渡方案，生产部署前要换安全 Cookie 和 WebSocket 短期票据。
+- 浏览器登录 token 不写入 JavaScript 可读存储：`/account/webLogin` 设置 HttpOnly SameSite Strict Cookie，生产 HTTPS 通过 `WETALK_WEB_AUTH_COOKIE_SECURE=true` 启用 Secure；WebSocket 握手使用 60 秒一次性票据。Electron 保留旧 token 头和查询参数兼容。
 
 ## 本地开发
 
@@ -214,7 +220,7 @@ npm run build
 - 验证码接口为 /api/account/checkCode，响应字段为 check_code 和 check_code_key。
 - 注册把原始密码通过 HTTPS 表单发给后端；后端沿用当前逻辑保存其 MD5 摘要。
 - 登录按现有 Electron 客户端协议发送 MD5(password)。这是兼容旧后端的过渡协议，不是最终密码存储方案。
-- Web MVP 暂用 sessionStorage 保存当前标签页会话；公开部署前应完成 HttpOnly Secure Cookie 和 WebSocket 短期连接票据方案。
+- sessionStorage 仅保存当前标签页所需的账号公开资料，不保存登录 token；后端 HttpOnly Cookie 管理 REST 登录态，WebSocket 票据 60 秒单次有效。
 - 当前账号注册使用图片验证码，没有邮件验证码。
 
 ## 设计与开发规则

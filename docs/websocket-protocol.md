@@ -5,7 +5,7 @@
 ## 连接、鉴权与心跳
 
 - WebSocket 路径为 /ws，后端默认监听 5051 端口；开发环境由 Vite 将同源 /ws 代理到后端。
-- 当前握手凭证沿用后端 token 查询参数：wss://<域名>/ws?token=<登录令牌>。后端只接受恰好一个 token 参数，并在 Redis 中校验。生产部署需使用 HTTPS/WSS；该查询参数方案属于兼容旧后端的过渡方式。
+- WeTalkWeb 先通过受 Cookie 保护的 `/account/webSocketTicket` 申请 60 秒有效的一次性票据，再以 `wss://<域名>/ws?ticket=<票据>` 握手；后端从 Redis 原子取出并删除票据。Electron 仍兼容旧 `?token=` 握手。生产部署需使用 HTTPS/WSS，并通过 `WETALK_WEB_AUTH_COOKIE_SECURE=true` 启用 Secure Cookie。
 - 连接打开后立即发送文本帧 heart beat，之后每 5 秒发送一次。心跳是原始文本，不是 JSON。后端读超时为 6 秒，超时会关闭连接；客户端不等待心跳应答。
 - 意外断开后按 1、2、5、10、15、30 秒依次重连；次数耗尽后显示离线状态和刷新提示。手动断开或页面销毁时停止心跳及重连计时器。
 

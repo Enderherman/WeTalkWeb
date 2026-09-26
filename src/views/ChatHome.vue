@@ -115,7 +115,7 @@ watch(selectedMessages, async () => {
 onMounted(() => {
   void loadProfile()
   const session = authStore.session
-  if (session?.token) chatStore.connect(session.token, session.userId)
+  if (session?.userId) chatStore.connect(session.userId)
 })
 
 onBeforeUnmount(() => {
@@ -235,7 +235,7 @@ function openGroupDirectory() {
 
 function refreshChatSession() {
   const session = authStore.session
-  if (session?.token) chatStore.connect(session.token, session.userId)
+  if (session?.userId) chatStore.connect(session.userId)
 }
 
 function closeProfile() {

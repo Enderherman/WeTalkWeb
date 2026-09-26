@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { authApi } from '@/api/auth'
-import type { AuthUser } from '@/api/auth'
+import type { WebAuthSession } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
 import { validateAuthForm } from '@/utils/authValidation'
 
@@ -103,10 +103,10 @@ async function submit() {
   }
 }
 
-function toSession(user: AuthUser, emailFallback: string) {
-  if (!user.token || !user.userId) throw new Error('登录响应缺少账号信息，请联系管理员')
+function toSession(user: WebAuthSession, emailFallback: string) {
+  if (!user.userId) throw new Error('登录响应缺少账号信息，请联系管理员')
   return {
-    token: user.token,
+    token: '',
     userId: user.userId,
     email: user.email || emailFallback,
     nickName: user.nickName || emailFallback.split('@')[0] || 'WeTalk 用户',

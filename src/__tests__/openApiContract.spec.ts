@@ -17,6 +17,8 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/account/register',
       '/account/saveUserInfo',
       '/account/updatePassword',
+      '/account/webLogin',
+      '/account/webSocketTicket',
       '/admin/dissolutionGroup',
       '/admin/forcedOffOnline',
       '/admin/getSystemSetting',
@@ -66,6 +68,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/account/saveUserInfo',
       '/account/updatePassword',
       '/account/logout',
+      '/account/webSocketTicket',
       '/chat/sendMessage',
       '/chat/loadHistory',
       '/contact/search',
@@ -105,12 +108,17 @@ describe('WeTalkWeb OpenAPI contract', () => {
     ]
 
     for (const path of protectedPaths) {
-      expect(contract.paths[path].post.security).toEqual([{ tokenHeader: [] }])
+      expect(contract.paths[path].post.security).toEqual([{ tokenHeader: [] }, { cookieSession: [] }])
     }
     expect(contract.components.securitySchemes.tokenHeader).toMatchObject({
       type: 'apiKey',
       in: 'header',
       name: 'token',
+    })
+    expect(contract.components.securitySchemes.cookieSession).toMatchObject({
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'wetalk_session',
     })
   })
 
@@ -230,5 +238,8 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(
       contract.paths['/app/downloadUpdate'].post.requestBody.content['application/x-www-form-urlencoded'].schema.properties.id.minimum,
     ).toBe(1)
+    expect(contract.components.schemas.WebAuthSession.properties).not.toHaveProperty('token')
+    expect(contract.paths['/account/webLogin'].post.responses['200'].headers['Set-Cookie'].description).toContain('HttpOnly')
+    expect(contract.paths['/account/webSocketTicket'].post.description).toContain('60 seconds')
   })
 })

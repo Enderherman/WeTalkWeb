@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { chatApi } from '@/api/chat'
 import { authApi } from '@/api/auth'
 import { contactApi } from '@/api/contacts'
-import type { AuthUser } from '@/api/auth'
+import type { WebAuthSession } from '@/api/auth'
 import App from '@/App.vue'
 import { createRealtimeClient } from '@/api/realtime'
 import { AUTH_EXPIRED_EVENT } from '@/utils/authEvents'
@@ -20,6 +20,7 @@ vi.mock('@/api/auth', () => ({
     getCaptcha: vi.fn(),
     register: vi.fn(),
     login: vi.fn(),
+    createWebSocketTicket: vi.fn(),
     getUserInfo: vi.fn(),
     updatePassword: vi.fn(),
     logout: vi.fn(),
@@ -84,7 +85,7 @@ async function mountChat() {
   const authStore = useAuthStore(pinia)
   const chatStore = useChatStore(pinia)
   authStore.setSession({
-    token: 'web-token',
+    token: '',
     userId: 'U100',
     email: 'old@example.com',
     nickName: 'Old Name',
@@ -212,8 +213,7 @@ describe('authentication flow', () => {
   })
 
   it('stores the returned session and opens the authenticated shell after login', async () => {
-    const user: AuthUser = {
-      token: 'web-token',
+    const user: WebAuthSession = {
       userId: 'U100',
       email: 'student@example.com',
       nickName: 'Student',
@@ -234,7 +234,7 @@ describe('authentication flow', () => {
       checkCodeKey: 'captcha-key',
       checkCode: '9',
     })
-    expect(useAuthStore(pinia).session?.token).toBe('web-token')
+    expect(useAuthStore(pinia).session?.token).toBe('')
     expect(router.currentRoute.value.name).toBe('chat')
   })
 
@@ -257,7 +257,7 @@ describe('authentication flow', () => {
     await router.isReady()
     const authStore = useAuthStore(pinia)
     authStore.setSession({
-      token: 'web-token',
+      token: '',
       userId: 'U100',
       email: 'student@example.com',
       nickName: 'Student',
@@ -303,16 +303,13 @@ describe('authentication flow', () => {
     clearCache.mockRestore()
   })
 
-  it('starts a realtime connection with the active session token', async () => {
+  it('starts a realtime connection for the active account using a WebSocket ticket', async () => {
     await mountChat()
 
-    expect(createRealtimeClient).toHaveBeenCalledWith(
-      'web-token',
-      expect.objectContaining({
-        onMessage: expect.any(Function),
-        onStatus: expect.any(Function),
-      }),
-    )
+    expect(createRealtimeClient).toHaveBeenCalledWith(expect.objectContaining({
+      onMessage: expect.any(Function),
+      onStatus: expect.any(Function),
+    }))
   })
 
   it('sends a selected-session text message and adds the saved message to the view', async () => {

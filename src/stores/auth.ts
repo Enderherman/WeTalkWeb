@@ -34,7 +34,7 @@ export function readStoredSession(): AuthSession | null {
 export const useAuthStore = defineStore('auth', {
   state: () => ({ session: readStoredSession() as AuthSession | null }),
   getters: {
-    isAuthenticated: (state) => Boolean(state.session?.token),
+    isAuthenticated: (state) => Boolean(state.session?.userId),
   },
   actions: {
     setSession(session: AuthSession) {

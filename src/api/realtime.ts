@@ -1,3 +1,5 @@
+import { authApi } from '@/api/auth'
+
 export type RealtimeStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'offline'
 
 export interface ServerMessage {
@@ -26,26 +28,26 @@ export interface RealtimeOptions {
   heartbeatIntervalMs?: number
   reconnectDelaysMs?: number[]
   location?: Pick<Location, 'protocol' | 'host'>
+  ticketProvider?: () => Promise<string>
   createSocket?: (url: string) => RealtimeSocket
 }
 
 export function createWebSocketUrl(
-  token: string,
+  ticket: string,
   location: Pick<Location, 'protocol' | 'host'> = window.location,
 ): string {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${location.host}/ws?token=${encodeURIComponent(token)}`
+  return `${protocol}//${location.host}/ws?ticket=${encodeURIComponent(ticket)}`
 }
 
 export function createRealtimeClient(
-  token: string,
   handlers: RealtimeHandlers,
   options: RealtimeOptions = {},
 ): { disconnect: () => void } {
   const reconnectDelays = options.reconnectDelaysMs ?? [1000, 2000, 5000, 10000, 15000, 30000]
   const heartbeatIntervalMs = options.heartbeatIntervalMs ?? 5000
   const location = options.location ?? window.location
-  const url = createWebSocketUrl(token, location)
+  const ticketProvider = options.ticketProvider ?? (async () => (await authApi.createWebSocketTicket()).ticket)
   const socketFactory = options.createSocket ?? ((socketUrl: string) => new WebSocket(socketUrl))
 
   let stopped = false
@@ -75,9 +77,20 @@ export function createRealtimeClient(
     }, delay)
   }
 
-  const open = () => {
+  const open = async () => {
     if (stopped) return
     handlers.onStatus(retryCount === 0 ? 'connecting' : 'reconnecting')
+    let url: string
+    try {
+      const ticket = await ticketProvider()
+      if (!ticket) throw new Error('WebSocket ticket was empty')
+      url = createWebSocketUrl(ticket, location)
+    } catch {
+      handlers.onError?.('无法取得实时连接票据，请稍后重试')
+      scheduleReconnect()
+      return
+    }
+    if (stopped) return
     let nextSocket: RealtimeSocket
     try {
       nextSocket = socketFactory(url)

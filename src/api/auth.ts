@@ -14,6 +14,17 @@ export interface AuthUser {
   admin: boolean
 }
 
+export interface WebAuthSession {
+  userId: string
+  email: string
+  nickName: string
+  admin: boolean
+}
+
+export interface WebSocketTicket {
+  ticket: string
+}
+
 export interface UserProfile {
   userId: string
   email: string
@@ -50,9 +61,10 @@ export const authApi = {
     })
   },
 
-  login: (input: LoginInput): Promise<AuthUser> =>
-    // Match the current Electron client contract: login sends an MD5 digest.
-    postForm<AuthUser>('/account/login', { ...input, password: hashLoginPassword(input.password) }),
+  login: (input: LoginInput): Promise<WebAuthSession> =>
+    postForm<WebAuthSession>('/account/webLogin', { ...input, password: hashLoginPassword(input.password) }),
+
+  createWebSocketTicket: (): Promise<WebSocketTicket> => postForm<WebSocketTicket>('/account/webSocketTicket', {}),
 
   getUserInfo: (): Promise<UserProfile> => postForm<UserProfile>('/account/getUserInfo', {}),
 
