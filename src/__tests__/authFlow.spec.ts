@@ -768,7 +768,18 @@ describe('authentication flow', () => {
   })
 
   it('keeps the draft and allows retry when sending a message fails', async () => {
-    vi.mocked(chatApi.sendTextMessage).mockRejectedValueOnce(new Error('网络暂时不可用'))
+    vi.mocked(chatApi.sendTextMessage)
+      .mockRejectedValueOnce(new Error('网络暂时不可用'))
+      .mockResolvedValueOnce({
+        messageId: 44,
+        sessionId: 'S200',
+        messageType: 2,
+        messageContent: 'Please retry this',
+        sendUserId: 'U100',
+        sendUserNickName: 'Student',
+        sendTime: 3000,
+        contactId: 'U200',
+      })
     const { wrapper, chatStore } = await mountChat()
     chatStore.receiveMessage({
       messageType: 0,
@@ -794,6 +805,12 @@ describe('authentication flow', () => {
     expect(wrapper.get('.composer-error').text()).toBe('网络暂时不可用')
     expect(wrapper.get('[data-testid="send-message"]').element).toHaveProperty('disabled', false)
     expect(wrapper.find('[data-testid="message-send-status"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="retry-message-send"]').trigger('click')
+    await flushPromises()
+    expect(chatApi.sendTextMessage).toHaveBeenCalledTimes(2)
+    expect(wrapper.get('[data-testid="message-composer"]').element).toHaveProperty('value', '')
+    expect(wrapper.find('[data-testid="retry-message-send"]').exists()).toBe(false)
   })
 
   it('loads older messages with a cursor and preserves chronological order', async () => {

@@ -878,7 +878,17 @@ async function signOut() {
         </p>
       </div>
 
-      <p v-if="messageError" class="composer-error" role="alert">{{ messageError }}</p>
+      <div v-if="messageError" class="message-error-row">
+        <p class="composer-error" role="alert">{{ messageError }}</p>
+        <button
+          v-if="messageDraft.trim() && selectedSession && !selectedSession.groupClosed && !selectedSession.groupAccessRevoked"
+          class="message-retry-button"
+          data-testid="retry-message-send"
+          type="button"
+          :disabled="sendingMessage"
+          @click="sendTextMessage"
+        >{{ sendingMessage ? '正在重试…' : '重试发送' }}</button>
+      </div>
       <p v-if="fileUploadError" class="composer-error" data-testid="file-upload-error" role="alert">{{ fileUploadError }}</p>
       <p v-if="selectedSession?.groupClosed" class="group-session-notice" role="status">
         群聊已解散，无法继续发送消息。

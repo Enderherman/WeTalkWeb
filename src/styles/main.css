@@ -2268,6 +2268,37 @@ textarea:focus-visible {
   font-size: 12px;
 }
 
+.message-error-row {
+  display: flex;
+  width: min(100% - 32px, 720px);
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 auto 10px;
+}
+
+.message-error-row .composer-error {
+  width: auto;
+  margin: 0;
+}
+
+.message-retry-button {
+  min-height: 32px;
+  flex: 0 0 auto;
+  padding: 0 11px;
+  border: 1px solid var(--wt-line);
+  border-radius: 10px;
+  color: var(--wt-accent-strong);
+  background: var(--wt-white);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.message-retry-button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
 .group-session-notice {
   width: min(100% - 36px, 720px);
   margin: 0 0 8px;
