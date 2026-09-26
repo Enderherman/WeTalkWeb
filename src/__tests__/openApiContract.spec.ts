@@ -247,6 +247,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(contract.components.schemas.AdminUserQuery.properties).not.toHaveProperty('password')
     expect(contract.components.schemas.PostAppUpdateRequest.properties.status.enum).toEqual([0, 1, 2])
     expect(contract.paths['/app/checkUpdate'].post.description).toContain('not the admin role')
+    expect(contract.paths['/app/checkUpdate'].post.requestBody.content['application/x-www-form-urlencoded'].schema.properties.uid.deprecated).toBe(true)
     expect(
       contract.paths['/app/downloadUpdate'].post.requestBody.content['application/x-www-form-urlencoded'].schema.properties.id.minimum,
     ).toBe(1)

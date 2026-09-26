@@ -1206,14 +1206,17 @@
         "tags": ["App update"],
         "operationId": "checkForAppUpdate",
         "summary": "Check for a published app update",
-        "description": "Requires a valid token but not the admin role. When version is omitted or empty, the server returns an empty success response.",
+        "description": "Requires a valid token but not the admin role. When version is omitted or empty, the server returns an empty success response. The optional uid field is retained for older clients but ignored; gray-release eligibility uses the authenticated user.",
         "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
                 "type": "object",
-                "properties": { "version": { "type": "string" }, "uid": { "type": "string" } }
+                "properties": {
+                  "version": { "type": "string" },
+                  "uid": { "type": "string", "deprecated": true, "description": "Ignored; the server uses the authenticated user ID for gray-release eligibility." }
+                }
               }
             }
           }

@@ -2367,6 +2367,68 @@ textarea:focus-visible {
   animation: wt-ai-cursor-blink 900ms steps(2, start) infinite;
 }
 
+.web-release-notice {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 10px 22px 0;
+  padding: 13px 15px;
+  border: 1px solid var(--wt-line);
+  border-radius: 14px;
+  background: var(--wt-soft);
+  color: var(--wt-text);
+}
+
+.web-release-copy {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.web-release-copy > strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.web-release-list {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--wt-muted);
+}
+
+.web-release-copy small {
+  color: var(--wt-muted);
+}
+
+.web-release-link {
+  width: fit-content;
+  color: var(--wt-accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.web-release-dismiss {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  color: var(--wt-muted);
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.web-release-dismiss:hover {
+  background: var(--wt-white);
+}
+
 .ai-stop-button {
   margin-top: 8px;
   border: 1px solid var(--wt-border);
@@ -3351,6 +3413,13 @@ textarea:focus-visible {
   .admin-robot-image-controls .profile-cover-thumbnail {
     flex-basis: 150px;
     width: 150px;
+  }
+}
+
+@media (max-width: 760px) {
+  .web-release-notice {
+    margin-right: 12px;
+    margin-left: 12px;
   }
 }
 

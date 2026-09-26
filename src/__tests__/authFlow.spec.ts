@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { chatApi } from '@/api/chat'
+import { appUpdateApi } from '@/api/appUpdates'
 import { authApi } from '@/api/auth'
 import { contactApi } from '@/api/contacts'
 import type { WebAuthSession } from '@/api/auth'
@@ -58,6 +59,10 @@ vi.mock('@/api/chat', () => ({
     downloadFile: vi.fn(),
     loadHistory: vi.fn(),
   },
+}))
+
+vi.mock('@/api/appUpdates', () => ({
+  appUpdateApi: { checkForUpdate: vi.fn() },
 }))
 
 vi.mock('@/api/contacts', () => ({
@@ -182,6 +187,7 @@ beforeEach(() => {
     totalCount: 0,
     list: [],
   })
+  vi.mocked(appUpdateApi.checkForUpdate).mockResolvedValue(null)
   vi.mocked(chatApi.sendFileMessage).mockResolvedValue({
     messageId: 601,
     sessionId: 'S200',
@@ -422,6 +428,61 @@ describe('authentication flow', () => {
     expect(wrapper.find('[data-testid="message-90"] .ai-stream-cursor').exists()).toBe(false)
     expect(wrapper.get('[data-testid="message-90"]').findAll('p')).toHaveLength(1)
     expect(chatStore.initialMessages.filter((message) => message.messageId === 90)).toHaveLength(1)
+  })
+
+  it('shows a published external release note and allows dismissing the version notice', async () => {
+    vi.mocked(appUpdateApi.checkForUpdate).mockResolvedValue({
+      id: 18,
+      version: '0.2.0',
+      updateList: ['Improved messaging', 'Better mobile layout'],
+      size: 0,
+      fileName: '',
+      fileType: 1,
+      outerLink: 'https://example.invalid/releases/0.2.0',
+    })
+    const { wrapper } = await mountChat()
+    await flushPromises()
+
+    expect(appUpdateApi.checkForUpdate).toHaveBeenCalledWith('0.1.0')
+    expect(wrapper.get('[data-testid="web-release-notice"]').text()).toContain('0.2.0')
+    expect(wrapper.get('[data-testid="web-release-notice"]').text()).toContain('Improved messaging')
+    expect(wrapper.get('[data-testid="web-release-notice"] a').attributes('href')).toBe('https://example.invalid/releases/0.2.0')
+
+    await wrapper.get('[data-testid="dismiss-web-release"]').trigger('click')
+    expect(wrapper.find('[data-testid="web-release-notice"]').exists()).toBe(false)
+  })
+
+  it('shows desktop release notes without exposing the installer as a web download', async () => {
+    vi.mocked(appUpdateApi.checkForUpdate).mockResolvedValue({
+      id: 19,
+      version: '0.2.1',
+      updateList: ['Security fixes'],
+      size: 1024,
+      fileName: 'WeTalk0.2.1.exe',
+      fileType: 0,
+      outerLink: '',
+    })
+    const { wrapper } = await mountChat()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="web-release-notice"]').text()).toContain('网页版只展示发布说明')
+    expect(wrapper.find('[data-testid="web-release-notice"] a').exists()).toBe(false)
+  })
+
+  it('rejects non-http links in a published release notice', async () => {
+    vi.mocked(appUpdateApi.checkForUpdate).mockResolvedValue({
+      id: 20,
+      version: '0.2.2',
+      updateList: ['Release notes'],
+      size: 0,
+      fileName: '',
+      fileType: 1,
+      outerLink: 'javascript:alert(1)',
+    })
+    const { wrapper } = await mountChat()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="web-release-notice"] a').exists()).toBe(false)
   })
 
   it('stops an AI reply through the backend and renders its saved partial answer', async () => {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { appUpdateApi, type AppUpdateNotice } from '@/api/appUpdates'
 import { authApi } from '@/api/auth'
 import type { SaveUserInfoInput, UserProfile } from '@/api/auth'
 import { chatApi } from '@/api/chat'
@@ -19,6 +20,7 @@ import { getChatFileType, getChatMediaKind, getChatMediaMimeType, validateChatFi
 import { validatePassword } from '@/utils/authValidation'
 import { validateProfileImageUpload } from '@/utils/imageValidation'
 import { formatMessageTimeDivider, shouldShowMessageTime } from '@/utils/messageTime'
+import { webClientVersion } from '@/config/version'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -58,6 +60,8 @@ const passwordError = ref('')
 const changingPassword = ref(false)
 const clearingTextCache = ref(false)
 const cacheNotice = ref('')
+const webReleaseNotice = ref<AppUpdateNotice | null>(null)
+const webReleaseNoticeDismissed = ref(false)
 const downloadPreferenceNotice = ref('')
 const downloadPreferenceError = ref('')
 
@@ -66,6 +70,16 @@ const avatarInitial = computed(() => displayName.value.slice(0, 1).toUpperCase()
 const selectedSession = computed(
   () => chatStore.sessionList.find((session) => session.sessionId === selectedSessionId.value) || null,
 )
+const webReleaseLink = computed(() => {
+  const rawLink = webReleaseNotice.value?.outerLink?.trim()
+  if (!rawLink) return ''
+  try {
+    const url = new URL(rawLink)
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : ''
+  } catch {
+    return ''
+  }
+})
 const messageSearchOpen = ref(false)
 const messageSearchQuery = ref('')
 const searchJumpMessageId = ref<number | null>(null)
@@ -177,9 +191,23 @@ onMounted(() => {
   const session = authStore.session
   if (session?.userId) {
     void downloadPreferencesStore.load(session.userId)
+    void loadWebReleaseNotice()
     chatStore.connect(session.userId)
   }
 })
+
+async function loadWebReleaseNotice() {
+  try {
+    webReleaseNotice.value = await appUpdateApi.checkForUpdate(webClientVersion)
+    webReleaseNoticeDismissed.value = false
+  } catch {
+    webReleaseNotice.value = null
+  }
+}
+
+function dismissWebReleaseNotice() {
+  webReleaseNoticeDismissed.value = true
+}
 
 onBeforeUnmount(() => {
   historyRequestId += 1
@@ -953,6 +981,38 @@ async function signOut() {
           <i aria-hidden="true"></i>{{ connectionLabel }}
         </span>
       </header>
+
+      <section
+        v-if="webReleaseNotice && !webReleaseNoticeDismissed"
+        class="web-release-notice"
+        data-testid="web-release-notice"
+        aria-label="WeTalk 更新说明"
+        role="status"
+      >
+        <div class="web-release-copy">
+          <strong>WeTalk 新版本 {{ webReleaseNotice.version }}</strong>
+          <ul v-if="webReleaseNotice.updateList.length" class="web-release-list">
+            <li v-for="(item, index) in webReleaseNotice.updateList" :key="`${webReleaseNotice.id}-${index}`">{{ item }}</li>
+          </ul>
+          <a
+            v-if="webReleaseNotice.fileType === 1 && webReleaseLink"
+            class="web-release-link"
+            :href="webReleaseLink"
+            target="_blank"
+            rel="noopener noreferrer"
+          >查看外部更新信息</a>
+          <small v-else-if="webReleaseNotice.fileType === 0">
+            此版本记录包含桌面安装包；网页版只展示发布说明，不需要安装桌面程序。
+          </small>
+        </div>
+        <button
+          class="web-release-dismiss"
+          data-testid="dismiss-web-release"
+          type="button"
+          aria-label="关闭版本提示"
+          @click="dismissWebReleaseNotice"
+        >×</button>
+      </section>
 
       <section
         v-if="messageSearchOpen && selectedSession"
