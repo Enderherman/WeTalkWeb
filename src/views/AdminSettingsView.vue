@@ -2,7 +2,9 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { adminApi, type SystemSettings } from '@/api/admin'
+import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
 import { useSystemSettingsStore } from '@/stores/systemSettings'
+import { validateProfileImageUpload } from '@/utils/imageValidation'
 
 const router = useRouter()
 const systemSettingsStore = useSystemSettingsStore()
@@ -17,10 +19,16 @@ const defaults: SystemSettings = {
   robotWelcome: '欢迎使用WeTalk Robot!',
 }
 const settings = reactive<SystemSettings>({ ...defaults })
+const robotAvatarFile = ref<File | null>(null)
+const robotAvatarCoverFile = ref<File | null>(null)
+const robotAvatarInput = ref<HTMLInputElement | null>(null)
+const robotAvatarCoverInput = ref<HTMLInputElement | null>(null)
+const robotAvatarRevision = ref(0)
 const loading = ref(false)
 const saving = ref(false)
 const loadError = ref('')
 const validationError = ref('')
+const robotImageError = ref('')
 const saveError = ref('')
 const notice = ref('')
 
@@ -44,6 +52,25 @@ async function loadSettings() {
     loadError.value = error instanceof Error ? error.message : '系统设置暂时无法读取'
   } finally {
     loading.value = false
+  }
+}
+
+function selectRobotImage(event: Event, kind: 'avatar' | 'cover') {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0] || null
+  validationError.value = ''
+  robotImageError.value = ''
+  saveError.value = ''
+  if (kind === 'avatar') robotAvatarFile.value = file
+  else robotAvatarCoverFile.value = file
+  if (!file) return
+
+  const error = validateProfileImageUpload(file)
+  if (error) {
+    robotImageError.value = error
+    if (kind === 'avatar') robotAvatarFile.value = null
+    else robotAvatarCoverFile.value = null
+    input.value = ''
   }
 }
 
@@ -72,6 +99,10 @@ function validateSettings() {
 
 async function saveSettings() {
   if (saving.value || loading.value || loadError.value) return
+  if (robotImageError.value) {
+    validationError.value = robotImageError.value
+    return
+  }
   validationError.value = validateSettings()
   if (validationError.value) return
 
@@ -80,8 +111,18 @@ async function saveSettings() {
   notice.value = ''
   settings.robotNickName = settings.robotNickName.trim()
   try {
-    await adminApi.saveSystemSettings({ ...settings, robotWelcome: settings.robotWelcome.trim() })
+    const uploadedImage = robotAvatarFile.value || robotAvatarCoverFile.value
+    await adminApi.saveSystemSettings(
+      { ...settings, robotWelcome: settings.robotWelcome.trim() },
+      robotAvatarFile.value,
+      robotAvatarCoverFile.value,
+    )
     systemSettingsStore.setSettings({ ...settings, robotWelcome: settings.robotWelcome.trim() })
+    if (uploadedImage) robotAvatarRevision.value += 1
+    robotAvatarFile.value = null
+    robotAvatarCoverFile.value = null
+    if (robotAvatarInput.value) robotAvatarInput.value.value = ''
+    if (robotAvatarCoverInput.value) robotAvatarCoverInput.value.value = ''
     notice.value = '系统设置已保存'
   } catch (error: unknown) {
     saveError.value = error instanceof Error ? error.message : '系统设置保存失败，请稍后重试'
@@ -154,7 +195,7 @@ async function saveSettings() {
       <section class="admin-settings-section" aria-labelledby="admin-robot-settings-title">
         <div class="admin-settings-section-heading">
           <h2 id="admin-robot-settings-title">机器人资料</h2>
-          <p>机器人账号编号固定；头像上传将在服务端补齐文件校验后开放。</p>
+          <p>机器人账号编号固定；头像和封面支持常见图片格式，单张不超过 10 MiB。</p>
         </div>
         <div class="admin-settings-grid">
           <label class="admin-settings-field">
@@ -165,6 +206,51 @@ async function saveSettings() {
             <span>机器人昵称</span>
             <input v-model="settings.robotNickName" data-testid="setting-robot-name" maxlength="20" required />
           </label>
+          <div class="admin-settings-field admin-settings-field-wide">
+            <span>机器人头像与封面</span>
+            <div class="admin-robot-image-controls">
+              <AvatarThumbnail
+                class="contact-profile-avatar"
+                :file-id="settings.robotUid"
+                :fallback="settings.robotNickName.slice(0, 1)"
+                :refresh-key="robotAvatarRevision"
+                test-id="robot-avatar-preview"
+              />
+              <AvatarThumbnail
+                class="profile-cover-thumbnail"
+                :file-id="settings.robotUid"
+                :show-cover="true"
+                :refresh-key="robotAvatarRevision"
+                test-id="robot-cover-preview"
+              />
+              <div class="admin-robot-image-picker">
+                <label for="robot-avatar-file">更新头像</label>
+                <input
+                  id="robot-avatar-file"
+                  ref="robotAvatarInput"
+                  data-testid="robot-avatar-file"
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/bmp,image/webp"
+                  :disabled="loading || saving"
+                  @change="selectRobotImage($event, 'avatar')"
+                />
+                <small v-if="robotAvatarFile">已选择：{{ robotAvatarFile.name }}</small>
+              </div>
+              <div class="admin-robot-image-picker">
+                <label for="robot-avatar-cover-file">更新封面</label>
+                <input
+                  id="robot-avatar-cover-file"
+                  ref="robotAvatarCoverInput"
+                  data-testid="robot-avatar-cover-file"
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/bmp,image/webp"
+                  :disabled="loading || saving"
+                  @change="selectRobotImage($event, 'cover')"
+                />
+                <small v-if="robotAvatarCoverFile">已选择：{{ robotAvatarCoverFile.name }}</small>
+              </div>
+            </div>
+          </div>
           <label class="admin-settings-field admin-settings-field-wide">
             <span>新账号欢迎语</span>
             <textarea v-model="settings.robotWelcome" data-testid="setting-robot-welcome" maxlength="300" rows="4" required />
@@ -173,7 +259,7 @@ async function saveSettings() {
         </div>
       </section>
 
-      <p v-if="validationError" class="contact-error" role="alert">{{ validationError }}</p>
+      <p v-if="validationError || robotImageError" class="contact-error" role="alert">{{ validationError || robotImageError }}</p>
       <p v-if="saveError" class="contact-error" role="alert">{{ saveError }}</p>
       <p v-if="notice" class="contact-notice" role="status">{{ notice }}</p>
       <div class="admin-settings-actions">

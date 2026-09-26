@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { postForm } from '@/api/http'
+import { postForm, postMultipart } from '@/api/http'
 import { adminApi } from '@/api/admin'
 
-vi.mock('@/api/http', () => ({ postForm: vi.fn() }))
+vi.mock('@/api/http', () => ({ postForm: vi.fn(), postMultipart: vi.fn() }))
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -61,5 +61,31 @@ describe('admin API', () => {
 
     await expect(adminApi.saveSystemSettings(settings)).resolves.toBe(settings)
     expect(postForm).toHaveBeenNthCalledWith(2, '/admin/saveSystemSetting', settings)
+  })
+
+  it('uses multipart data when saving robot avatar or cover images', async () => {
+    const settings = {
+      maxGroupCount: 5,
+      maxGroupMemberCount: 500,
+      maxImageSize: 200,
+      maxVideoSize: 500,
+      maxFileSize: 5000,
+      robotUid: 'Urobot',
+      robotNickName: 'WeTalk Robot',
+      robotWelcome: 'Welcome',
+    }
+    const avatar = new File(['avatar'], 'robot.png', { type: 'image/png' })
+    const cover = new File(['cover'], 'robot-cover.jpg', { type: 'image/jpeg' })
+    vi.mocked(postMultipart).mockResolvedValue(null)
+
+    await adminApi.saveSystemSettings(settings, avatar, cover)
+
+    expect(postForm).not.toHaveBeenCalled()
+    expect(postMultipart).toHaveBeenCalledOnce()
+    const body = vi.mocked(postMultipart).mock.calls[0]?.[1]
+    expect(body).toBeInstanceOf(FormData)
+    expect(body?.get('maxGroupMemberCount')).toBe('500')
+    expect(body?.get('robotAvatarFile')).toBe(avatar)
+    expect(body?.get('robotAvatarCoverFile')).toBe(cover)
   })
 })

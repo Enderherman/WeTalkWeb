@@ -1,4 +1,4 @@
-import { postForm } from '@/api/http'
+import { postForm, postMultipart } from '@/api/http'
 import type { SystemSettings } from '@/api/systemSettings'
 
 export type { SystemSettings } from '@/api/systemSettings'
@@ -77,8 +77,21 @@ export const adminApi = {
   forceOffline: (userId: string): Promise<null> =>
     postForm<null>('/admin/forcedOffOnline', { userId }),
   loadSystemSettings: (): Promise<SystemSettings> => postForm<SystemSettings>('/admin/getSystemSetting', {}),
-  saveSystemSettings: (settings: SystemSettings): Promise<null> => {
+  saveSystemSettings: (
+    settings: SystemSettings,
+    robotAvatarFile?: File | null,
+    robotAvatarCoverFile?: File | null,
+  ): Promise<null> => {
     const values: Record<string, string | number | boolean | null | undefined> = { ...settings }
+    if (robotAvatarFile || robotAvatarCoverFile) {
+      const body = new FormData()
+      for (const [key, value] of Object.entries(values)) {
+        if (value !== null && value !== undefined) body.set(key, String(value))
+      }
+      if (robotAvatarFile) body.set('robotAvatarFile', robotAvatarFile)
+      if (robotAvatarCoverFile) body.set('robotAvatarCoverFile', robotAvatarCoverFile)
+      return postMultipart<null>('/admin/saveSystemSetting', body)
+    }
     return postForm<null>('/admin/saveSystemSetting', values)
   },
   loadGroups: (query: AdminGroupSearch = {}): Promise<AdminGroupPage> => {

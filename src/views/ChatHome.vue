@@ -15,6 +15,7 @@ import { useSystemSettingsStore } from '@/stores/systemSettings'
 import { textMessageCache } from '@/storage/textMessageCache'
 import { getChatFileType, getChatMediaKind, getChatMediaMimeType, validateChatFile } from '@/utils/fileValidation'
 import { validatePassword } from '@/utils/authValidation'
+import { validateProfileImageUpload } from '@/utils/imageValidation'
 import { formatMessageTimeDivider, shouldShowMessageTime } from '@/utils/messageTime'
 
 const router = useRouter()
@@ -283,22 +284,9 @@ function selectProfileImage(event: Event, kind: 'avatar' | 'cover') {
     return
   }
 
-  const extensions: Record<string, string> = {
-    png: 'image/png',
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    gif: 'image/gif',
-    bmp: 'image/bmp',
-    webp: 'image/webp',
-  }
-  const extension = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.') + 1).toLowerCase() : ''
-  if (!extensions[extension] || file.type !== extensions[extension]) {
-    profileSaveError.value = '头像和封面需使用 PNG、JPEG、GIF、BMP 或 WebP 图片'
-    input.value = ''
-    return
-  }
-  if (file.size === 0 || file.size > 10 * 1024 * 1024) {
-    profileSaveError.value = '头像或封面不能为空，且不能超过 10 MiB'
+  const validationError = validateProfileImageUpload(file)
+  if (validationError) {
+    profileSaveError.value = validationError
     input.value = ''
     return
   }

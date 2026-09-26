@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { adminApi, type SystemSettings } from '@/api/admin'
+import { chatApi } from '@/api/chat'
 import AdminSettingsView from '@/views/AdminSettingsView.vue'
 
 const { settingsStore } = vi.hoisted(() => ({ settingsStore: { setSettings: vi.fn() } }))
@@ -14,6 +15,7 @@ vi.mock('@/api/admin', () => ({
 }))
 
 vi.mock('@/stores/systemSettings', () => ({ useSystemSettingsStore: () => settingsStore }))
+vi.mock('@/api/chat', () => ({ chatApi: { downloadFile: vi.fn() } }))
 
 const settings: SystemSettings = {
   maxGroupCount: 5,
@@ -30,6 +32,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(adminApi.loadSystemSettings).mockResolvedValue({ ...settings })
   vi.mocked(adminApi.saveSystemSettings).mockResolvedValue(null)
+  vi.mocked(chatApi.downloadFile).mockRejectedValue(new Error('Robot avatar is not configured in this test.'))
 })
 
 async function mountAdminSettings() {
@@ -59,7 +62,7 @@ describe('admin system settings view', () => {
     await wrapper.get('[data-testid="admin-settings-form"]').trigger('submit')
     await flushPromises()
 
-    expect(adminApi.saveSystemSettings).toHaveBeenCalledWith({ ...settings, robotNickName: 'WeTalk Helper' })
+    expect(adminApi.saveSystemSettings).toHaveBeenCalledWith({ ...settings, robotNickName: 'WeTalk Helper' }, null, null)
     expect(wrapper.get('[role="status"]').text()).toContain('系统设置已保存')
   })
 
@@ -74,6 +77,39 @@ describe('admin system settings view', () => {
     await wrapper.get('[data-testid="setting-max-image-size"]').setValue('1.5')
     await wrapper.get('[data-testid="admin-settings-form"]').trigger('submit')
     await flushPromises()
+    expect(adminApi.saveSystemSettings).not.toHaveBeenCalled()
+  })
+
+  it('uploads a validated robot avatar and cover with the system settings', async () => {
+    const wrapper = await mountAdminSettings()
+    const avatar = new File(['avatar'], 'robot.png', { type: 'image/png' })
+    const cover = new File(['cover'], 'robot-cover.jpg', { type: 'image/jpeg' })
+    const avatarInput = wrapper.get('[data-testid="robot-avatar-file"]')
+    const coverInput = wrapper.get('[data-testid="robot-avatar-cover-file"]')
+    Object.defineProperty(avatarInput.element, 'files', { configurable: true, value: [avatar] })
+    Object.defineProperty(coverInput.element, 'files', { configurable: true, value: [cover] })
+    await avatarInput.trigger('change')
+    await coverInput.trigger('change')
+    await wrapper.get('[data-testid="admin-settings-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(adminApi.saveSystemSettings).toHaveBeenCalledWith(settings, avatar, cover)
+    expect(settingsStore.setSettings).toHaveBeenCalledOnce()
+    expect(wrapper.get('[role="status"]').text()).toContain('系统设置已保存')
+  })
+
+  it('rejects unsupported robot images before saving', async () => {
+    const wrapper = await mountAdminSettings()
+    const avatarInput = wrapper.get('[data-testid="robot-avatar-file"]')
+    Object.defineProperty(avatarInput.element, 'files', {
+      configurable: true,
+      value: [new File(['binary'], 'robot.exe', { type: 'application/octet-stream' })],
+    })
+    await avatarInput.trigger('change')
+    await wrapper.get('[data-testid="admin-settings-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('头像和封面需使用 PNG、JPEG、GIF、BMP 或 WebP 图片')
     expect(adminApi.saveSystemSettings).not.toHaveBeenCalled()
   })
 })

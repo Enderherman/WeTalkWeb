@@ -2967,6 +2967,46 @@ textarea:focus-visible {
   grid-column: 1 / -1;
 }
 
+.admin-robot-image-controls {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-robot-image-controls .profile-cover-thumbnail {
+  width: min(190px, 100%);
+  height: 70px;
+  flex: 0 1 190px;
+}
+
+.admin-robot-image-picker {
+  display: grid;
+  min-width: min(220px, 100%);
+  flex: 1 1 220px;
+  gap: 6px;
+  color: var(--wt-muted);
+  font-size: 12px;
+}
+
+.admin-robot-image-picker label {
+  color: var(--wt-muted);
+  font-size: 12px;
+}
+
+.admin-robot-image-picker input {
+  min-height: 34px;
+  padding: 4px;
+  font-size: 11px;
+}
+
+.admin-robot-image-picker small {
+  overflow-wrap: anywhere;
+  color: var(--wt-neutral-400);
+  font-size: 10px;
+}
+
 .admin-settings-actions {
   display: flex;
   justify-content: flex-end;
@@ -3041,6 +3081,11 @@ textarea:focus-visible {
 
   .admin-settings-field-wide {
     grid-column: auto;
+  }
+
+  .admin-robot-image-controls .profile-cover-thumbnail {
+    flex-basis: 150px;
+    width: 150px;
   }
 }
 
