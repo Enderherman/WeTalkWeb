@@ -17,7 +17,7 @@
 
 - JavaScript、WebSocket 和 Blob 对象 URL 用于页面、实时消息和媒体预览。
 - IndexedDB 用于可选的纯文字消息缓存。浏览器禁用 IndexedDB 时应继续从后端读取消息，不阻断登录和聊天。
-- 文件通过浏览器文件选择器上传；下载由浏览器处理。应用不读取任意本地目录，不请求摄像头或麦克风权限。
+- 文件通过浏览器文件选择器上传；默认下载交给浏览器管理。若浏览器提供 `showSaveFilePicker`，用户可逐次选择保存位置；若提供 `showDirectoryPicker`，用户可显式授权一个文件夹并按账号保存在 IndexedDB 中。下载时重新请求文件夹写入权限，用户可撤销或清除选择；不支持这些 API 时退回浏览器默认下载。应用不枚举任意目录，也不请求摄像头或麦克风权限。
 - 生产部署要求 HTTPS/WSS。浏览器认证使用 HttpOnly SameSite Strict Cookie；HTTPS 部署将 `WETALK_WEB_AUTH_COOKIE_SECURE=true`。WebSocket 握手使用 60 秒一次性票据。
 
 ## 文件与媒体规则

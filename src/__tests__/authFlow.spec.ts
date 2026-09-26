@@ -15,6 +15,26 @@ import { useChatStore } from '@/stores/chat'
 import { useAuthStore } from '@/stores/auth'
 import { textMessageCache } from '@/storage/textMessageCache'
 
+const { downloadPreferences } = vi.hoisted(() => ({
+  downloadPreferences: {
+    accountId: '',
+    mode: 'browser' as 'browser' | 'ask' | 'folder',
+    directoryHandle: null as unknown,
+    directoryName: '',
+    loading: false,
+    loaded: true,
+    storageError: '',
+    supportsSavePicker: false,
+    supportsDirectoryPicker: false,
+    load: vi.fn(),
+    setMode: vi.fn(),
+    chooseDirectory: vi.fn(),
+    clearDirectory: vi.fn(),
+    prepareDestination: vi.fn(),
+    reset: vi.fn(),
+  },
+}))
+
 vi.mock('@/api/auth', () => ({
   authApi: {
     getCaptcha: vi.fn(),
@@ -57,6 +77,8 @@ vi.mock('@/api/contacts', () => ({
 vi.mock('@/api/realtime', () => ({
   createRealtimeClient: vi.fn(() => ({ disconnect: vi.fn() })),
 }))
+
+vi.mock('@/stores/downloadPreferences', () => ({ useDownloadPreferencesStore: () => downloadPreferences }))
 
 function createTestRouter() {
   return createRouter({
@@ -101,6 +123,23 @@ async function mountChat() {
 beforeEach(() => {
   window.sessionStorage.clear()
   vi.clearAllMocks()
+  downloadPreferences.mode = 'browser'
+  downloadPreferences.directoryName = ''
+  downloadPreferences.loading = false
+  downloadPreferences.loaded = true
+  downloadPreferences.storageError = ''
+  downloadPreferences.supportsSavePicker = false
+  downloadPreferences.supportsDirectoryPicker = false
+  downloadPreferences.load.mockResolvedValue(undefined)
+  downloadPreferences.setMode.mockImplementation(async (mode: 'browser' | 'ask' | 'folder') => {
+    downloadPreferences.mode = mode
+  })
+  downloadPreferences.chooseDirectory.mockResolvedValue('QA folder')
+  downloadPreferences.clearDirectory.mockResolvedValue(undefined)
+  downloadPreferences.prepareDestination.mockResolvedValue(null)
+  downloadPreferences.reset.mockImplementation(() => {
+    downloadPreferences.mode = 'browser'
+  })
   vi.mocked(authApi.getCaptcha).mockResolvedValue({
     check_code: 'data:image/png;base64,ZmFrZQ==',
     check_code_key: 'captcha-key',
@@ -304,6 +343,20 @@ describe('authentication flow', () => {
     expect(wrapper.get('.profile-dialog').text()).toContain('Current Name')
     expect(authStore.session?.nickName).toBe('Current Name')
     expect(authStore.session?.admin).toBe(true)
+  })
+
+  it('exposes per-account download preferences and saves the selected mode', async () => {
+    downloadPreferences.supportsSavePicker = true
+    downloadPreferences.supportsDirectoryPicker = true
+    const { wrapper } = await mountChat()
+    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="download-preferences"]').text()).toContain('文件下载位置')
+    await wrapper.get('[data-testid="download-location-mode"]').setValue('ask')
+    await flushPromises()
+
+    expect(downloadPreferences.setMode).toHaveBeenCalledWith('ask')
+    expect(wrapper.get('[data-testid="download-preferences"]').text()).toContain('下载偏好已保存')
   })
 
   it('clears only the signed-in account text cache from the profile panel', async () => {
@@ -544,10 +597,12 @@ describe('authentication flow', () => {
 
   it('downloads an uploaded file using its original filename', async () => {
     const blob = new Blob(['file bytes'], { type: 'application/octet-stream' })
-    vi.mocked(chatApi.downloadFile).mockResolvedValue(blob)
+    vi.mocked(chatApi.downloadFile).mockImplementation(async (fileId) =>
+      fileId === 602 ? blob : new Blob(['avatar bytes'], { type: 'image/png' }),
+    )
     const originalCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL')
     const originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL')
-    const createObjectURL = vi.fn(() => 'blob:wetalk-test')
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:wetalk-test')
     const revokeObjectURL = vi.fn()
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
@@ -594,6 +649,16 @@ describe('authentication flow', () => {
       expect(chatApi.downloadFile).toHaveBeenCalledWith(602)
       expect(createObjectURL).toHaveBeenCalledWith(blob)
       expect(downloadedName).toBe('notes.txt')
+
+      const saveToSelectedDestination = vi.fn().mockResolvedValue(undefined)
+      downloadPreferences.mode = 'ask'
+      downloadPreferences.prepareDestination.mockResolvedValue(saveToSelectedDestination)
+      await wrapper.get('[data-testid="download-file"]').trigger('click')
+      await flushPromises()
+      expect(downloadPreferences.prepareDestination).toHaveBeenCalledWith('notes.txt')
+      expect(saveToSelectedDestination).toHaveBeenCalledWith(blob)
+      expect(createObjectURL.mock.calls.filter(([value]) => value === blob)).toHaveLength(1)
+
       vi.runOnlyPendingTimers()
       expect(revokeObjectURL).toHaveBeenCalledWith('blob:wetalk-test')
     } finally {

@@ -11,7 +11,9 @@ import ContactSearchDialog from '@/components/ContactSearchDialog.vue'
 import GroupDirectoryDialog from '@/components/GroupDirectoryDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore, type InitialChatMessage } from '@/stores/chat'
+import { useDownloadPreferencesStore } from '@/stores/downloadPreferences'
 import { useSystemSettingsStore } from '@/stores/systemSettings'
+import type { DownloadLocationMode } from '@/storage/downloadPreferences'
 import { textMessageCache } from '@/storage/textMessageCache'
 import { getChatFileType, getChatMediaKind, getChatMediaMimeType, validateChatFile } from '@/utils/fileValidation'
 import { validatePassword } from '@/utils/authValidation'
@@ -21,6 +23,7 @@ import { formatMessageTimeDivider, shouldShowMessageTime } from '@/utils/message
 const router = useRouter()
 const authStore = useAuthStore()
 const chatStore = useChatStore()
+const downloadPreferencesStore = useDownloadPreferencesStore()
 const systemSettingsStore = useSystemSettingsStore()
 const sidebarOpen = ref(false)
 const signingOut = ref(false)
@@ -55,6 +58,8 @@ const passwordError = ref('')
 const changingPassword = ref(false)
 const clearingTextCache = ref(false)
 const cacheNotice = ref('')
+const downloadPreferenceNotice = ref('')
+const downloadPreferenceError = ref('')
 
 const displayName = computed(() => profile.value?.nickName || authStore.session?.nickName || 'WeTalk 用户')
 const avatarInitial = computed(() => displayName.value.slice(0, 1).toUpperCase())
@@ -167,7 +172,10 @@ onMounted(() => {
   void loadProfile()
   void systemSettingsStore.load().catch(() => undefined)
   const session = authStore.session
-  if (session?.userId) chatStore.connect(session.userId)
+  if (session?.userId) {
+    void downloadPreferencesStore.load(session.userId)
+    chatStore.connect(session.userId)
+  }
 })
 
 onBeforeUnmount(() => {
@@ -449,6 +457,41 @@ async function clearLocalTextCache() {
   }
 }
 
+async function changeDownloadMode(event: Event) {
+  const mode = (event.target as HTMLSelectElement).value as DownloadLocationMode
+  downloadPreferenceNotice.value = ''
+  downloadPreferenceError.value = ''
+  try {
+    await downloadPreferencesStore.setMode(mode)
+    downloadPreferenceNotice.value = '下载偏好已保存'
+  } catch (error: unknown) {
+    downloadPreferenceError.value = error instanceof Error ? error.message : '下载偏好保存失败'
+  }
+}
+
+async function chooseDownloadFolder() {
+  downloadPreferenceNotice.value = ''
+  downloadPreferenceError.value = ''
+  try {
+    const name = await downloadPreferencesStore.chooseDirectory()
+    downloadPreferenceNotice.value = `已选择文件夹：${name}`
+  } catch (error: unknown) {
+    if (error instanceof DOMException && error.name === 'AbortError') return
+    downloadPreferenceError.value = error instanceof Error ? error.message : '文件夹选择失败'
+  }
+}
+
+async function clearDownloadFolder() {
+  downloadPreferenceNotice.value = ''
+  downloadPreferenceError.value = ''
+  try {
+    await downloadPreferencesStore.clearDirectory()
+    downloadPreferenceNotice.value = '已清除所选文件夹，后续使用浏览器默认下载位置'
+  } catch (error: unknown) {
+    downloadPreferenceError.value = error instanceof Error ? error.message : '文件夹偏好清除失败'
+  }
+}
+
 async function changePassword() {
   passwordError.value = validatePassword(passwordForm.password) || ''
   if (passwordError.value) return
@@ -462,6 +505,7 @@ async function changePassword() {
     await authApi.updatePassword(passwordForm.password)
     chatStore.clear()
     systemSettingsStore.reset()
+    downloadPreferencesStore.reset()
     authStore.clearSession()
     await router.replace({ name: 'login', query: { passwordUpdated: '1' } })
   } catch (error: unknown) {
@@ -607,17 +651,24 @@ async function downloadAttachment(message: InitialChatMessage) {
   downloadingFiles.add(message.messageId)
   fileDownloadErrors.delete(message.messageId)
   try {
+    const fileName = message.fileName || 'WeTalk-attachment'
+    const saveToSelectedLocation = await downloadPreferencesStore.prepareDestination(fileName)
     const blob = await chatApi.downloadFile(message.messageId)
+    if (saveToSelectedLocation) {
+      await saveToSelectedLocation(blob)
+      return
+    }
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = message.fileName || 'WeTalk-attachment'
+    link.download = fileName
     document.body.appendChild(link)
     link.click()
     link.remove()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
-  } catch {
-    fileDownloadErrors.set(message.messageId, '文件下载失败，请稍后重试')
+  } catch (error: unknown) {
+    if (error instanceof DOMException && error.name === 'AbortError') return
+    fileDownloadErrors.set(message.messageId, error instanceof Error ? error.message : '文件下载失败，请稍后重试')
   } finally {
     downloadingFiles.delete(message.messageId)
   }
@@ -674,6 +725,7 @@ async function signOut() {
   } finally {
     chatStore.clear()
     systemSettingsStore.reset()
+    downloadPreferencesStore.reset()
     authStore.clearSession()
     signingOut.value = false
     await router.replace({ name: 'login' })
@@ -1008,7 +1060,7 @@ async function signOut() {
                       class="file-download-button"
                       data-testid="download-file"
                       type="button"
-                      :disabled="message.status !== 1 || downloadingFiles.has(message.messageId) || Boolean(selectedSession?.groupClosed || selectedSession?.groupAccessRevoked)"
+                      :disabled="message.status !== 1 || downloadingFiles.has(message.messageId) || downloadPreferencesStore.loading || Boolean(selectedSession?.groupClosed || selectedSession?.groupAccessRevoked)"
                       @click="downloadAttachment(message)"
                     >{{ downloadingFiles.has(message.messageId) ? '下载中…' : '下载' }}</button>
                     <button
@@ -1315,6 +1367,52 @@ async function signOut() {
           </button>
           <p v-if="cacheNotice" class="cache-status" role="status">{{ cacheNotice }}</p>
         </div>
+
+        <section class="download-preference-controls" data-testid="download-preferences">
+          <div>
+            <h3>文件下载位置</h3>
+            <p>默认位置由浏览器管理；支持的浏览器可每次选择位置或保存到你授权的文件夹。</p>
+          </div>
+          <label for="download-location-mode">下载方式</label>
+          <select
+            id="download-location-mode"
+            data-testid="download-location-mode"
+            :value="downloadPreferencesStore.mode"
+            :disabled="downloadPreferencesStore.loading || !downloadPreferencesStore.loaded"
+            @change="changeDownloadMode"
+          >
+            <option value="browser">使用浏览器默认下载位置</option>
+            <option value="ask" :disabled="!downloadPreferencesStore.supportsSavePicker">每次下载时选择位置</option>
+            <option value="folder" :disabled="!downloadPreferencesStore.supportsDirectoryPicker || !downloadPreferencesStore.directoryName">保存到所选文件夹</option>
+          </select>
+          <div class="download-preference-actions">
+            <button
+              class="message-search-clear"
+              data-testid="choose-download-folder"
+              type="button"
+              :disabled="downloadPreferencesStore.loading || !downloadPreferencesStore.supportsDirectoryPicker"
+              @click="chooseDownloadFolder"
+            >选择文件夹</button>
+            <button
+              v-if="downloadPreferencesStore.directoryName"
+              class="message-search-clear"
+              data-testid="clear-download-folder"
+              type="button"
+              :disabled="downloadPreferencesStore.loading"
+              @click="clearDownloadFolder"
+            >清除所选文件夹</button>
+          </div>
+          <p v-if="downloadPreferencesStore.directoryName" class="download-preference-folder">
+            已授权文件夹：{{ downloadPreferencesStore.directoryName }}
+          </p>
+          <p v-if="!downloadPreferencesStore.supportsDirectoryPicker" class="download-preference-note">
+            此浏览器不支持网页选择文件夹；仍可使用浏览器默认下载位置。
+          </p>
+          <p v-if="downloadPreferencesStore.storageError || downloadPreferenceError" class="contact-error" role="alert">
+            {{ downloadPreferenceError || downloadPreferencesStore.storageError }}
+          </p>
+          <p v-if="downloadPreferenceNotice" class="contact-notice" role="status">{{ downloadPreferenceNotice }}</p>
+        </section>
 
         <form class="password-form" data-testid="password-form" @submit.prevent="changePassword">
           <div>
