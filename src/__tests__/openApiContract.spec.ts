@@ -60,6 +60,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
 
     const operationIds = Object.values(contract.paths).map((path: any) => path.post.operationId)
     expect(new Set(operationIds).size).toBe(operationIds.length)
+    expect(contract.components.responses.BusinessError.description).toContain('429')
   })
 
   it('marks protected operations with the backend token header', () => {
@@ -121,6 +122,10 @@ describe('WeTalkWeb OpenAPI contract', () => {
       in: 'cookie',
       name: 'wetalk_session',
     })
+  })
+
+  it('documents request-throttling as a business error response', () => {
+    expect(contract.components.responses.BusinessError.description).toContain('429')
   })
 
   it('preserves the current credential and text-history constraints', () => {

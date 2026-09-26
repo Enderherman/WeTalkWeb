@@ -1487,7 +1487,7 @@
     },
     "responses": {
       "BusinessError": {
-        "description": "Business or transport error. The backend commonly returns application errors with HTTP 200 and a non-200 body code. Common body codes include 500, 600, 601, 901, 902, and 903.",
+        "description": "Business or transport error. The backend commonly returns application errors with HTTP 200 and a non-200 body code. Common body codes include 429, 500, 600, 601, 901, 902, and 903.",
         "content": {
           "application/json": {
             "schema": { "$ref": "#/components/schemas/BusinessErrorResponse" },
