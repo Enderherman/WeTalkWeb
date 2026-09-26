@@ -25,18 +25,18 @@ const notice = ref('')
 
 const canApply = computed(() => {
   const contact = result.value
-  if (!contact || contact.contactType !== 'USER' || contact.contactId === props.currentUserId) return false
+  if (!contact || (contact.contactType === 'USER' && contact.contactId === props.currentUserId)) return false
   return !requestSent.value && ![1, 4, 5, 7].includes(contact.status ?? -1)
 })
 
 const relationshipLabel = computed(() => {
   const contact = result.value
   if (!contact) return ''
-  if (contact.contactType !== 'USER') return '目前仅支持搜索用户'
-  if (contact.contactId === props.currentUserId || contact.status === 1) return '已经是好友'
+  if (contact.status === 1) return contact.contactType === 'GROUP' ? '已经加入群聊' : '已经是好友'
+  if (contact.contactType === 'USER' && contact.contactId === props.currentUserId) return '不能添加自己'
   if (contact.status === 4) return '你已将该用户加入黑名单'
   if (contact.status === 5 || contact.status === 7) return '该用户暂时无法接收你的申请'
-  return contact.statusName || '尚未添加'
+  return contact.statusName || (contact.contactType === 'GROUP' ? '尚未加入' : '尚未添加')
 })
 
 function resetSearchResult() {
@@ -61,8 +61,8 @@ async function searchContact() {
     searchError.value = '请输入用户编号'
     return
   }
-  if (!contactId.startsWith('U')) {
-    searchError.value = '请输入以 U 开头的用户编号'
+  if (!/^[UG]/.test(contactId)) {
+    searchError.value = '请输入以 U 开头的用户编号或以 G 开头的群编号'
     return
   }
 
@@ -88,11 +88,11 @@ async function sendRequest() {
     const joinType = await contactApi.applyAdd(contact.contactId, applyInfo.value.trim())
     requestSent.value = true
     if (joinType === 0) {
-      notice.value = '已直接添加为好友，会话正在同步'
-      result.value = { ...contact, status: 1, statusName: '好友' }
+      notice.value = contact.contactType === 'GROUP' ? '已加入群聊，会话正在同步' : '已直接添加为好友，会话正在同步'
+      result.value = { ...contact, status: 1, statusName: contact.contactType === 'GROUP' ? '已加入群聊' : '好友' }
       emit('contactAdded')
     } else {
-      notice.value = '好友申请已发送，等待对方处理'
+      notice.value = contact.contactType === 'GROUP' ? '入群申请已发送，等待群主处理' : '好友申请已发送，等待对方处理'
     }
   } catch (error: unknown) {
     applyError.value = error instanceof Error ? error.message : '申请发送失败，请稍后重试'
@@ -114,22 +114,22 @@ async function sendRequest() {
       <header class="profile-dialog-header">
         <div>
           <p class="eyebrow">联系人</p>
-          <h2 id="contact-search-title">添加好友</h2>
+          <h2 id="contact-search-title">添加好友或加入群聊</h2>
         </div>
-        <button class="icon-button profile-close" type="button" aria-label="关闭添加好友" @click="emit('close')">
+        <button class="icon-button profile-close" type="button" aria-label="关闭联系人搜索" @click="emit('close')">
           ×
         </button>
       </header>
 
       <form class="contact-search-form" data-testid="contact-search-form" @submit.prevent="searchContact">
-        <label for="contact-id-search">用户编号</label>
+        <label for="contact-id-search">用户或群编号</label>
         <div class="contact-search-row">
           <input
             id="contact-id-search"
             v-model="query"
             data-testid="contact-id-search"
             autocomplete="off"
-            placeholder="输入以 U 开头的用户编号"
+            placeholder="U 开头为用户，G 开头为群"
             :disabled="searching || applying"
             @input="resetSearchResult"
           />
@@ -140,9 +140,9 @@ async function sendRequest() {
         <p v-if="searchError" class="contact-error" role="alert">{{ searchError }}</p>
       </form>
 
-      <p v-if="searching" class="contact-status" role="status">正在搜索用户…</p>
+      <p v-if="searching" class="contact-status" role="status">正在搜索…</p>
       <p v-else-if="searched && !result" class="contact-empty" data-testid="contact-not-found">
-        没有找到这个用户，请检查编号后重试。
+        没有找到匹配的联系人，请检查编号后重试。
       </p>
 
       <section v-if="result" class="contact-result" data-testid="contact-result" aria-label="搜索结果">
@@ -159,19 +159,21 @@ async function sendRequest() {
         <p v-if="result.areaName" class="contact-area">{{ result.areaName }}</p>
 
         <form v-if="canApply" class="contact-request-form" data-testid="contact-request-form" @submit.prevent="sendRequest">
-          <label for="contact-apply-info">验证消息（可选）</label>
+          <label for="contact-apply-info">
+            {{ result.contactType === 'GROUP' ? '入群申请说明（可选）' : '验证消息（可选）' }}
+          </label>
           <textarea
             id="contact-apply-info"
             v-model="applyInfo"
             data-testid="contact-apply-info"
             rows="3"
             maxlength="100"
-            :placeholder="`你好，我是${displayName}`"
+            :placeholder="result.contactType === 'GROUP' ? '我想加入这个群聊' : `你好，我是${displayName}`"
           ></textarea>
           <p v-if="applyError" class="contact-error" role="alert">{{ applyError }}</p>
           <p v-if="notice" class="contact-notice" role="status">{{ notice }}</p>
           <button class="contact-submit-button" data-testid="send-contact-request" type="submit" :disabled="applying">
-            {{ applying ? '正在发送…' : '发送好友申请' }}
+            {{ applying ? '正在发送…' : result.contactType === 'GROUP' ? '申请加入群聊' : '发送好友申请' }}
           </button>
         </form>
         <p v-else-if="notice" class="contact-notice" role="status">{{ notice }}</p>

@@ -446,7 +446,7 @@ describe('authentication flow', () => {
     await wrapper.get('[data-testid="open-contact-search"]').trigger('click')
 
     expect(wrapper.find('[data-testid="contact-search-overlay"]').exists()).toBe(true)
-    await wrapper.get('[aria-label="关闭添加好友"]').trigger('click')
+    await wrapper.get('[aria-label="关闭联系人搜索"]').trigger('click')
     expect(wrapper.find('[data-testid="contact-search-overlay"]').exists()).toBe(false)
   })
 

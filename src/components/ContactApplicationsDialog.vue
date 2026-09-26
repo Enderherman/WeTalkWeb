@@ -43,7 +43,12 @@ async function handleApplication(application: ContactApplication, status: 1 | 2 
   notice.value = ''
   try {
     await contactApi.handleApplication(application.applyId, status)
-    notice.value = status === 1 ? '已同意好友申请' : status === 2 ? '已拒绝好友申请' : '已将申请人加入黑名单'
+    const isGroupApplication = application.contactType === 1
+    notice.value = status === 1
+      ? (isGroupApplication ? '已同意入群申请' : '已同意好友申请')
+      : status === 2
+        ? (isGroupApplication ? '已拒绝入群申请' : '已拒绝好友申请')
+        : '已将申请人加入黑名单'
     emit('applicationHandled')
     const nextPage = applications.value.length === 1 && pageNo.value > 1 ? pageNo.value - 1 : pageNo.value
     await loadPage(nextPage)

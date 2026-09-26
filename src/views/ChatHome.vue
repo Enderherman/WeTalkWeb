@@ -324,7 +324,7 @@ async function signOut() {
         @click="openContactSearch"
       >
         <span aria-hidden="true">＋</span>
-        添加好友
+        添加联系人
       </button>
       <button
         class="new-chat-button contact-directory-button"

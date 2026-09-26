@@ -88,6 +88,26 @@ describe('contact applications dialog', () => {
     expect(wrapper.get('[role="status"]').text()).toContain('已拒绝好友申请')
   })
 
+  it('labels an accepted group request as an invite to join the group', async () => {
+    const groupApplication: ContactApplication = {
+      ...application,
+      applyId: 92,
+      contactType: 1,
+      contactId: 'G300',
+      contactName: 'Study Group',
+    }
+    vi.mocked(contactApi.loadApplications)
+      .mockResolvedValueOnce(page([groupApplication]))
+      .mockResolvedValueOnce(page([{ ...groupApplication, status: 1, statusName: '已同意' }]))
+    const wrapper = mount(ContactApplicationsDialog)
+    await flushPromises()
+    await wrapper.get('[data-testid="accept-application"]').trigger('click')
+    await flushPromises()
+
+    expect(contactApi.handleApplication).toHaveBeenCalledWith(92, 1)
+    expect(wrapper.get('[role="status"]').text()).toContain('已同意入群申请')
+  })
+
   it('loads the next page when requested', async () => {
     vi.mocked(contactApi.loadApplications)
       .mockResolvedValueOnce(page([application], 1, 2))

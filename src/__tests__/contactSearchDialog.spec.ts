@@ -31,11 +31,11 @@ function mountDialog() {
 describe('contact search dialog', () => {
   it('validates the user ID before calling the backend', async () => {
     const wrapper = mountDialog()
-    await wrapper.get('[data-testid="contact-id-search"]').setValue('G200')
+    await wrapper.get('[data-testid="contact-id-search"]').setValue('X200')
     await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')
 
     expect(contactApi.search).not.toHaveBeenCalled()
-    expect(wrapper.get('[role="alert"]').text()).toContain('以 U 开头')
+    expect(wrapper.get('[role="alert"]').text()).toContain('以 U 开头的用户编号或以 G 开头的群编号')
   })
 
   it('searches for a user and submits the optional greeting', async () => {
@@ -71,6 +71,42 @@ describe('contact search dialog', () => {
     expect(wrapper.get('[role="status"]').text()).toContain('直接添加为好友')
     expect(wrapper.emitted('contactAdded')).toHaveLength(1)
     expect(wrapper.find('[data-testid="send-contact-request"]').exists()).toBe(false)
+  })
+
+  it('searches a group and joins immediately when its policy allows direct entry', async () => {
+    vi.mocked(contactApi.search).mockResolvedValue({
+      contactId: 'G300', contactType: 'GROUP', nickName: 'Study Group', status: null,
+    })
+    vi.mocked(contactApi.applyAdd).mockResolvedValue(0)
+    const wrapper = mountDialog()
+    await wrapper.get('[data-testid="contact-id-search"]').setValue('G300')
+    await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(contactApi.search).toHaveBeenCalledWith('G300')
+    expect(wrapper.get('[data-testid="contact-result"]').text()).toContain('Study Group')
+    await wrapper.get('[data-testid="contact-request-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(contactApi.applyAdd).toHaveBeenCalledWith('G300', '')
+    expect(wrapper.get('[role="status"]').text()).toContain('已加入群聊')
+    expect(wrapper.emitted('contactAdded')).toHaveLength(1)
+  })
+
+  it('shows a pending group-join notice when owner approval is required', async () => {
+    vi.mocked(contactApi.search).mockResolvedValue({
+      contactId: 'G301', contactType: 'GROUP', nickName: 'Private Group', status: null,
+    })
+    vi.mocked(contactApi.applyAdd).mockResolvedValue(1)
+    const wrapper = mountDialog()
+    await wrapper.get('[data-testid="contact-id-search"]').setValue('G301')
+    await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')
+    await flushPromises()
+    await wrapper.get('[data-testid="contact-request-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.get('[role="status"]').text()).toContain('入群申请已发送，等待群主处理')
+    expect(wrapper.emitted('contactAdded')).toBeUndefined()
   })
 
   it('does not offer an add action for an existing friend', async () => {
