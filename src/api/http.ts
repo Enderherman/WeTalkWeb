@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { readStoredSession } from '@/stores/auth'
+import { notifyApiUnavailable } from '@/utils/apiEvents'
 import { notifySessionExpired } from '@/utils/authEvents'
 
 export interface BaseResponse<T> {
@@ -22,9 +23,21 @@ export class ApiError extends Error {
 export function unwrapResponse<T>(response: BaseResponse<T>): T {
   if (response.code !== 200) {
     if (response.code === 901) notifySessionExpired()
+    else if (response.code >= 500 && response.code < 600) notifyApiUnavailable()
     throw new ApiError(response.message || '请求失败', response.code)
   }
   return response.data
+}
+
+export function reportApiFailure(error: unknown) {
+  if (!axios.isAxiosError(error)) return
+
+  const responseBody = error.response?.data as Partial<BaseResponse<unknown>> | undefined
+  if (responseBody?.code === 901) {
+    notifySessionExpired()
+    return
+  }
+  if (!error.response || error.response.status >= 500) notifyApiUnavailable()
 }
 
 const client = axios.create({
@@ -56,7 +69,7 @@ export async function postForm<T>(
     if (error instanceof ApiError) throw error
     if (axios.isAxiosError(error)) {
       const responseBody = error.response?.data as Partial<BaseResponse<unknown>> | undefined
-      if (responseBody?.code === 901) notifySessionExpired()
+      reportApiFailure(error)
       throw new ApiError(
         typeof responseBody?.message === 'string' ? responseBody.message : '连接服务器失败，请稍后重试',
         typeof responseBody?.code === 'number' ? responseBody.code : null,

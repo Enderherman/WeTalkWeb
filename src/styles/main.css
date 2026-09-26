@@ -141,6 +141,29 @@ textarea:focus-visible {
   background: var(--wt-accent-hover);
 }
 
+.service-error-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.service-error-home {
+  color: var(--wt-muted);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.service-error-home:hover {
+  color: var(--wt-text);
+}
+
+.service-error-home:focus-visible,
+.service-error-actions .not-found-action:focus-visible {
+  outline: 3px solid rgb(40 126 88 / 26%);
+  outline-offset: 3px;
+}
+
 .not-found-footer {
   position: absolute;
   bottom: max(20px, env(safe-area-inset-bottom));

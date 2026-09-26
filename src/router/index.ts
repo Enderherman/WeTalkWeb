@@ -8,6 +8,7 @@ const router = createRouter({
     { path: '/login', name: 'login', component: () => import('@/views/AuthView.vue') },
     { path: '/register', name: 'register', component: () => import('@/views/AuthView.vue') },
     { path: '/chat', name: 'chat', component: () => import('@/views/ChatHome.vue') },
+    { path: '/service-error', name: 'service-error', component: () => import('@/views/ServiceErrorView.vue') },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') },
   ],
 })
@@ -15,7 +16,7 @@ const router = createRouter({
 router.beforeEach((to) => {
   const isAuthenticated = Boolean(readStoredSession()?.token)
   const isAuthPage = to.name === 'login' || to.name === 'register'
-  const isPublicPage = isAuthPage || to.name === 'not-found'
+  const isPublicPage = isAuthPage || to.name === 'not-found' || to.name === 'service-error'
 
   if (!isAuthenticated && !isPublicPage) return { name: 'login' }
   if (isAuthenticated && isAuthPage) return { name: 'chat' }
