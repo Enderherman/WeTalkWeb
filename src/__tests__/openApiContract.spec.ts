@@ -10,10 +10,12 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(contract.servers[0].url).toBe('/api')
     expect(Object.keys(contract.paths).sort()).toEqual([
       '/account/checkCode',
+      '/account/getSysSetting',
       '/account/getUserInfo',
       '/account/login',
       '/account/logout',
       '/account/register',
+      '/account/saveUserInfo',
       '/account/updatePassword',
       '/chat/downloadFile',
       '/chat/loadHistory',
@@ -44,6 +46,8 @@ describe('WeTalkWeb OpenAPI contract', () => {
   it('marks protected operations with the backend token header', () => {
     const protectedPaths = [
       '/account/getUserInfo',
+      '/account/getSysSetting',
+      '/account/saveUserInfo',
       '/account/updatePassword',
       '/account/logout',
       '/chat/sendMessage',
@@ -150,5 +154,14 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(contract.paths['/chat/downloadFile'].post.responses['200'].content['application/x-msdownload'].schema.format).toBe(
       'binary',
     )
+  })
+
+  it('documents account settings and profile-save fields without secrets', () => {
+    expect(contract.components.schemas.SystemSettings.properties).toHaveProperty('maxGroupCount')
+    expect(contract.components.schemas.SystemSettings.properties).toHaveProperty('robotWelcome')
+    expect(contract.components.schemas.SaveUserInfoRequest.properties.avatarFile.format).toBe('binary')
+    expect(contract.components.schemas.SaveUserInfoRequest.properties.coverFile.format).toBe('binary')
+    expect(contract.components.schemas.SaveUserInfoRequest.properties).not.toHaveProperty('password')
+    expect(contract.components.schemas.SaveUserInfoRequest.properties).not.toHaveProperty('email')
   })
 })

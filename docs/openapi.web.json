@@ -239,6 +239,63 @@
         }
       }
     },
+    "/account/getSysSetting": {
+      "post": {
+        "tags": ["Account"],
+        "operationId": "getAccountSystemSettings",
+        "summary": "Read client-visible system settings",
+        "security": [{ "tokenHeader": [] }],
+        "responses": {
+          "200": {
+            "description": "System settings returned by the current backend configuration.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/SystemSettingsResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/account/saveUserInfo": {
+      "post": {
+        "tags": ["Account"],
+        "operationId": "saveCurrentUserInfo",
+        "summary": "Save the current user's profile",
+        "description": "The authenticated user ID is taken from the token. Email and password fields are server-controlled and must not be sent here. To update the avatar, send avatarFile and coverFile together; the current service dereferences the cover when an avatar upload is present.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": { "$ref": "#/components/schemas/SaveUserInfoRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated user profile.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/UserInfoResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
     "/contact/search": {
       "post": {
         "tags": ["Contacts"],
@@ -1130,6 +1187,42 @@
             "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/UserInfoVO" } }
           }
         ]
+      },
+      "SystemSettings": {
+        "type": "object",
+        "properties": {
+          "maxGroupCount": { "type": "integer" },
+          "maxGroupMemberCount": { "type": "integer" },
+          "maxImageSize": { "type": "integer", "description": "Backend setting; unit is defined by the current server implementation." },
+          "maxVideoSize": { "type": "integer", "description": "Backend setting; unit is defined by the current server implementation." },
+          "maxFileSize": { "type": "integer", "description": "Backend setting; unit is defined by the current server implementation." },
+          "robotUid": { "type": "string" },
+          "robotNickName": { "type": "string" },
+          "robotWelcome": { "type": "string" }
+        }
+      },
+      "SystemSettingsResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/SystemSettings" } }
+          }
+        ]
+      },
+      "SaveUserInfoRequest": {
+        "type": "object",
+        "properties": {
+          "nickName": { "type": "string" },
+          "joinType": { "type": "integer", "enum": [0, 1], "description": "0 direct add, 1 require approval." },
+          "sex": { "type": "integer", "enum": [0, 1] },
+          "personalSignature": { "type": "string" },
+          "areaName": { "type": "string" },
+          "areaCode": { "type": "string" },
+          "avatarFile": { "type": "string", "format": "binary" },
+          "coverFile": { "type": "string", "format": "binary" }
+        }
       },
       "ContactSearchResult": {
         "type": "object",
