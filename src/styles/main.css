@@ -1026,12 +1026,18 @@ textarea:focus-visible {
   overflow-wrap: anywhere;
 }
 
-.message-bubble time {
-  display: block;
+.message-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
   margin-top: 6px;
   color: #92928c;
   font-size: 10px;
-  text-align: right;
+}
+
+.message-send-status {
+  color: #638170;
 }
 
 .composer-error {

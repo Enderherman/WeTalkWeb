@@ -281,7 +281,10 @@ describe('authentication flow', () => {
       sendTime: 2000,
       contactId: 'U200',
     }
-    vi.mocked(chatApi.sendTextMessage).mockResolvedValue(sentMessage)
+    let resolveSend!: (message: typeof sentMessage) => void
+    vi.mocked(chatApi.sendTextMessage).mockImplementation(
+      () => new Promise((resolve) => { resolveSend = resolve }),
+    )
     const { wrapper, chatStore } = await mountChat()
     chatStore.receiveMessage({
       messageType: 0,
@@ -301,11 +304,48 @@ describe('authentication flow', () => {
     await flushPromises()
     await wrapper.get('[data-testid="message-composer"]').setValue('Hello from the web')
     await wrapper.get('[data-testid="send-message"]').trigger('click')
+    expect(wrapper.get('[data-testid="send-message"]').attributes('aria-label')).toBe('正在发送')
+    expect(wrapper.get('[data-testid="send-message"]').element).toHaveProperty('disabled', true)
+    expect(wrapper.find('[data-testid="message-101"]').exists()).toBe(false)
+
+    resolveSend(sentMessage)
     await flushPromises()
 
     expect(chatApi.sendTextMessage).toHaveBeenCalledWith('U200', 'Hello from the web')
     expect(chatStore.initialMessages).toContainEqual(sentMessage)
     expect(wrapper.get('[data-testid="message-101"]').text()).toContain('Hello from the web')
+    expect(wrapper.get('[data-testid="message-send-status"]').text()).toBe('已发送')
+    expect(wrapper.get('[data-testid="message-send-status"]').attributes('aria-label')).toBe('服务端已接收并保存')
+    expect(wrapper.get('[data-testid="message-composer"]').element).toHaveProperty('value', '')
+  })
+
+  it('keeps the draft and allows retry when sending a message fails', async () => {
+    vi.mocked(chatApi.sendTextMessage).mockRejectedValueOnce(new Error('网络暂时不可用'))
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200',
+          contactId: 'U200',
+          contactName: 'Friend',
+          lastMessage: '',
+          lastReceiveTime: 1000,
+          contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+    await wrapper.get('[data-testid="message-composer"]').setValue('Please retry this')
+    await wrapper.get('[data-testid="send-message"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="message-composer"]').element).toHaveProperty('value', 'Please retry this')
+    expect(wrapper.get('.composer-error').text()).toBe('网络暂时不可用')
+    expect(wrapper.get('[data-testid="send-message"]').element).toHaveProperty('disabled', false)
+    expect(wrapper.find('[data-testid="message-send-status"]').exists()).toBe(false)
   })
 
   it('loads older messages with a cursor and preserves chronological order', async () => {

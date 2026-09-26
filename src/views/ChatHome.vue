@@ -394,7 +394,17 @@ async function signOut() {
                   {{ message.sendUserNickName }}
                 </strong>
                 <p>{{ message.messageContent }}</p>
-                <time>{{ formatMessageTime(message.sendTime) }}</time>
+                <div class="message-footer">
+                  <time>{{ formatMessageTime(message.sendTime) }}</time>
+                  <span
+                    v-if="message.sendUserId === authStore.session?.userId"
+                    class="message-send-status"
+                    aria-label="服务端已接收并保存"
+                    data-testid="message-send-status"
+                  >
+                    已发送
+                  </span>
+                </div>
               </div>
             </article>
           </template>
@@ -425,14 +435,15 @@ async function signOut() {
           class="composer-send"
           type="button"
           :disabled="!selectedSession || !messageDraft.trim() || sendingMessage"
-          aria-label="发送消息"
+          :aria-label="sendingMessage ? '正在发送' : '发送消息'"
           data-testid="send-message"
           @click="sendTextMessage"
         >
-          ↑
+          <span v-if="sendingMessage" aria-hidden="true">…</span>
+          <span v-else aria-hidden="true">↑</span>
         </button>
       </div>
-      <p class="chat-disclaimer">文字消息通过 WeTalk 后端保存并实时同步；历史分页和本地缓存仍在开发中。</p>
+      <p class="chat-disclaimer">文字消息由 WeTalk 后端保存并实时同步；历史记录支持分页，本机仅缓存纯文字消息。</p>
     </section>
 
     <div v-if="profileOpen" class="profile-overlay" data-testid="profile-overlay" @click.self="closeProfile">
