@@ -8,9 +8,21 @@ vi.mock('@/api/chat', () => ({ chatApi: { downloadFile: vi.fn() } }))
 const createObjectURL = vi.fn((_blob: Blob) => 'blob:avatar-test')
 const revokeObjectURL = vi.fn()
 
+function imageBlob(bytes: Uint8Array | string, type = 'application/octet-stream') {
+  const data = Uint8Array.from(typeof bytes === 'string' ? new TextEncoder().encode(bytes) : bytes)
+  const blob = new Blob([data.buffer as ArrayBuffer], { type })
+  const header = data.slice(0, 12)
+  const buffer = header.buffer.slice(header.byteOffset, header.byteOffset + header.byteLength) as ArrayBuffer
+  Object.defineProperty(blob, 'slice', {
+    configurable: true,
+    value: () => ({ arrayBuffer: async () => buffer }),
+  })
+  return blob
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.mocked(chatApi.downloadFile).mockResolvedValue(new Blob(['png bytes']))
+  vi.mocked(chatApi.downloadFile).mockResolvedValue(imageBlob(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])))
   vi.stubGlobal('URL', { createObjectURL, revokeObjectURL })
 })
 
@@ -43,6 +55,18 @@ describe('avatar thumbnail', () => {
     expect(wrapper.find('img').exists()).toBe(false)
   })
 
+  it('detects JPEG bytes saved under the backend PNG avatar filename', async () => {
+    vi.mocked(chatApi.downloadFile).mockResolvedValue(
+      imageBlob(new Uint8Array([0xff, 0xd8, 0xff, 0x00]), 'application/octet-stream'),
+    )
+    const wrapper = mount(AvatarThumbnail, { props: { fileId: 'U100', fallback: 'S' } })
+    await flushPromises()
+
+    expect((createObjectURL.mock.calls[0]?.[0] as Blob).type).toBe('image/jpeg')
+    expect(wrapper.find('img').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
   it('reloads a cover when its refresh key changes', async () => {
     const wrapper = mount(AvatarThumbnail, {
       props: { fileId: 'G300', fallback: '群', showCover: true, refreshKey: 0 },
@@ -60,11 +84,11 @@ describe('avatar thumbnail', () => {
     let finishFirstRequest: (blob: Blob) => void = () => undefined
     vi.mocked(chatApi.downloadFile)
       .mockImplementationOnce(() => new Promise((resolve) => { finishFirstRequest = resolve }))
-      .mockResolvedValueOnce(new Blob(['new avatar']))
+      .mockResolvedValueOnce(imageBlob('new avatar', 'image/jpeg'))
     const wrapper = mount(AvatarThumbnail, { props: { fileId: 'U100', fallback: 'A' } })
     await wrapper.setProps({ fileId: 'U200' })
     await flushPromises()
-    finishFirstRequest(new Blob(['old avatar']))
+    finishFirstRequest(imageBlob('old avatar', 'image/jpeg'))
     await flushPromises()
 
     expect(wrapper.find('img').exists()).toBe(true)

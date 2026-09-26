@@ -1,5 +1,5 @@
 import { md5 } from 'js-md5'
-import { postForm } from './http'
+import { postForm, postMultipart } from './http'
 
 export interface CaptchaData {
   check_code: string
@@ -30,6 +30,20 @@ export interface UserProfile {
   email: string
   nickName: string
   admin: boolean
+  sex?: number | null
+  personalSignature?: string | null
+  areaName?: string | null
+  areaCode?: string | null
+}
+
+export interface SaveUserInfoInput {
+  nickName?: string
+  sex?: number | null
+  personalSignature?: string
+  areaName?: string
+  areaCode?: string
+  avatarFile?: File | null
+  coverFile?: File | null
 }
 
 export interface LoginInput {
@@ -67,6 +81,16 @@ export const authApi = {
   createWebSocketTicket: (): Promise<WebSocketTicket> => postForm<WebSocketTicket>('/account/webSocketTicket', {}),
 
   getUserInfo: (): Promise<UserProfile> => postForm<UserProfile>('/account/getUserInfo', {}),
+
+  saveUserInfo: (input: SaveUserInfoInput): Promise<UserProfile> => {
+    const body = new FormData()
+    for (const [key, value] of Object.entries(input)) {
+      if (value === null || value === undefined) continue
+      if (key === 'avatarFile' || key === 'coverFile') body.set(key, value as File)
+      else body.set(key, String(value))
+    }
+    return postMultipart<UserProfile>('/account/saveUserInfo', body)
+  },
 
   updatePassword: async (password: string): Promise<void> => {
     // The backend expects the new raw password here and hashes it server-side.

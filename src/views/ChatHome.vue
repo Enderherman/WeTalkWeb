@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { authApi } from '@/api/auth'
-import type { UserProfile } from '@/api/auth'
+import type { SaveUserInfoInput, UserProfile } from '@/api/auth'
 import { chatApi } from '@/api/chat'
 import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
 import ContactApplicationsDialog from '@/components/ContactApplicationsDialog.vue'
@@ -31,6 +31,22 @@ const profileOpen = ref(false)
 const profileLoading = ref(false)
 const profileError = ref('')
 const profile = ref<UserProfile | null>(null)
+const profileEditOpen = ref(false)
+const profileSaving = ref(false)
+const profileSaveError = ref('')
+const profileSaveNotice = ref('')
+const profileAvatarVersion = ref(0)
+const profileAvatarFile = ref<File | null>(null)
+const profileCoverFile = ref<File | null>(null)
+const profileAvatarInput = ref<HTMLInputElement | null>(null)
+const profileCoverInput = ref<HTMLInputElement | null>(null)
+const profileForm = reactive({
+  nickName: '',
+  sex: '' as '' | '0' | '1',
+  personalSignature: '',
+  areaName: '',
+  areaCode: '',
+})
 const passwordForm = reactive({ password: '', confirmPassword: '' })
 const passwordError = ref('')
 const changingPassword = ref(false)
@@ -237,9 +253,118 @@ async function loadProfile() {
   }
 }
 
+function openProfileEditor() {
+  const current = profile.value
+  if (!current) return
+  profileForm.nickName = current.nickName || ''
+  profileForm.sex = current.sex === 0 || current.sex === 1 ? String(current.sex) as '0' | '1' : ''
+  profileForm.personalSignature = current.personalSignature || ''
+  profileForm.areaName = current.areaName || ''
+  profileForm.areaCode = current.areaCode || ''
+  profileAvatarFile.value = null
+  profileCoverFile.value = null
+  if (profileAvatarInput.value) profileAvatarInput.value.value = ''
+  if (profileCoverInput.value) profileCoverInput.value.value = ''
+  profileSaveError.value = ''
+  profileSaveNotice.value = ''
+  profileEditOpen.value = true
+}
+
+function selectProfileImage(event: Event, kind: 'avatar' | 'cover') {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0] || null
+  profileSaveError.value = ''
+  if (!file) {
+    if (kind === 'avatar') profileAvatarFile.value = null
+    else profileCoverFile.value = null
+    return
+  }
+
+  const extensions: Record<string, string> = {
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    bmp: 'image/bmp',
+    webp: 'image/webp',
+  }
+  const extension = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.') + 1).toLowerCase() : ''
+  if (!extensions[extension] || file.type !== extensions[extension]) {
+    profileSaveError.value = '头像和封面需使用 PNG、JPEG、GIF、BMP 或 WebP 图片'
+    input.value = ''
+    return
+  }
+  if (file.size === 0 || file.size > 10 * 1024 * 1024) {
+    profileSaveError.value = '头像或封面不能为空，且不能超过 10 MiB'
+    input.value = ''
+    return
+  }
+  if (kind === 'avatar') profileAvatarFile.value = file
+  else profileCoverFile.value = file
+}
+
+function cancelProfileEdit() {
+  if (profileSaving.value) return
+  profileEditOpen.value = false
+  profileAvatarFile.value = null
+  profileCoverFile.value = null
+  profileSaveError.value = ''
+}
+
+async function saveProfile() {
+  const nickName = profileForm.nickName.trim()
+  if (!nickName || nickName.length > 40) {
+    profileSaveError.value = '昵称不能为空且不能超过 40 个字符'
+    return
+  }
+  if (profileForm.personalSignature.length > 64 || profileForm.areaName.length > 64 || profileForm.areaCode.length > 64) {
+    profileSaveError.value = '个性签名和地区字段不能超过 64 个字符'
+    return
+  }
+
+  const input: SaveUserInfoInput = {
+    nickName,
+    personalSignature: profileForm.personalSignature.trim(),
+    areaName: profileForm.areaName.trim(),
+    areaCode: profileForm.areaCode.trim(),
+    avatarFile: profileAvatarFile.value,
+    coverFile: profileCoverFile.value,
+  }
+  if (profileForm.sex !== '') input.sex = Number(profileForm.sex)
+
+  profileSaving.value = true
+  profileSaveError.value = ''
+  profileSaveNotice.value = ''
+  try {
+    const updated = await authApi.saveUserInfo(input)
+    profile.value = updated
+    const session = authStore.session
+    if (session) {
+      authStore.setSession({
+        ...session,
+        email: updated.email || session.email,
+        nickName: updated.nickName || session.nickName,
+        admin: updated.admin,
+      })
+    }
+    profileAvatarVersion.value += 1
+    profileSaveNotice.value = '个人资料已保存'
+    profileAvatarFile.value = null
+    profileCoverFile.value = null
+    profileEditOpen.value = false
+  } catch (error: unknown) {
+    profileSaveError.value = error instanceof Error ? error.message : '资料保存失败，请稍后重试'
+  } finally {
+    profileSaving.value = false
+  }
+}
+
 function openProfile() {
   profileOpen.value = true
   sidebarOpen.value = false
+  profileEditOpen.value = false
+  profileSaveError.value = ''
+  profileSaveNotice.value = ''
   passwordForm.password = ''
   passwordForm.confirmPassword = ''
   passwordError.value = ''
@@ -287,7 +412,8 @@ function refreshChatSession() {
 }
 
 function closeProfile() {
-  if (changingPassword.value) return
+  if (changingPassword.value || profileSaving.value) return
+  profileEditOpen.value = false
   profileOpen.value = false
 }
 
@@ -648,6 +774,7 @@ async function signOut() {
             class="profile-avatar"
             :file-id="profile?.userId || authStore.session?.userId"
             :fallback="avatarInitial"
+            :refresh-key="profileAvatarVersion"
           />
           <span class="profile-copy">
             <strong>{{ displayName }}</strong>
@@ -1025,11 +1152,87 @@ async function signOut() {
           class="profile-cover-thumbnail"
           :file-id="profile?.userId || authStore.session?.userId"
           :show-cover="true"
-          :refresh-key="profile?.userId || authStore.session?.userId"
+          :refresh-key="profileAvatarVersion"
           test-id="profile-cover"
         />
 
-        <dl class="profile-details">
+        <div v-if="profile" class="profile-identity-row">
+          <AvatarThumbnail
+            class="contact-profile-avatar"
+            :file-id="profile.userId"
+            :fallback="(profile.nickName || displayName).slice(0, 1)"
+            :refresh-key="profileAvatarVersion"
+            test-id="profile-avatar-preview"
+          />
+          <div>
+            <strong>{{ profile.nickName || displayName }}</strong>
+            <p>{{ profile.personalSignature || '还没有填写个性签名' }}</p>
+          </div>
+        </div>
+
+        <p v-if="profileSaveNotice" class="contact-notice" role="status">{{ profileSaveNotice }}</p>
+        <p v-if="profileSaveError" class="contact-error" role="alert">{{ profileSaveError }}</p>
+
+        <button
+          v-if="profile && !profileEditOpen"
+          class="profile-edit-toggle"
+          data-testid="edit-profile"
+          type="button"
+          @click="openProfileEditor"
+        >编辑个人资料</button>
+
+        <form v-if="profileEditOpen" class="profile-edit-form" data-testid="profile-edit-form" @submit.prevent="saveProfile">
+          <label for="profile-edit-name">昵称</label>
+          <input id="profile-edit-name" v-model.trim="profileForm.nickName" data-testid="profile-edit-name" maxlength="40" />
+          <label for="profile-edit-sex">性别</label>
+          <select id="profile-edit-sex" v-model="profileForm.sex" data-testid="profile-edit-sex">
+            <option value="">不修改</option>
+            <option value="0">男</option>
+            <option value="1">女</option>
+          </select>
+          <label for="profile-edit-signature">个性签名</label>
+          <textarea
+            id="profile-edit-signature"
+            v-model="profileForm.personalSignature"
+            data-testid="profile-edit-signature"
+            maxlength="64"
+            rows="3"
+          ></textarea>
+          <label for="profile-edit-area-name">地区名称</label>
+          <input id="profile-edit-area-name" v-model.trim="profileForm.areaName" data-testid="profile-edit-area-name" maxlength="64" />
+          <label for="profile-edit-area-code">地区编号</label>
+          <input id="profile-edit-area-code" v-model.trim="profileForm.areaCode" data-testid="profile-edit-area-code" maxlength="64" />
+          <label for="profile-avatar-file">头像图片</label>
+          <input
+            id="profile-avatar-file"
+            ref="profileAvatarInput"
+            data-testid="profile-avatar-file"
+            type="file"
+            accept="image/png,image/jpeg,image/gif,image/bmp,image/webp"
+            @change="selectProfileImage($event, 'avatar')"
+          />
+          <small v-if="profileAvatarFile">已选择：{{ profileAvatarFile.name }}</small>
+          <label for="profile-cover-file">封面图片（可选）</label>
+          <input
+            id="profile-cover-file"
+            ref="profileCoverInput"
+            data-testid="profile-cover-file"
+            type="file"
+            accept="image/png,image/jpeg,image/gif,image/bmp,image/webp"
+            @change="selectProfileImage($event, 'cover')"
+          />
+          <small v-if="profileCoverFile">已选择：{{ profileCoverFile.name }}</small>
+          <div class="profile-edit-actions">
+            <button class="password-submit" data-testid="save-profile" type="submit" :disabled="profileSaving">
+              {{ profileSaving ? '正在保存…' : '保存资料' }}
+            </button>
+            <button class="message-search-clear" data-testid="cancel-profile-edit" type="button" :disabled="profileSaving" @click="cancelProfileEdit">
+              取消
+            </button>
+          </div>
+        </form>
+
+        <dl v-if="!profileEditOpen" class="profile-details">
           <div>
             <dt>昵称</dt>
             <dd>{{ profile?.nickName || authStore.session?.nickName || '—' }}</dd>

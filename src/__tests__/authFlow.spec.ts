@@ -22,6 +22,7 @@ vi.mock('@/api/auth', () => ({
     login: vi.fn(),
     createWebSocketTicket: vi.fn(),
     getUserInfo: vi.fn(),
+    saveUserInfo: vi.fn(),
     updatePassword: vi.fn(),
     logout: vi.fn(),
   },
@@ -108,6 +109,9 @@ beforeEach(() => {
     email: 'student@example.com',
     nickName: 'Student',
     admin: false,
+  })
+  vi.mocked(authApi.saveUserInfo).mockResolvedValue({
+    userId: 'U100', email: 'student@example.com', nickName: 'Student', admin: false,
   })
   vi.mocked(authApi.updatePassword).mockResolvedValue(undefined)
   vi.mocked(contactApi.loadApplications).mockResolvedValue({ totalCount: 0, pageSize: 15, pageNo: 1, pageTotal: 0, list: [] })
@@ -878,6 +882,53 @@ describe('authentication flow', () => {
     expect(authStore.session).toBeNull()
     expect(router.currentRoute.value.name).toBe('login')
     expect(router.currentRoute.value.query.passwordUpdated).toBe('1')
+  })
+
+  it('saves personal fields and JPEG avatar/cover, then refreshes the visible profile', async () => {
+    const avatarFile = new File(['avatar'], 'avatar.jpg', { type: 'image/jpeg' })
+    const coverFile = new File(['cover'], 'cover.jpg', { type: 'image/jpeg' })
+    vi.mocked(authApi.saveUserInfo).mockResolvedValue({
+      userId: 'U100',
+      email: 'student@example.com',
+      nickName: 'New Student',
+      admin: false,
+      sex: 1,
+      personalSignature: 'Hello from Web',
+      areaName: 'Suzhou',
+      areaCode: '320500',
+    })
+    const { wrapper, authStore } = await mountChat()
+    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="edit-profile"]').trigger('click')
+    await wrapper.get('[data-testid="profile-edit-name"]').setValue('New Student')
+    await wrapper.get('[data-testid="profile-edit-sex"]').setValue('1')
+    await wrapper.get('[data-testid="profile-edit-signature"]').setValue('Hello from Web')
+    await wrapper.get('[data-testid="profile-edit-area-name"]').setValue('Suzhou')
+    await wrapper.get('[data-testid="profile-edit-area-code"]').setValue('320500')
+
+    const avatarInput = wrapper.get('[data-testid="profile-avatar-file"]').element as HTMLInputElement
+    Object.defineProperty(avatarInput, 'files', { configurable: true, value: [avatarFile] })
+    await wrapper.get('[data-testid="profile-avatar-file"]').trigger('change')
+    const coverInput = wrapper.get('[data-testid="profile-cover-file"]').element as HTMLInputElement
+    Object.defineProperty(coverInput, 'files', { configurable: true, value: [coverFile] })
+    await wrapper.get('[data-testid="profile-cover-file"]').trigger('change')
+
+    await wrapper.get('[data-testid="profile-edit-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(authApi.saveUserInfo).toHaveBeenCalledWith({
+      nickName: 'New Student',
+      sex: 1,
+      personalSignature: 'Hello from Web',
+      areaName: 'Suzhou',
+      areaCode: '320500',
+      avatarFile,
+      coverFile,
+    })
+    expect(authStore.session?.nickName).toBe('New Student')
+    expect(wrapper.text()).toContain('资料已保存')
+    expect(wrapper.text()).toContain('Hello from Web')
   })
 
   it('opens and closes the add-friend dialog from the chat sidebar', async () => {

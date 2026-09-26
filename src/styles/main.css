@@ -1561,6 +1561,74 @@ textarea:focus-visible {
   border-radius: 16px;
 }
 
+.profile-identity-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0;
+}
+
+.profile-identity-row > div {
+  min-width: 0;
+}
+
+.profile-identity-row p {
+  margin: 4px 0 0;
+  color: var(--wt-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.profile-edit-toggle {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--wt-line);
+  border-radius: 11px;
+  color: var(--wt-accent-strong);
+  background: var(--wt-white);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.profile-edit-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.profile-edit-form label {
+  color: var(--wt-muted);
+  font-size: 12px;
+}
+
+.profile-edit-form input:not([type='file']),
+.profile-edit-form select,
+.profile-edit-form textarea {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--wt-line);
+  border-radius: 10px;
+  background: var(--wt-white);
+  font-size: 13px;
+}
+
+.profile-edit-form textarea {
+  resize: vertical;
+}
+
+.profile-edit-form small {
+  color: var(--wt-muted);
+  font-size: 11px;
+}
+
+.profile-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
 .profile-details > div {
   display: flex;
   justify-content: space-between;

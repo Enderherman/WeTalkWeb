@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { postForm } from '@/api/http'
+import { postForm, postMultipart } from '@/api/http'
 import { authApi, hashLoginPassword } from '@/api/auth'
 
-vi.mock('@/api/http', () => ({ postForm: vi.fn() }))
+vi.mock('@/api/http', () => ({ postForm: vi.fn(), postMultipart: vi.fn() }))
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -54,5 +54,27 @@ describe('auth API compatibility', () => {
 
     await expect(authApi.updatePassword('NewPassword123')).resolves.toBeUndefined()
     expect(postForm).toHaveBeenCalledWith('/account/updatePassword', { password: 'NewPassword123' })
+  })
+
+  it('saves editable profile fields and optional image files as multipart form data', async () => {
+    const avatar = new File(['avatar bytes'], 'avatar.jpg', { type: 'image/jpeg' })
+    const cover = new File(['cover bytes'], 'cover.jpg', { type: 'image/jpeg' })
+    const profile = { userId: 'U100', email: 'student@example.com', nickName: 'Student 2', admin: false }
+    vi.mocked(postMultipart).mockResolvedValue(profile)
+
+    await expect(authApi.saveUserInfo({
+      nickName: 'Student 2',
+      sex: 1,
+      personalSignature: 'Hello',
+      avatarFile: avatar,
+      coverFile: cover,
+    })).resolves.toEqual(profile)
+    const [path, body] = vi.mocked(postMultipart).mock.calls[0]!
+    expect(path).toBe('/account/saveUserInfo')
+    expect(body.get('nickName')).toBe('Student 2')
+    expect(body.get('sex')).toBe('1')
+    expect(body.get('personalSignature')).toBe('Hello')
+    expect(body.get('avatarFile')).toBe(avatar)
+    expect(body.get('coverFile')).toBe(cover)
   })
 })
