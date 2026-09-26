@@ -525,6 +525,7 @@ async function signOut() {
     <GroupDirectoryDialog
       v-if="groupDirectoryOpen"
       @close="groupDirectoryOpen = false"
+      @group-created="refreshChatSession"
     />
 
     <ContactApplicationsDialog

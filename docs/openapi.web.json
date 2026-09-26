@@ -1952,8 +1952,8 @@
         "required": ["groupName", "joinType"],
         "properties": {
           "groupId": { "type": "string", "description": "Omit to create a group; include to update an owned group." },
-          "groupName": { "type": "string" },
-          "groupNotice": { "type": "string" },
+          "groupName": { "type": "string", "maxLength": 32 },
+          "groupNotice": { "type": "string", "maxLength": 500 },
           "joinType": { "type": "integer", "enum": [0, 1], "description": "0 direct join, 1 owner approval." },
           "avatarFile": { "type": "string", "format": "binary", "description": "Required by the service when creating a group; optional on update." },
           "coverFile": { "type": "string", "format": "binary" }

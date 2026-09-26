@@ -78,3 +78,22 @@ export async function postForm<T>(
     throw error
   }
 }
+
+
+export async function postMultipart<T>(path: string, body: FormData): Promise<T> {
+  try {
+    const response = await client.post<BaseResponse<T>>(path, body)
+    return unwrapResponse(response.data)
+  } catch (error: unknown) {
+    if (error instanceof ApiError) throw error
+    if (axios.isAxiosError(error)) {
+      const responseBody = error.response?.data as Partial<BaseResponse<unknown>> | undefined
+      reportApiFailure(error)
+      throw new ApiError(
+        typeof responseBody?.message === 'string' ? responseBody.message : '连接服务器失败，请稍后重试',
+        typeof responseBody?.code === 'number' ? responseBody.code : null,
+      )
+    }
+    throw error
+  }
+}

@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { contactApi, type GroupProfile, type UserContactEntry } from '@/api/contacts'
+import { groupApi } from '@/api/groups'
 import GroupDirectoryDialog from '@/components/GroupDirectoryDialog.vue'
 
 vi.mock('@/api/contacts', () => ({
@@ -17,6 +18,8 @@ vi.mock('@/api/contacts', () => ({
     blockContact: vi.fn(),
   },
 }))
+
+vi.mock('@/api/groups', () => ({ groupApi: { create: vi.fn() } }))
 
 const group: UserContactEntry = {
   userId: 'U100',
@@ -43,6 +46,7 @@ beforeEach(() => {
   vi.mocked(contactApi.loadContacts).mockResolvedValue([group])
   vi.mocked(contactApi.loadOwnedGroups).mockResolvedValue([])
   vi.mocked(contactApi.getGroupInfo).mockResolvedValue(profile)
+  vi.mocked(groupApi.create).mockResolvedValue(null)
 })
 
 describe('group directory dialog', () => {
@@ -76,5 +80,43 @@ describe('group directory dialog', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="group-G300"]').text()).toContain('Student Group')
+  })
+
+  it('requires a PNG avatar before creating a group', async () => {
+    const wrapper = mount(GroupDirectoryDialog)
+    await flushPromises()
+    await wrapper.get('[data-testid="open-group-create"]').trigger('click')
+    await wrapper.get('[data-testid="new-group-name"]').setValue('Study Group')
+    await wrapper.get('[data-testid="group-create-form"]').trigger('submit')
+
+    expect(groupApi.create).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"]').text()).toContain('请选择 PNG 群头像')
+  })
+
+  it('creates a group and refreshes the combined directory', async () => {
+    const avatar = new File(['png bytes'], 'avatar.png', { type: 'image/png' })
+    vi.mocked(contactApi.loadOwnedGroups).mockResolvedValueOnce([]).mockResolvedValueOnce([profile])
+    const wrapper = mount(GroupDirectoryDialog)
+    await flushPromises()
+    await wrapper.get('[data-testid="open-group-create"]').trigger('click')
+    await wrapper.get('[data-testid="new-group-name"]').setValue('Student Group')
+    await wrapper.get('[data-testid="new-group-notice"]').setValue('课程通知')
+    await wrapper.get('[data-testid="new-group-join-type"]').setValue('0')
+    const avatarInput = wrapper.get('[data-testid="new-group-avatar"]')
+    Object.defineProperty(avatarInput.element, 'files', { value: [avatar] })
+    await avatarInput.trigger('change')
+    await wrapper.get('[data-testid="group-create-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(groupApi.create).toHaveBeenCalledWith({
+      groupName: 'Student Group',
+      groupNotice: '课程通知',
+      joinType: 0,
+      avatarFile: avatar,
+    })
+    expect(contactApi.loadOwnedGroups).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('[data-testid="group-G300"]').exists()).toBe(true)
+    expect(wrapper.emitted('groupCreated')).toHaveLength(1)
+    expect(wrapper.get('[role="status"]').text()).toContain('群聊创建成功')
   })
 })
