@@ -1998,9 +1998,72 @@ textarea:focus-visible {
   cursor: not-allowed;
 }
 
+.file-preview-button {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 7px;
+  padding: 4px 8px;
+  color: #4f6657;
+  background: #eef1ed;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.file-preview-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .file-download-error {
   color: #a53932;
   font-size: 11px;
+}
+
+.image-preview-overlay {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgb(24 27 25 / 72%);
+}
+
+.image-preview-dialog {
+  display: flex;
+  max-width: min(96vw, 1100px);
+  max-height: 94dvh;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 18px 60px rgb(0 0 0 / 24%);
+}
+
+.image-preview-dialog header {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 12px 4px 18px;
+  color: var(--wt-text);
+}
+
+.image-preview-dialog header strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-preview-dialog img {
+  display: block;
+  max-width: 96vw;
+  max-height: calc(94dvh - 60px);
+  object-fit: contain;
+  background: #f3f3f1;
 }
 
 .message-footer {

@@ -392,7 +392,7 @@ describe('authentication flow', () => {
     await input.trigger('change')
     await flushPromises()
 
-    expect(chatApi.sendFileMessage).toHaveBeenCalledWith('U200', file)
+    expect(chatApi.sendFileMessage).toHaveBeenCalledWith('U200', file, 2)
     expect(chatApi.uploadFile).toHaveBeenCalledWith(601, file, expect.any(Function))
     expect(wrapper.get('[data-testid="file-attachment"]').text()).toContain('notes.txt')
     expect(wrapper.get('.file-message-status').text()).toContain('已上传 · 5 B')
@@ -446,7 +446,7 @@ describe('authentication flow', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="file-drop-overlay"]').exists()).toBe(false)
-    expect(chatApi.sendFileMessage).toHaveBeenCalledWith('U200', file)
+    expect(chatApi.sendFileMessage).toHaveBeenCalledWith('U200', file, 2)
     expect(wrapper.get('[data-testid="file-attachment"]').text()).toContain('dropped.txt')
     wrapper.unmount()
   })
@@ -513,6 +513,67 @@ describe('authentication flow', () => {
       if (originalRevoke) Object.defineProperty(URL, 'revokeObjectURL', originalRevoke)
       else Reflect.deleteProperty(URL, 'revokeObjectURL')
       wrapper.unmount()
+    }
+  })
+
+  it('previews an uploaded image in the in-app viewer and revokes its Blob URL', async () => {
+    const blob = new Blob(['image bytes'], { type: 'image/png' })
+    vi.mocked(chatApi.downloadFile).mockResolvedValue(blob)
+    const originalCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL')
+    const originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL')
+    const createObjectURL = vi.fn(() => 'blob:image-preview')
+    const revokeObjectURL = vi.fn()
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
+
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200',
+          contactId: 'U200',
+          contactName: 'Friend',
+          lastMessage: 'photo.png',
+          lastReceiveTime: 2000,
+          contactType: 0,
+        }],
+        chatMessageList: [{
+          messageId: 604,
+          sessionId: 'S200',
+          messageType: 5,
+          messageContent: '[文件]',
+          sendUserId: 'U200',
+          sendUserNickName: 'Friend',
+          sendTime: 2000,
+          contactId: 'U100',
+          fileName: 'photo.png',
+          fileSize: 11,
+          fileType: 0,
+          status: 1,
+        }],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+    try {
+      await wrapper.get('[data-testid="preview-image"]').trigger('click')
+      await flushPromises()
+
+      expect(chatApi.downloadFile).toHaveBeenCalledWith(604)
+      expect(createObjectURL).toHaveBeenCalledWith(blob)
+      expect(wrapper.get('[data-testid="image-preview-overlay"] img').attributes('src')).toBe('blob:image-preview')
+      expect(wrapper.get('[data-testid="image-preview-overlay"] img').attributes('alt')).toBe('photo.png')
+
+      await wrapper.get('[aria-label="关闭图片预览"]').trigger('click')
+      expect(wrapper.find('[data-testid="image-preview-overlay"]').exists()).toBe(false)
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:image-preview')
+    } finally {
+      wrapper.unmount()
+      if (originalCreate) Object.defineProperty(URL, 'createObjectURL', originalCreate)
+      else Reflect.deleteProperty(URL, 'createObjectURL')
+      if (originalRevoke) Object.defineProperty(URL, 'revokeObjectURL', originalRevoke)
+      else Reflect.deleteProperty(URL, 'revokeObjectURL')
     }
   })
 

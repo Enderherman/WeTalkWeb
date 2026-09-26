@@ -43,6 +43,22 @@ describe('chat API', () => {
     })
   })
 
+  it('marks image-message metadata with the backend image file type', async () => {
+    const file = new File(['image'], 'photo.png', { type: 'image/png' })
+    vi.mocked(postForm).mockResolvedValue({ messageId: 43 })
+
+    await chatApi.sendFileMessage('U200', file, 0)
+
+    expect(postForm).toHaveBeenCalledWith('/chat/sendMessage', {
+      contactId: 'U200',
+      messageContent: '[文件]',
+      messageType: 5,
+      fileSize: file.size,
+      fileName: 'photo.png',
+      fileType: 0,
+    })
+  })
+
   it('uploads the file with its message ID and reports upload progress', async () => {
     const file = new File(['notes'], 'notes.txt', { type: 'text/plain' })
     const onProgress = vi.fn()
