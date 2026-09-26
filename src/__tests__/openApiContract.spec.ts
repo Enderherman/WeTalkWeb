@@ -26,6 +26,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/admin/updateUserStatus',
       '/app/checkUpdate',
       '/app/deleteUpdate',
+      '/app/downloadUpdate',
       '/app/loadUpdateList',
       '/app/postUpdate',
       '/app/saveUpdate',
@@ -89,6 +90,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/app/loadUpdateList',
       '/app/saveUpdate',
       '/app/deleteUpdate',
+      '/app/downloadUpdate',
       '/app/postUpdate',
       '/app/checkUpdate',
       '/group/saveGroup',
@@ -148,7 +150,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
 
   it('models body-level business errors alongside HTTP 200 success responses', () => {
     for (const pathName of Object.keys(contract.paths)) {
-      if (pathName === '/chat/downloadFile') {
+      if (pathName === '/chat/downloadFile' || pathName === '/app/downloadUpdate') {
         expect(contract.paths[pathName].post.responses['200'].content['application/octet-stream'].schema.format).toBe(
           'binary',
         )
@@ -225,5 +227,8 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(contract.components.schemas.AdminUserQuery.properties).not.toHaveProperty('password')
     expect(contract.components.schemas.PostAppUpdateRequest.properties.status.enum).toEqual([0, 1, 2])
     expect(contract.paths['/app/checkUpdate'].post.description).toContain('not the admin role')
+    expect(
+      contract.paths['/app/downloadUpdate'].post.requestBody.content['application/x-www-form-urlencoded'].schema.properties.id.minimum,
+    ).toBe(1)
   })
 })
