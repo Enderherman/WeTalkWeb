@@ -11,6 +11,7 @@ import ContactSearchDialog from '@/components/ContactSearchDialog.vue'
 import GroupDirectoryDialog from '@/components/GroupDirectoryDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore, type InitialChatMessage } from '@/stores/chat'
+import { useSystemSettingsStore } from '@/stores/systemSettings'
 import { textMessageCache } from '@/storage/textMessageCache'
 import { getChatFileType, getChatMediaKind, getChatMediaMimeType, validateChatFile } from '@/utils/fileValidation'
 import { validatePassword } from '@/utils/authValidation'
@@ -19,6 +20,7 @@ import { formatMessageTimeDivider, shouldShowMessageTime } from '@/utils/message
 const router = useRouter()
 const authStore = useAuthStore()
 const chatStore = useChatStore()
+const systemSettingsStore = useSystemSettingsStore()
 const sidebarOpen = ref(false)
 const signingOut = ref(false)
 const selectedSessionId = ref('')
@@ -162,6 +164,7 @@ watch(selectedMessages, async () => {
 
 onMounted(() => {
   void loadProfile()
+  void systemSettingsStore.load().catch(() => undefined)
   const session = authStore.session
   if (session?.userId) chatStore.connect(session.userId)
 })
@@ -465,6 +468,7 @@ async function changePassword() {
   try {
     await authApi.updatePassword(passwordForm.password)
     chatStore.clear()
+    systemSettingsStore.reset()
     authStore.clearSession()
     await router.replace({ name: 'login', query: { passwordUpdated: '1' } })
   } catch (error: unknown) {
@@ -518,7 +522,8 @@ async function processAttachment(file: File) {
     fileUploadError.value = '当前会话不可发送文件'
     return
   }
-  const validationError = validateChatFile(file)
+  await systemSettingsStore.load().catch(() => systemSettingsStore.settings)
+  const validationError = validateChatFile(file, systemSettingsStore.settings)
   if (validationError) {
     fileUploadError.value = validationError
     return
@@ -675,6 +680,7 @@ async function signOut() {
     // Clear the browser session even if the server is unreachable.
   } finally {
     chatStore.clear()
+    systemSettingsStore.reset()
     authStore.clearSession()
     signingOut.value = false
     await router.replace({ name: 'login' })

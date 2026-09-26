@@ -3,8 +3,10 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { contactApi, type UserContactEntry } from '@/api/contacts'
 import { groupApi, type GroupInfoWithMembers } from '@/api/groups'
 import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
+import { useSystemSettingsStore } from '@/stores/systemSettings'
 
 const props = defineProps<{ currentUserId?: string; refreshKey?: number }>()
+const systemSettingsStore = useSystemSettingsStore()
 
 const emit = defineEmits<{
   close: []
@@ -18,10 +20,25 @@ interface GroupDirectoryEntry {
 }
 
 const groups = ref<GroupDirectoryEntry[]>([])
+const ownedGroupCount = ref(0)
+const maxGroupCount = computed(() => {
+  const value = Number(systemSettingsStore.settings.maxGroupCount)
+  return Number.isSafeInteger(value) && value > 0 ? value : 5
+})
+const canCreateGroup = computed(() => ownedGroupCount.value < maxGroupCount.value)
 const selectedGroupId = ref('')
 const groupInfo = ref<GroupInfoWithMembers | null>(null)
 const groupProfile = computed(() => groupInfo.value?.groupInfo || null)
 const groupMembers = computed(() => groupInfo.value?.userContactList || [])
+const maxGroupMemberCount = computed(() => {
+  const value = Number(systemSettingsStore.settings.maxGroupMemberCount)
+  return Number.isSafeInteger(value) && value > 0 ? value : 500
+})
+const currentGroupMemberCount = computed(() => {
+  const reportedCount = Number(groupProfile.value?.memberCount)
+  return Math.max(Number.isSafeInteger(reportedCount) && reportedCount >= 0 ? reportedCount : 0, groupMembers.value.length)
+})
+const memberSlotsRemaining = computed(() => Math.max(0, maxGroupMemberCount.value - currentGroupMemberCount.value))
 const avatarRevision = ref(0)
 const isGroupOwner = computed(() => Boolean(props.currentUserId && groupProfile.value?.groupOwnId === props.currentUserId))
 const loading = ref(true)
@@ -56,7 +73,10 @@ const availableFriends = computed(() => {
 })
 let profileRequestId = 0
 
-onMounted(() => void loadGroups())
+onMounted(() => {
+  void systemSettingsStore.load().catch(() => undefined)
+  void loadGroups()
+})
 
 watch(
   () => props.refreshKey,
@@ -73,6 +93,7 @@ async function loadGroups() {
       contactApi.loadContacts('GROUP'),
       contactApi.loadOwnedGroups(),
     ])
+    ownedGroupCount.value = ownedGroups.filter((group) => group.status !== 0).length
     const ownedIds = new Set(ownedGroups.map((group) => group.groupId))
     groups.value = [
       ...ownedGroups.map((group) => ({
@@ -117,10 +138,27 @@ function selectAvatar(event: Event) {
   createError.value = ''
 }
 
+async function toggleCreateForm() {
+  await systemSettingsStore.load().catch(() => undefined)
+  if (!canCreateGroup.value) {
+    createError.value = `每个账号最多创建 ${maxGroupCount.value} 个群聊`
+    createFormOpen.value = false
+    return
+  }
+  createError.value = ''
+  createFormOpen.value = !createFormOpen.value
+}
+
 async function createGroup() {
   const groupName = createForm.groupName.trim()
   createError.value = ''
   createNotice.value = ''
+  await systemSettingsStore.load().catch(() => undefined)
+  if (!canCreateGroup.value) {
+    createError.value = `每个账号最多创建 ${maxGroupCount.value} 个群聊`
+    createFormOpen.value = false
+    return
+  }
   if (!groupName) {
     createError.value = '请输入群名称'
     return
@@ -255,6 +293,11 @@ async function addSelectedMembers() {
     groupActionError.value = selectedMemberIds.value.length === 0 ? '请选择至少一位好友' : ''
     return
   }
+  await systemSettingsStore.load().catch(() => undefined)
+  if (currentGroupMemberCount.value + selectedMemberIds.value.length > maxGroupMemberCount.value) {
+    groupActionError.value = `添加后会超过群成员上限 ${maxGroupMemberCount.value} 人，当前有 ${currentGroupMemberCount.value} 人`
+    return
+  }
   groupActionLoading.value = true
   groupActionError.value = ''
   groupActionNotice.value = ''
@@ -366,15 +409,19 @@ function formatGroupTime(value?: string | null) {
           data-testid="open-group-create"
           type="button"
           :aria-expanded="createFormOpen"
-          :disabled="creatingGroup"
-          @click="createFormOpen = !createFormOpen"
+          :disabled="loading || creatingGroup || systemSettingsStore.loading || !canCreateGroup"
+          @click="toggleCreateForm"
         >
-          {{ createFormOpen ? '收起创建表单' : '创建群聊' }}
+          {{ createFormOpen ? '收起创建表单' : canCreateGroup ? '创建群聊' : '已达创建上限' }}
         </button>
         <button class="icon-button profile-close" type="button" aria-label="关闭群聊列表" @click="emit('close')">
           ×
         </button>
       </header>
+
+      <p v-if="!canCreateGroup" class="contact-status" data-testid="group-create-limit" role="status">
+        已创建 {{ ownedGroupCount }} / {{ maxGroupCount }} 个群聊
+      </p>
 
       <form v-if="createFormOpen" class="group-create-form" data-testid="group-create-form" @submit.prevent="createGroup">
         <label for="new-group-name">群名称</label>
@@ -563,12 +610,17 @@ function formatGroupTime(value?: string | null) {
           <section v-if="addMemberOpen" class="group-member-picker" data-testid="group-member-picker">
             <header>
               <strong>添加好友进群</strong>
-              <span>只显示尚未加入本群的好友</span>
+              <span>当前 {{ currentGroupMemberCount }} / {{ maxGroupMemberCount }} 人，还可添加 {{ memberSlotsRemaining }} 人</span>
             </header>
             <p v-if="friendsLoading" class="contact-status" role="status">正在读取好友列表…</p>
             <p v-else-if="availableFriends.length === 0" class="contact-empty">没有可添加的好友</p>
             <label v-for="friend in availableFriends" :key="friend.contactId" class="group-friend-option">
-              <input v-model="selectedMemberIds" type="checkbox" :value="friend.contactId" />
+              <input
+                v-model="selectedMemberIds"
+                type="checkbox"
+                :value="friend.contactId"
+                :disabled="memberSlotsRemaining === 0 || (selectedMemberIds.length >= memberSlotsRemaining && !selectedMemberIds.includes(friend.contactId))"
+              />
               <span>{{ friend.contactName || friend.contactId }}</span>
               <small>{{ friend.contactId }}</small>
             </label>

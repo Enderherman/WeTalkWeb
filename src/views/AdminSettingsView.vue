@@ -2,8 +2,10 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { adminApi, type SystemSettings } from '@/api/admin'
+import { useSystemSettingsStore } from '@/stores/systemSettings'
 
 const router = useRouter()
+const systemSettingsStore = useSystemSettingsStore()
 const defaults: SystemSettings = {
   maxGroupCount: 5,
   maxGroupMemberCount: 500,
@@ -79,6 +81,7 @@ async function saveSettings() {
   settings.robotNickName = settings.robotNickName.trim()
   try {
     await adminApi.saveSystemSettings({ ...settings, robotWelcome: settings.robotWelcome.trim() })
+    systemSettingsStore.setSettings({ ...settings, robotWelcome: settings.robotWelcome.trim() })
     notice.value = '系统设置已保存'
   } catch (error: unknown) {
     saveError.value = error instanceof Error ? error.message : '系统设置保存失败，请稍后重试'

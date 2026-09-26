@@ -22,6 +22,7 @@ vi.mock('@/api/auth', () => ({
     login: vi.fn(),
     createWebSocketTicket: vi.fn(),
     getUserInfo: vi.fn(),
+    getSystemSettings: vi.fn(),
     saveUserInfo: vi.fn(),
     updatePassword: vi.fn(),
     logout: vi.fn(),
@@ -109,6 +110,16 @@ beforeEach(() => {
     email: 'student@example.com',
     nickName: 'Student',
     admin: false,
+  })
+  vi.mocked(authApi.getSystemSettings).mockResolvedValue({
+    maxGroupCount: 5,
+    maxGroupMemberCount: 500,
+    maxImageSize: 200,
+    maxVideoSize: 500,
+    maxFileSize: 5000,
+    robotUid: 'Urobot',
+    robotNickName: 'WeTalk Robot',
+    robotWelcome: 'Welcome to WeTalk',
   })
   vi.mocked(authApi.saveUserInfo).mockResolvedValue({
     userId: 'U100', email: 'student@example.com', nickName: 'Student', admin: false,

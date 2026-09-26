@@ -5,6 +5,15 @@ import { groupApi, type GroupInfoWithMembers } from '@/api/groups'
 import GroupDirectoryDialog from '@/components/GroupDirectoryDialog.vue'
 import { chatApi } from '@/api/chat'
 
+const { settingsStore } = vi.hoisted(() => ({
+  settingsStore: {
+    settings: { maxGroupCount: 5, maxGroupMemberCount: 500, maxImageSize: 200, maxVideoSize: 500, maxFileSize: 5000 },
+    loaded: true,
+    loading: false,
+    load: vi.fn(),
+  },
+}))
+
 vi.mock('@/api/contacts', () => ({
   contactApi: {
     search: vi.fn(),
@@ -32,6 +41,8 @@ vi.mock('@/api/groups', () => ({
 }))
 
 vi.mock('@/api/chat', () => ({ chatApi: { downloadFile: vi.fn() } }))
+
+vi.mock('@/stores/systemSettings', () => ({ useSystemSettingsStore: () => settingsStore }))
 
 const group: UserContactEntry = {
   userId: 'U100',
@@ -63,6 +74,16 @@ const groupDetails: GroupInfoWithMembers = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  Object.assign(settingsStore.settings, {
+    maxGroupCount: 5,
+    maxGroupMemberCount: 500,
+    maxImageSize: 200,
+    maxVideoSize: 500,
+    maxFileSize: 5000,
+  })
+  settingsStore.loaded = true
+  settingsStore.loading = false
+  settingsStore.load.mockResolvedValue(settingsStore.settings)
   vi.mocked(chatApi.downloadFile).mockRejectedValue(new Error('Avatar unavailable in unit tests'))
   vi.mocked(contactApi.loadContacts).mockResolvedValue([group])
   vi.mocked(contactApi.loadOwnedGroups).mockResolvedValue([])
@@ -107,6 +128,17 @@ describe('group directory dialog', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="group-G300"]').text()).toContain('Student Group')
+  })
+
+  it('blocks group creation after the configured per-account quota is reached', async () => {
+    vi.mocked(contactApi.loadOwnedGroups).mockResolvedValue([profile])
+    settingsStore.settings.maxGroupCount = 1
+    const wrapper = mount(GroupDirectoryDialog, { props: { currentUserId: 'U100' } })
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="group-create-limit"]').text()).toContain('1 / 1')
+    expect((wrapper.get('[data-testid="open-group-create"]').element as HTMLButtonElement).disabled).toBe(true)
+    expect(groupApi.create).not.toHaveBeenCalled()
   })
 
   it('requires a PNG avatar before creating a group', async () => {
@@ -185,6 +217,22 @@ describe('group directory dialog', () => {
     expect(contactApi.loadContacts).toHaveBeenCalledWith('USER')
     expect(groupApi.manageMembers).toHaveBeenCalledWith('G300', ['U300'], 1)
     expect(wrapper.emitted('groupChanged')).toHaveLength(1)
+  })
+
+  it('prevents selecting members beyond the configured group limit', async () => {
+    const friend: UserContactEntry = { userId: 'U100', contactId: 'U300', contactType: 0, status: 1, contactName: 'New Friend' }
+    vi.mocked(contactApi.loadContacts).mockImplementation(async (kind) => (kind === 'USER' ? [friend] : [group]))
+    settingsStore.settings.maxGroupMemberCount = 2
+    const wrapper = mount(GroupDirectoryDialog, { props: { currentUserId: 'U100' } })
+    await flushPromises()
+    await wrapper.get('[data-testid="group-G300"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="open-add-group-members"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="group-member-picker"]').text()).toContain('当前 2 / 2 人，还可添加 0 人')
+    expect((wrapper.get('.group-friend-option input').element as HTMLInputElement).disabled).toBe(true)
+    expect(groupApi.manageMembers).not.toHaveBeenCalled()
   })
 
   it('requires confirmation before the owner removes a group member', async () => {

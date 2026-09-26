@@ -4,12 +4,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { adminApi, type SystemSettings } from '@/api/admin'
 import AdminSettingsView from '@/views/AdminSettingsView.vue'
 
+const { settingsStore } = vi.hoisted(() => ({ settingsStore: { setSettings: vi.fn() } }))
+
 vi.mock('@/api/admin', () => ({
   adminApi: {
     loadSystemSettings: vi.fn(),
     saveSystemSettings: vi.fn(),
   },
 }))
+
+vi.mock('@/stores/systemSettings', () => ({ useSystemSettingsStore: () => settingsStore }))
 
 const settings: SystemSettings = {
   maxGroupCount: 5,

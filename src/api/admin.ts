@@ -1,4 +1,7 @@
 import { postForm } from '@/api/http'
+import type { SystemSettings } from '@/api/systemSettings'
+
+export type { SystemSettings } from '@/api/systemSettings'
 
 export interface AdminUser {
   userId: string
@@ -56,17 +59,6 @@ export interface AdminGroupSearch {
   groupIdFuzzy?: string
   groupNameFuzzy?: string
   groupOwnIdFuzzy?: string
-}
-
-export interface SystemSettings {
-  maxGroupCount: number
-  maxGroupMemberCount: number
-  maxImageSize: number
-  maxVideoSize: number
-  maxFileSize: number
-  robotUid: string
-  robotNickName: string
-  robotWelcome: string
 }
 
 export const adminApi = {

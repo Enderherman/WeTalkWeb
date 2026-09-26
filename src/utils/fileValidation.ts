@@ -8,6 +8,12 @@ const audioExtensions = new Set(['mp3', 'wma', 'flac', 'aac', 'wav', 'ogg', 'm4a
 export type ChatFileType = 0 | 1 | 2
 export type ChatMediaKind = 'image' | 'video' | 'audio' | 'file'
 
+export interface ChatFileLimits {
+  maxImageSize?: number | null
+  maxVideoSize?: number | null
+  maxFileSize?: number | null
+}
+
 export function getChatMediaKind(fileName: string): ChatMediaKind {
   const extension = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase() : ''
   if (imageExtensions.has(extension)) return 'image'
@@ -50,7 +56,7 @@ export function getChatMediaMimeType(fileName: string): string | null {
   return mimeTypes[extension] || null
 }
 
-export function validateChatFile(file: Pick<File, 'name' | 'size'>): string | null {
+export function validateChatFile(file: Pick<File, 'name' | 'size'>, limits: ChatFileLimits = {}): string | null {
   if (!file.name.trim() || file.name.length > 200) {
     return '文件名不能为空，且不能超过 200 个字符'
   }
@@ -58,10 +64,17 @@ export function validateChatFile(file: Pick<File, 'name' | 'size'>): string | nu
   const extension = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.') + 1).toLowerCase() : ''
   if (extension && !/^[a-z0-9]{1,16}$/.test(extension)) return '文件扩展名格式不受支持'
   const fileType = getChatFileType(file.name)
-  if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+  const configValue = fileType === 0 ? limits.maxImageSize : fileType === 1 ? limits.maxVideoSize : limits.maxFileSize
+  const defaultLimitMb = fileType === 0 ? 200 : fileType === 1 ? 500 : 5000
+  const parsedLimit = Number(configValue)
+  const configuredLimitMb = Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? parsedLimit : defaultLimitMb
+  const hardLimitBytes = fileType === 0 ? MAX_IMAGE_SIZE_BYTES : MAX_ATTACHMENT_SIZE_BYTES
+  const effectiveLimitBytes = Math.min(configuredLimitMb * 1024 * 1024, hardLimitBytes)
+  if (file.size > effectiveLimitBytes) {
     const kind = fileType === 0 ? '图片' : fileType === 1 ? '音视频文件' : '普通文件'
-    return kind + '不能超过 500 MB'
+    const hardLimitMb = fileType === 0 ? 200 : 500
+    const displayedLimit = configuredLimitMb * 1024 * 1024 <= hardLimitBytes ? configuredLimitMb : hardLimitMb
+    return `${kind}不能超过 ${displayedLimit} MB`
   }
-  if (fileType === 0 && file.size > MAX_IMAGE_SIZE_BYTES) return '图片不能超过 200 MB'
   return null
 }

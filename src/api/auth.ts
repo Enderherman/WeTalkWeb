@@ -1,5 +1,6 @@
 import { md5 } from 'js-md5'
 import { postForm, postMultipart } from './http'
+import type { SystemSettings } from './systemSettings'
 
 export interface CaptchaData {
   check_code: string
@@ -81,6 +82,8 @@ export const authApi = {
   createWebSocketTicket: (): Promise<WebSocketTicket> => postForm<WebSocketTicket>('/account/webSocketTicket', {}),
 
   getUserInfo: (): Promise<UserProfile> => postForm<UserProfile>('/account/getUserInfo', {}),
+
+  getSystemSettings: (): Promise<SystemSettings> => postForm<SystemSettings>('/account/getSysSetting', {}),
 
   saveUserInfo: (input: SaveUserInfoInput): Promise<UserProfile> => {
     const body = new FormData()

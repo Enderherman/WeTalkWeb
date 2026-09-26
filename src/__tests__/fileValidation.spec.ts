@@ -45,4 +45,14 @@ describe('chat file validation', () => {
       '扩展名格式',
     )
   })
+
+  it('applies lower image, media, and file limits from system settings', () => {
+    const limits = { maxImageSize: 2, maxVideoSize: 3, maxFileSize: 4 }
+    const mb = 1024 * 1024
+
+    expect(validateChatFile({ name: 'photo.png', size: 2 * mb }, limits)).toBeNull()
+    expect(validateChatFile({ name: 'photo.png', size: 2 * mb + 1 }, limits)).toBe('图片不能超过 2 MB')
+    expect(validateChatFile({ name: 'movie.mp4', size: 3 * mb + 1 }, limits)).toBe('音视频文件不能超过 3 MB')
+    expect(validateChatFile({ name: 'archive.zip', size: 4 * mb + 1 }, limits)).toBe('普通文件不能超过 4 MB')
+  })
 })
