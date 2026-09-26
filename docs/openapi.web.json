@@ -14,6 +14,8 @@
   "tags": [
     { "name": "Account", "description": "Authentication and current-user profile operations." },
     { "name": "Contacts", "description": "Contact search, requests, lists, and relationship management." },
+    { "name": "Groups", "description": "Group creation, member operations, and group profiles." },
+    { "name": "Files", "description": "Authenticated message-file upload and download." },
     { "name": "Text chat", "description": "Web-supported one-to-one text messaging and history." }
   ],
   "paths": {
@@ -567,6 +569,322 @@
         }
       }
     },
+    "/group/saveGroup": {
+      "post": {
+        "tags": ["Groups"],
+        "operationId": "saveGroup",
+        "summary": "Create a group or update group information",
+        "description": "groupId omitted creates a group; supplying groupId updates an existing group owned by the caller. A group avatar file is required by the current service when creating a group. The cover file is optional.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": { "$ref": "#/components/schemas/SaveGroupRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Group saved; data is null.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/NullDataResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/group/loadMyGroup": {
+      "post": {
+        "tags": ["Groups"],
+        "operationId": "loadMyGroups",
+        "summary": "Load groups created by the current user",
+        "security": [{ "tokenHeader": [] }],
+        "responses": {
+          "200": {
+            "description": "The caller's active groups, ordered by creation time descending.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/GroupInfoListResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/group/getGroupInfo": {
+      "post": {
+        "tags": ["Groups"],
+        "operationId": "getGroupInfo",
+        "summary": "Read group details",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["groupId"],
+                "properties": { "groupId": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Group details including member count.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/GroupInfoResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/group/getGroupInfo4Chat": {
+      "post": {
+        "tags": ["Groups"],
+        "operationId": "getGroupInfoForChat",
+        "summary": "Read group details and members for the chat page",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["groupId"],
+                "properties": { "groupId": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Group details and active member list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/GroupInfoForChatResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/group/leaveGroup": {
+      "post": {
+        "tags": ["Groups"],
+        "operationId": "leaveGroup",
+        "summary": "Leave a group",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["groupId"],
+                "properties": { "groupId": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Group leave operation completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/NullDataResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/group/addOrRemoveGroupUser": {
+      "post": {
+        "tags": ["Groups"],
+        "operationId": "addOrRemoveGroupUsers",
+        "summary": "Add or remove group members",
+        "description": "Only the group owner may perform this operation. selectContacts is a comma-separated list of user IDs; opType 0 removes members and 1 adds them.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["groupId", "selectContacts", "opType"],
+                "properties": {
+                  "groupId": { "type": "string" },
+                  "selectContacts": { "type": "string", "description": "Comma-separated user IDs." },
+                  "opType": { "type": "integer", "enum": [0, 1], "description": "0 remove, 1 add." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Member operation completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/NullDataResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/group/dissolutionGroup": {
+      "post": {
+        "tags": ["Groups"],
+        "operationId": "dissolveGroup",
+        "summary": "Dissolve a group",
+        "description": "Only the group owner may dissolve the group.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["groupId"],
+                "properties": { "groupId": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Group marked as dissolved; data is null.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/NullDataResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/chat/uploadFile": {
+      "post": {
+        "tags": ["Files"],
+        "operationId": "uploadChatFile",
+        "summary": "Upload a message file and cover image",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": { "$ref": "#/components/schemas/UploadChatFileRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upload completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/NullDataResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/chat/downloadFile": {
+      "post": {
+        "tags": ["Files"],
+        "operationId": "downloadChatFile",
+        "summary": "Download an attachment, cover, or avatar",
+        "description": "The request must be authenticated; message files also require conversation membership. The current endpoint returns the full file stream and does not implement HTTP Range requests. On download errors, the controller does not consistently serialize a BaseResponse; this response behavior remains a Phase 5 limitation.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["fileId", "showCover"],
+                "properties": {
+                  "fileId": { "type": "string", "description": "Numeric message ID for message files; non-numeric avatar/group IDs for avatars." },
+                  "showCover": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Full binary file response; no Range semantics are currently implemented.",
+            "headers": {
+              "Content-Disposition": { "schema": { "type": "string" } },
+              "Content-Length": { "schema": { "type": "integer" } }
+            },
+            "content": {
+              "application/x-msdownload": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          },
+          "default": {
+            "description": "Download error serialization is not consistent in the current backend implementation."
+          }
+        }
+      }
+    },
     "/chat/sendMessage": {
       "post": {
         "tags": ["Text chat"],
@@ -907,6 +1225,81 @@
             }
           }
         ]
+      },
+      "SaveGroupRequest": {
+        "type": "object",
+        "required": ["groupName", "joinType"],
+        "properties": {
+          "groupId": { "type": "string", "description": "Omit to create a group; include to update an owned group." },
+          "groupName": { "type": "string" },
+          "groupNotice": { "type": "string" },
+          "joinType": { "type": "integer", "enum": [0, 1], "description": "0 direct join, 1 owner approval." },
+          "avatarFile": { "type": "string", "format": "binary", "description": "Required by the service when creating a group; optional on update." },
+          "coverFile": { "type": "string", "format": "binary" }
+        }
+      },
+      "GroupInfo": {
+        "type": "object",
+        "properties": {
+          "groupId": { "type": "string" },
+          "groupName": { "type": "string" },
+          "groupOwnId": { "type": "string" },
+          "createTime": { "type": "string", "description": "Formatted local time, yyyy-MM-dd HH:mm:ss, GMT+8." },
+          "groupNotice": { "type": "string" },
+          "joinType": { "type": "integer", "enum": [0, 1] },
+          "status": { "type": "integer", "enum": [0, 1], "description": "0 dissolved, 1 active." },
+          "memberCount": { "type": "integer" },
+          "groupOwnerNickName": { "type": "string" }
+        }
+      },
+      "GroupInfoResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/GroupInfo" } }
+          }
+        ]
+      },
+      "GroupInfoListResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": {
+              "code": { "const": 200 },
+              "data": { "type": "array", "items": { "$ref": "#/components/schemas/GroupInfo" } }
+            }
+          }
+        ]
+      },
+      "GroupInfoForChat": {
+        "type": "object",
+        "properties": {
+          "groupInfo": { "$ref": "#/components/schemas/GroupInfo" },
+          "userContactList": { "type": "array", "items": { "$ref": "#/components/schemas/UserContact" } }
+        }
+      },
+      "GroupInfoForChatResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/GroupInfoForChat" } }
+          }
+        ]
+      },
+      "UploadChatFileRequest": {
+        "type": "object",
+        "required": ["messageId", "file", "cover"],
+        "properties": {
+          "messageId": { "type": "integer", "minimum": 1 },
+          "file": { "type": "string", "format": "binary" },
+          "cover": { "type": "string", "format": "binary" }
+        }
       },
       "SendTextMessageRequest": {
         "type": "object",

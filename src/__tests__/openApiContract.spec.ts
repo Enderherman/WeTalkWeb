@@ -15,8 +15,10 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/account/logout',
       '/account/register',
       '/account/updatePassword',
+      '/chat/downloadFile',
       '/chat/loadHistory',
       '/chat/sendMessage',
+      '/chat/uploadFile',
       '/contact/addContact2BlackList',
       '/contact/applyAdd',
       '/contact/dealWithApply',
@@ -26,6 +28,13 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/contact/loadApply',
       '/contact/loadContact',
       '/contact/search',
+      '/group/addOrRemoveGroupUser',
+      '/group/dissolutionGroup',
+      '/group/getGroupInfo',
+      '/group/getGroupInfo4Chat',
+      '/group/leaveGroup',
+      '/group/loadMyGroup',
+      '/group/saveGroup',
     ])
 
     const operationIds = Object.values(contract.paths).map((path: any) => path.post.operationId)
@@ -48,6 +57,15 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/contact/getContactUserInfo',
       '/contact/delContact',
       '/contact/addContact2BlackList',
+      '/group/saveGroup',
+      '/group/loadMyGroup',
+      '/group/getGroupInfo',
+      '/group/getGroupInfo4Chat',
+      '/group/leaveGroup',
+      '/group/addOrRemoveGroupUser',
+      '/group/dissolutionGroup',
+      '/chat/uploadFile',
+      '/chat/downloadFile',
     ]
 
     for (const path of protectedPaths) {
@@ -94,6 +112,12 @@ describe('WeTalkWeb OpenAPI contract', () => {
 
   it('models body-level business errors alongside HTTP 200 success responses', () => {
     for (const pathName of Object.keys(contract.paths)) {
+      if (pathName === '/chat/downloadFile') {
+        expect(contract.paths[pathName].post.responses['200'].content['application/x-msdownload'].schema.format).toBe(
+          'binary',
+        )
+        continue
+      }
       const schema = contract.paths[pathName].post.responses['200'].content['application/json'].schema
       expect(schema.oneOf).toHaveLength(2)
       expect(schema.oneOf[1].$ref).toBe('#/components/schemas/BusinessErrorResponse')
@@ -110,5 +134,21 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(
       contract.paths['/contact/dealWithApply'].post.requestBody.content['application/x-www-form-urlencoded'].schema.properties.status.enum,
     ).toEqual([1, 2, 3])
+  })
+
+  it('documents group operations and multipart file exchanges', () => {
+    expect(contract.components.schemas.GroupInfo.properties.joinType.enum).toEqual([0, 1])
+    expect(contract.components.schemas.SaveGroupRequest.properties.avatarFile.format).toBe('binary')
+    expect(
+      contract.paths['/group/saveGroup'].post.requestBody.content['multipart/form-data'].schema.$ref,
+    ).toBe('#/components/schemas/SaveGroupRequest')
+    expect(contract.components.schemas.SaveGroupRequest.required).toEqual(['groupName', 'joinType'])
+    expect(
+      contract.paths['/chat/uploadFile'].post.requestBody.content['multipart/form-data'].schema.$ref,
+    ).toBe('#/components/schemas/UploadChatFileRequest')
+    expect(contract.components.schemas.UploadChatFileRequest.required).toEqual(['messageId', 'file', 'cover'])
+    expect(contract.paths['/chat/downloadFile'].post.responses['200'].content['application/x-msdownload'].schema.format).toBe(
+      'binary',
+    )
   })
 })
