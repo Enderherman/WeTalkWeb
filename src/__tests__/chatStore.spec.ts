@@ -76,6 +76,50 @@ describe('chat initialization state', () => {
     expect(chatStore.sessionList[0]?.lastReceiveTime).toBe(2000)
   })
 
+  it('counts incoming messages only for inactive sessions and clears counts when a session opens', () => {
+    setActivePinia(createPinia())
+    const chatStore = useChatStore()
+    chatStore.accountId = 'U100'
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: ['S100', 'S200'].map((sessionId) => ({
+          sessionId,
+          contactId: sessionId === 'S100' ? 'U200' : 'U300',
+          contactName: sessionId,
+          lastMessage: '',
+          lastReceiveTime: 1000,
+          contactType: 0,
+        })),
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    chatStore.setActiveSession('S100')
+
+    const incoming = {
+      messageId: 20,
+      sessionId: 'S200',
+      messageType: 2,
+      messageContent: 'Unread',
+      sendUserId: 'U300',
+      sendUserNickName: 'Contact',
+      sendTime: 2000,
+      contactId: 'U100',
+    }
+    chatStore.receiveMessage(incoming)
+    chatStore.receiveMessage(incoming)
+    chatStore.receiveMessage({ ...incoming, messageId: 21, sessionId: 'S100' })
+    chatStore.receiveMessage({ ...incoming, messageId: 22, sendUserId: 'U100' })
+
+    expect(chatStore.sessionList.find((item) => item.sessionId === 'S200')?.noReadCount).toBe(1)
+    expect(chatStore.totalUnreadCount).toBe(1)
+
+    chatStore.setActiveSession('S200')
+    expect(chatStore.sessionList.find((item) => item.sessionId === 'S200')?.noReadCount).toBe(0)
+    expect(chatStore.totalUnreadCount).toBe(0)
+  })
+
   it('increments the application badge when a live friend request arrives', () => {
     setActivePinia(createPinia())
     const chatStore = useChatStore()

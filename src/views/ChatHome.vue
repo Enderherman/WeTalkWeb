@@ -96,6 +96,7 @@ watch(
 )
 
 watch(selectedSessionId, (sessionId) => {
+  chatStore.setActiveSession(sessionId)
   void loadLatestHistory(sessionId)
 })
 
@@ -551,6 +552,7 @@ async function signOut() {
             v-for="session in chatStore.sessionList"
             :key="session.sessionId"
             class="chat-session-entry"
+            :data-testid="`chat-session-${session.sessionId}`"
             :class="{ 'is-active': session.sessionId === selectedSessionId }"
             type="button"
             @click="selectedSessionId = session.sessionId"
@@ -564,6 +566,12 @@ async function signOut() {
               <strong>{{ session.contactName || session.contactId }}</strong>
               <small>{{ session.lastMessage || '开始一段新对话' }}</small>
             </span>
+            <span
+              v-if="session.noReadCount"
+              class="session-unread-badge"
+              :data-testid="`session-unread-${session.sessionId}`"
+              :aria-label="`${session.noReadCount} 条未读消息`"
+            >{{ session.noReadCount > 99 ? '99+' : session.noReadCount }}</span>
           </button>
         </div>
         <button

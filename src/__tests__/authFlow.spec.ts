@@ -312,6 +312,42 @@ describe('authentication flow', () => {
     }))
   })
 
+  it('shows a live unread badge until the inactive session is opened', async () => {
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: ['S100', 'S200'].map((sessionId) => ({
+          sessionId,
+          contactId: sessionId === 'S100' ? 'U200' : 'U300',
+          contactName: sessionId,
+          lastMessage: '',
+          lastReceiveTime: 1000,
+          contactType: 0,
+        })),
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+    chatStore.receiveMessage({
+      messageId: 620,
+      sessionId: 'S200',
+      messageType: 2,
+      messageContent: 'Unread message',
+      sendUserId: 'U300',
+      sendUserNickName: 'Other Friend',
+      sendTime: 2000,
+      contactId: 'U100',
+    })
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="session-unread-S200"]').text()).toBe('1')
+    await wrapper.get('[data-testid="chat-session-S200"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="session-unread-S200"]').exists()).toBe(false)
+  })
+
   it('sends a selected-session text message and adds the saved message to the view', async () => {
     const sentMessage = {
       messageId: 101,

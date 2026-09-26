@@ -10,6 +10,7 @@ export interface ChatSessionSummary {
   lastMessage: string
   lastReceiveTime: number
   contactType: number
+  noReadCount?: number
   memberCount?: number | null
   groupClosed?: boolean
   groupAccessRevoked?: boolean
@@ -61,6 +62,7 @@ export const useChatStore = defineStore('chat', {
   state: () => ({
     connectionStatus: 'idle' as RealtimeStatus,
     accountId: '',
+    activeSessionId: '',
     initialized: false,
     sessionList: [] as ChatSessionSummary[],
     initialMessages: [] as InitialChatMessage[],
@@ -69,6 +71,9 @@ export const useChatStore = defineStore('chat', {
     groupEventVersion: 0,
     connectionError: '',
   }),
+  getters: {
+    totalUnreadCount: (state) => state.sessionList.reduce((total, session) => total + (session.noReadCount || 0), 0),
+  },
   actions: {
     connect(accountId: string) {
       this.disconnect()
@@ -76,6 +81,7 @@ export const useChatStore = defineStore('chat', {
       if (this.accountId && this.accountId !== accountId) {
         this.initialized = false
         this.sessionList = []
+        this.activeSessionId = ''
         this.initialMessages = []
         this.historyBySession = {}
         this.applyCount = 0
@@ -99,6 +105,14 @@ export const useChatStore = defineStore('chat', {
       realtimeClient = null
       this.connectionStatus = 'idle'
     },
+    setActiveSession(sessionId: string) {
+      this.activeSessionId = sessionId
+      const session = this.sessionList.find((item) => item.sessionId === sessionId)
+      if (session && session.noReadCount) {
+        session.noReadCount = 0
+        this.sessionList = [...this.sessionList]
+      }
+    },
     receiveMessage(message: ServerMessage) {
       if (message.messageType === 0) {
         const data = message.extentData as Partial<InitialData> | null | undefined
@@ -115,6 +129,7 @@ export const useChatStore = defineStore('chat', {
               groupClosed: session.groupClosed,
               groupAccessRevoked: session.groupAccessRevoked,
               memberCount: session.memberCount,
+              noReadCount: session.noReadCount,
             },
           ]),
         )
@@ -125,6 +140,7 @@ export const useChatStore = defineStore('chat', {
             groupClosed: previous?.groupClosed,
             groupAccessRevoked: previous?.groupAccessRevoked,
             memberCount: session.memberCount ?? previous?.memberCount,
+            noReadCount: Math.max(0, Number(session.noReadCount ?? previous?.noReadCount) || 0),
           }
         })
         this.initialMessages = [...merged.values()].sort((a, b) => a.sendTime - b.sendTime)
@@ -266,6 +282,10 @@ export const useChatStore = defineStore('chat', {
       }
       const session = this.sessionList.find((item) => item.sessionId === message.sessionId)
       if (session) {
+        const isIncoming = !sentByCurrentUser && Boolean(message.sendUserId) && message.sendUserId !== this.accountId
+        if (isIncoming && session.sessionId !== this.activeSessionId) {
+          session.noReadCount = (session.noReadCount || 0) + 1
+        }
         const messagePreview = message.messageType === 5 ? message.fileName || '文件' : message.messageContent
         session.lastMessage = sentByCurrentUser || message.messageType === 5
           ? messagePreview
@@ -330,6 +350,7 @@ export const useChatStore = defineStore('chat', {
       this.disconnect()
       this.initialized = false
       this.sessionList = []
+      this.activeSessionId = ''
       this.initialMessages = []
       this.historyBySession = {}
       this.accountId = ''

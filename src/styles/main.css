@@ -563,6 +563,20 @@ textarea:focus-visible {
   font-size: 11px;
 }
 
+.session-unread-badge {
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0 6px;
+  border-radius: 999px;
+  color: var(--wt-white);
+  background: var(--wt-accent);
+  font-size: 10px;
+  font-weight: 600;
+}
+
 .pending-apply-count {
   display: flex;
   width: 100%;
