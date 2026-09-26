@@ -1327,6 +1327,127 @@ textarea:focus-visible {
   font-size: 9px;
 }
 
+.group-member-remove {
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid #deded9;
+  border-radius: 8px;
+  color: #8a3935;
+  background: #fff;
+  font: inherit;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.group-management-actions,
+.group-member-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.group-management-actions button,
+.group-leave-button,
+.group-member-picker-actions button,
+.group-action-confirm button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #deded9;
+  border-radius: 9px;
+  color: #555650;
+  background: #fff;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.group-management-actions button:hover,
+.group-leave-button:hover,
+.group-member-picker-actions button:hover:not(:disabled),
+.group-action-confirm button:hover:not(:disabled) {
+  background: #f3f4f1;
+}
+
+.group-management-actions .is-danger {
+  color: #8a3935;
+}
+
+.group-leave-button {
+  margin-top: 13px;
+}
+
+.group-member-picker,
+.group-action-confirm {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #ecece8;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.group-member-picker > header {
+  display: grid;
+  gap: 3px;
+}
+
+.group-member-picker > header strong {
+  color: var(--wt-text);
+  font-size: 11px;
+}
+
+.group-member-picker > header span {
+  color: var(--wt-muted);
+  font-size: 9px;
+}
+
+.group-friend-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  color: var(--wt-text);
+  font-size: 10px;
+}
+
+.group-friend-option small {
+  color: var(--wt-muted);
+  font-size: 9px;
+}
+
+.group-member-picker-actions {
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.group-member-picker-actions .contact-confirm-button,
+.group-action-confirm .contact-confirm-button {
+  border-color: #315d4e;
+  color: #fff;
+  background: #315d4e;
+}
+
+.group-member-picker-actions .contact-confirm-button:hover:not(:disabled),
+.group-action-confirm .contact-confirm-button:hover:not(:disabled) {
+  background: #284e41;
+}
+
+.group-member-picker-actions button:disabled,
+.group-action-confirm button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.group-action-confirm p {
+  margin: 0;
+  color: #705550;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .profile-dialog-header {
   display: flex;
   align-items: flex-start;

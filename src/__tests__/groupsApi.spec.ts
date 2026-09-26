@@ -35,4 +35,19 @@ describe('group API', () => {
     await expect(groupApi.getInfoForChat('G300')).resolves.toEqual(details)
     expect(postForm).toHaveBeenCalledWith('/group/getGroupInfo4Chat', { groupId: 'G300' })
   })
+
+  it('manages group membership and group lifecycle actions', async () => {
+    vi.mocked(postForm).mockResolvedValueOnce('添加成功').mockResolvedValueOnce('退群成功').mockResolvedValueOnce(null)
+
+    await expect(groupApi.manageMembers('G300', ['U200', 'U201'], 1)).resolves.toBe('添加成功')
+    await expect(groupApi.leaveGroup('G300')).resolves.toBe('退群成功')
+    await expect(groupApi.dissolveGroup('G300')).resolves.toBeNull()
+    expect(postForm).toHaveBeenNthCalledWith(1, '/group/addOrRemoveGroupUser', {
+      groupId: 'G300',
+      selectContacts: 'U200,U201',
+      opType: 1,
+    })
+    expect(postForm).toHaveBeenNthCalledWith(2, '/group/leaveGroup', { groupId: 'G300' })
+    expect(postForm).toHaveBeenNthCalledWith(3, '/group/dissolutionGroup', { groupId: 'G300' })
+  })
 })

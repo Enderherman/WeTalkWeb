@@ -20,6 +20,8 @@ export interface GroupInfoWithMembers {
   userContactList: GroupMember[]
 }
 
+export type GroupMemberOperation = 0 | 1
+
 export const groupApi = {
   create: (input: SaveGroupInput): Promise<null> => {
     const body = new FormData()
@@ -31,4 +33,10 @@ export const groupApi = {
   },
   getInfoForChat: (groupId: string): Promise<GroupInfoWithMembers> =>
     postForm<GroupInfoWithMembers>('/group/getGroupInfo4Chat', { groupId }),
+  manageMembers: (groupId: string, userIds: string[], opType: GroupMemberOperation): Promise<string> =>
+    postForm<string>('/group/addOrRemoveGroupUser', { groupId, selectContacts: userIds.join(','), opType }),
+  leaveGroup: (groupId: string): Promise<string> =>
+    postForm<string>('/group/leaveGroup', { groupId }),
+  dissolveGroup: (groupId: string): Promise<null> =>
+    postForm<null>('/group/dissolutionGroup', { groupId }),
 }

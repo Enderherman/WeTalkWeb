@@ -19,7 +19,15 @@ vi.mock('@/api/contacts', () => ({
   },
 }))
 
-vi.mock('@/api/groups', () => ({ groupApi: { create: vi.fn(), getInfoForChat: vi.fn() } }))
+vi.mock('@/api/groups', () => ({
+  groupApi: {
+    create: vi.fn(),
+    getInfoForChat: vi.fn(),
+    manageMembers: vi.fn(),
+    leaveGroup: vi.fn(),
+    dissolveGroup: vi.fn(),
+  },
+}))
 
 const group: UserContactEntry = {
   userId: 'U100',
@@ -55,6 +63,9 @@ beforeEach(() => {
   vi.mocked(contactApi.loadOwnedGroups).mockResolvedValue([])
   vi.mocked(groupApi.create).mockResolvedValue(null)
   vi.mocked(groupApi.getInfoForChat).mockResolvedValue(groupDetails)
+  vi.mocked(groupApi.manageMembers).mockResolvedValue('已处理')
+  vi.mocked(groupApi.leaveGroup).mockResolvedValue('已退出')
+  vi.mocked(groupApi.dissolveGroup).mockResolvedValue(null)
 })
 
 describe('group directory dialog', () => {
@@ -126,7 +137,67 @@ describe('group directory dialog', () => {
     })
     expect(contactApi.loadOwnedGroups).toHaveBeenCalledTimes(2)
     expect(wrapper.find('[data-testid="group-G300"]').exists()).toBe(true)
-    expect(wrapper.emitted('groupCreated')).toHaveLength(1)
+    expect(wrapper.emitted('groupChanged')).toHaveLength(1)
     expect(wrapper.get('[role="status"]').text()).toContain('群聊创建成功')
+  })
+
+  it('lets the owner select a friend to add to the group', async () => {
+    const friend: UserContactEntry = { userId: 'U100', contactId: 'U300', contactType: 0, status: 1, contactName: 'New Friend' }
+    vi.mocked(contactApi.loadContacts).mockImplementation(async (kind) => (kind === 'USER' ? [friend] : [group]))
+    const wrapper = mount(GroupDirectoryDialog, { props: { currentUserId: 'U100' } })
+    await flushPromises()
+    await wrapper.get('[data-testid="group-G300"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="open-add-group-members"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('.group-friend-option input').setValue(true)
+    await wrapper.get('[data-testid="confirm-add-group-members"]').trigger('click')
+    await flushPromises()
+
+    expect(contactApi.loadContacts).toHaveBeenCalledWith('USER')
+    expect(groupApi.manageMembers).toHaveBeenCalledWith('G300', ['U300'], 1)
+    expect(wrapper.emitted('groupChanged')).toHaveLength(1)
+  })
+
+  it('requires confirmation before the owner removes a group member', async () => {
+    const wrapper = mount(GroupDirectoryDialog, { props: { currentUserId: 'U100' } })
+    await flushPromises()
+    await wrapper.get('[data-testid="group-G300"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="remove-group-member-U200"]').trigger('click')
+
+    expect(groupApi.manageMembers).not.toHaveBeenCalled()
+    await wrapper.get('[data-testid="confirm-group-action"]').trigger('click')
+    await flushPromises()
+
+    expect(groupApi.manageMembers).toHaveBeenCalledWith('G300', ['U200'], 0)
+    expect(wrapper.emitted('groupChanged')).toHaveLength(1)
+  })
+
+  it('lets a non-owner leave a group after confirmation', async () => {
+    const wrapper = mount(GroupDirectoryDialog, { props: { currentUserId: 'U200' } })
+    await flushPromises()
+    await wrapper.get('[data-testid="group-G300"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="request-leave-group"]').trigger('click')
+    await wrapper.get('[data-testid="confirm-group-action"]').trigger('click')
+    await flushPromises()
+
+    expect(groupApi.leaveGroup).toHaveBeenCalledWith('G300')
+    expect(wrapper.emitted('groupChanged')).toHaveLength(1)
+    expect(wrapper.find('[data-testid="request-dissolve-group"]').exists()).toBe(false)
+  })
+
+  it('lets the group owner dissolve a group after confirmation', async () => {
+    const wrapper = mount(GroupDirectoryDialog, { props: { currentUserId: 'U100' } })
+    await flushPromises()
+    await wrapper.get('[data-testid="group-G300"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="request-dissolve-group"]').trigger('click')
+    await wrapper.get('[data-testid="confirm-group-action"]').trigger('click')
+    await flushPromises()
+
+    expect(groupApi.dissolveGroup).toHaveBeenCalledWith('G300')
+    expect(wrapper.emitted('groupChanged')).toHaveLength(1)
   })
 })

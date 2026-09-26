@@ -524,8 +524,9 @@ async function signOut() {
 
     <GroupDirectoryDialog
       v-if="groupDirectoryOpen"
+      :current-user-id="authStore.session?.userId || ''"
       @close="groupDirectoryOpen = false"
-      @group-created="refreshChatSession"
+      @group-changed="refreshChatSession"
     />
 
     <ContactApplicationsDialog
