@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { postForm, postMultipart } from '@/api/http'
+import { postDownload, postForm, postMultipart } from '@/api/http'
 import { chatApi } from '@/api/chat'
 
-vi.mock('@/api/http', () => ({ postForm: vi.fn(), postMultipart: vi.fn() }))
+vi.mock('@/api/http', () => ({ postDownload: vi.fn(), postForm: vi.fn(), postMultipart: vi.fn() }))
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -56,6 +56,15 @@ describe('chat API', () => {
     expect(options?.timeoutMs).toBe(0)
     expect(options?.onUploadProgress).toBe(onProgress)
   })
+
+  it('downloads a message attachment as a browser Blob', async () => {
+    const blob = new Blob(['file bytes'], { type: 'application/octet-stream' })
+    vi.mocked(postDownload).mockResolvedValue(blob)
+
+    await expect(chatApi.downloadFile(42)).resolves.toBe(blob)
+    expect(postDownload).toHaveBeenCalledWith('/chat/downloadFile', { fileId: 42, showCover: false })
+  })
+
 
   it('requests older history using the message ID cursor', async () => {
     const page = { pageNo: 1, pageSize: 30, pageTotal: 1, totalCount: 1, list: [] }

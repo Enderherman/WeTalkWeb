@@ -55,6 +55,8 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const fileUploadError = ref('')
 const fileUploading = ref(false)
 const pendingUploadFiles = reactive(new Map<number, File>())
+const downloadingFiles = reactive(new Set<number>())
+const fileDownloadErrors = reactive(new Map<number, string>())
 const messagePanel = ref<HTMLElement | null>(null)
 const historyLoading = ref(false)
 const olderMessagesLoading = ref(false)
@@ -358,6 +360,32 @@ async function retryFileUpload(messageId: number) {
   }
 }
 
+async function downloadAttachment(message: InitialChatMessage) {
+  if (
+    message.status !== 1 ||
+    selectedSession.value?.groupClosed ||
+    selectedSession.value?.groupAccessRevoked ||
+    downloadingFiles.has(message.messageId)
+  ) return
+  downloadingFiles.add(message.messageId)
+  fileDownloadErrors.delete(message.messageId)
+  try {
+    const blob = await chatApi.downloadFile(message.messageId)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = message.fileName || 'WeTalk-attachment'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  } catch {
+    fileDownloadErrors.set(message.messageId, '文件下载失败，请稍后重试')
+  } finally {
+    downloadingFiles.delete(message.messageId)
+  }
+}
+
 function formatFileSize(value?: number) {
   const bytes = Number(value) || 0
   if (bytes < 1024) return bytes + ' B'
@@ -581,6 +609,13 @@ async function signOut() {
                   <div class="file-message-status">
                     <span>{{ fileUploadStatus(message) }}</span>
                     <button
+                      class="file-download-button"
+                      data-testid="download-file"
+                      type="button"
+                      :disabled="message.status !== 1 || downloadingFiles.has(message.messageId) || Boolean(selectedSession?.groupClosed || selectedSession?.groupAccessRevoked)"
+                      @click="downloadAttachment(message)"
+                    >{{ downloadingFiles.has(message.messageId) ? '下载中…' : '下载' }}</button>
+                    <button
                       v-if="message.uploadError && pendingUploadFiles.has(message.messageId)"
                       class="file-upload-retry"
                       type="button"
@@ -588,6 +623,9 @@ async function signOut() {
                       @click="retryFileUpload(message.messageId)"
                     >重试上传</button>
                   </div>
+                  <small v-if="fileDownloadErrors.has(message.messageId)" class="file-download-error" role="alert">
+                    {{ fileDownloadErrors.get(message.messageId) }}
+                  </small>
                 </div>
                 <p v-else>{{ message.messageContent }}</p>
                 <div class="message-footer">

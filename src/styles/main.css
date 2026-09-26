@@ -1961,6 +1961,29 @@ textarea:focus-visible {
   cursor: wait;
 }
 
+.file-download-button {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 7px;
+  padding: 4px 8px;
+  color: #477159;
+  background: #e8f1eb;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.file-download-button:disabled {
+  color: #85857f;
+  background: #eeeeeb;
+  cursor: not-allowed;
+}
+
+.file-download-error {
+  color: #a53932;
+  font-size: 11px;
+}
+
 .message-footer {
   display: flex;
   justify-content: flex-end;

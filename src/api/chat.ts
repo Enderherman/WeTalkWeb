@@ -1,4 +1,4 @@
-import { postForm, postMultipart } from '@/api/http'
+import { postDownload, postForm, postMultipart } from '@/api/http'
 import type { ChatHistoryPage, InitialChatMessage } from '@/stores/chat'
 
 export const chatApi = {
@@ -26,6 +26,8 @@ export const chatApi = {
       onUploadProgress: onProgress,
     })
   },
+  downloadFile: (messageId: number): Promise<Blob> =>
+    postDownload('/chat/downloadFile', { fileId: messageId, showCover: false }),
   loadHistory: (
     contactId: string,
     beforeMessageId: number | null = null,

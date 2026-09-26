@@ -116,3 +116,61 @@ export async function postMultipart<T>(
     throw error
   }
 }
+
+function readBlobText(blob: Blob): Promise<string> {
+  if (typeof blob.text === 'function') return blob.text()
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(reader.error || new Error('Unable to read the response body.'))
+    reader.readAsText(blob)
+  })
+}
+
+async function unwrapBlobError(blob: Blob): Promise<never> {
+  let response: Partial<BaseResponse<unknown>>
+  try {
+    response = JSON.parse(await readBlobText(blob)) as Partial<BaseResponse<unknown>>
+  } catch {
+    throw new ApiError('文件下载失败，请稍后重试')
+  }
+  if (typeof response.code === 'number' && response.code !== 200) {
+    return unwrapResponse(response as BaseResponse<unknown>) as never
+  }
+  throw new ApiError('服务器未返回文件', typeof response.code === 'number' ? response.code : null)
+}
+
+export async function postDownload(
+  path: string,
+  values: Record<string, string | number | boolean | null | undefined>,
+): Promise<Blob> {
+  const body = new URLSearchParams()
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== null && value !== undefined) body.set(key, String(value))
+  }
+
+  try {
+    const response = await client.post<Blob>(path, body, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      responseType: 'blob',
+      timeout: 0,
+    })
+    if (String(response.headers['content-type'] || '').toLowerCase().includes('json')) {
+      return await unwrapBlobError(response.data)
+    }
+    return response.data
+  } catch (error: unknown) {
+    if (error instanceof ApiError) throw error
+    if (axios.isAxiosError(error)) {
+      const responseData = error.response?.data
+      if (responseData instanceof Blob) return await unwrapBlobError(responseData)
+      const responseBody = responseData as Partial<BaseResponse<unknown>> | undefined
+      reportApiFailure(error)
+      throw new ApiError(
+        typeof responseBody?.message === 'string' ? responseBody.message : '文件下载失败，请稍后重试',
+        typeof responseBody?.code === 'number' ? responseBody.code : null,
+      )
+    }
+    throw error
+  }
+}

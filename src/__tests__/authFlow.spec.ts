@@ -29,6 +29,9 @@ vi.mock('@/api/auth', () => ({
 vi.mock('@/api/chat', () => ({
   chatApi: {
     sendTextMessage: vi.fn(),
+    sendFileMessage: vi.fn(),
+    uploadFile: vi.fn(),
+    downloadFile: vi.fn(),
     loadHistory: vi.fn(),
   },
 }))
@@ -123,6 +126,22 @@ beforeEach(() => {
     totalCount: 0,
     list: [],
   })
+  vi.mocked(chatApi.sendFileMessage).mockResolvedValue({
+    messageId: 601,
+    sessionId: 'S200',
+    messageType: 5,
+    messageContent: '[文件]',
+    sendUserId: 'U100',
+    sendUserNickName: 'Old Name',
+    sendTime: 2000,
+    contactId: 'U200',
+    fileName: 'notes.txt',
+    fileSize: 5,
+    fileType: 2,
+    status: 0,
+  })
+  vi.mocked(chatApi.uploadFile).mockResolvedValue('上传成功')
+  vi.mocked(chatApi.downloadFile).mockResolvedValue(new Blob(['file bytes'], { type: 'application/octet-stream' }))
 })
 
 describe('authentication flow', () => {
@@ -343,6 +362,107 @@ describe('authentication flow', () => {
     expect(wrapper.get('[data-testid="message-send-status"]').text()).toBe('已发送')
     expect(wrapper.get('[data-testid="message-send-status"]').attributes('aria-label')).toBe('服务端已接收并保存')
     expect(wrapper.get('[data-testid="message-composer"]').element).toHaveProperty('value', '')
+  })
+
+  it('selects and uploads a normal file, then displays its completed status', async () => {
+    vi.mocked(chatApi.uploadFile).mockImplementation(async (_messageId, _file, onProgress) => {
+      onProgress?.(50)
+      return '上传成功'
+    })
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200',
+          contactId: 'U200',
+          contactName: 'Friend',
+          lastMessage: '',
+          lastReceiveTime: 1000,
+          contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+    const file = new File(['notes'], 'notes.txt', { type: 'text/plain' })
+    const input = wrapper.get('[data-testid="file-input"]')
+    Object.defineProperty(input.element, 'files', { configurable: true, value: [file] })
+    await input.trigger('change')
+    await flushPromises()
+
+    expect(chatApi.sendFileMessage).toHaveBeenCalledWith('U200', file)
+    expect(chatApi.uploadFile).toHaveBeenCalledWith(601, file, expect.any(Function))
+    expect(wrapper.get('[data-testid="file-attachment"]').text()).toContain('notes.txt')
+    expect(wrapper.get('.file-message-status').text()).toContain('已上传 · 5 B')
+    expect(chatStore.initialMessages[0]?.status).toBe(1)
+    wrapper.unmount()
+  })
+
+  it('downloads an uploaded file using its original filename', async () => {
+    const blob = new Blob(['file bytes'], { type: 'application/octet-stream' })
+    vi.mocked(chatApi.downloadFile).mockResolvedValue(blob)
+    const originalCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL')
+    const originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL')
+    const createObjectURL = vi.fn(() => 'blob:wetalk-test')
+    const revokeObjectURL = vi.fn()
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
+    let downloadedName = ''
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      downloadedName = this.download
+    })
+
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200',
+          contactId: 'U200',
+          contactName: 'Friend',
+          lastMessage: 'notes.txt',
+          lastReceiveTime: 2000,
+          contactType: 0,
+        }],
+        chatMessageList: [{
+          messageId: 602,
+          sessionId: 'S200',
+          messageType: 5,
+          messageContent: '[文件]',
+          sendUserId: 'U200',
+          sendUserNickName: 'Friend',
+          sendTime: 2000,
+          contactId: 'U100',
+          fileName: 'notes.txt',
+          fileSize: 10,
+          fileType: 2,
+          status: 1,
+        }],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+    vi.useFakeTimers()
+    try {
+      await wrapper.get('[data-testid="download-file"]').trigger('click')
+      await flushPromises()
+
+      expect(chatApi.downloadFile).toHaveBeenCalledWith(602)
+      expect(createObjectURL).toHaveBeenCalledWith(blob)
+      expect(downloadedName).toBe('notes.txt')
+      vi.runOnlyPendingTimers()
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:wetalk-test')
+    } finally {
+      vi.useRealTimers()
+      click.mockRestore()
+      if (originalCreate) Object.defineProperty(URL, 'createObjectURL', originalCreate)
+      else Reflect.deleteProperty(URL, 'createObjectURL')
+      if (originalRevoke) Object.defineProperty(URL, 'revokeObjectURL', originalRevoke)
+      else Reflect.deleteProperty(URL, 'revokeObjectURL')
+      wrapper.unmount()
+    }
   })
 
   it('keeps the draft and allows retry when sending a message fails', async () => {
