@@ -1,0 +1,576 @@
+{
+  "openapi": "3.2.1",
+  "info": {
+    "title": "WeTalk Web API Contract — Auth and Text Chat",
+    "version": "0.1.0",
+    "description": "This contract describes the HTTP endpoints currently used by WeTalkWeb for authentication, profile/password operations, one-to-one text messages, and cursor-paged history. It is a client-slice contract, not the complete backend API inventory. Other REST endpoints and WebSocket frames remain separate Phase 0 deliverables.\n\nRequests use application/x-www-form-urlencoded and the same-origin /api prefix. Business errors are normally returned in the BaseResponse body, often with HTTP 200; clients must inspect code. Login sends a lowercase MD5 digest for compatibility with the existing Electron client, while registration and password change send the raw password over HTTPS and the server hashes it. This legacy protocol must be replaced before public production use."
+  },
+  "servers": [
+    {
+      "url": "/api",
+      "description": "Same-origin API path. In local development, Vite proxies /api to the Spring Boot service on port 5050."
+    }
+  ],
+  "tags": [
+    { "name": "Account", "description": "Authentication and current-user profile operations." },
+    { "name": "Text chat", "description": "Web-supported one-to-one text messaging and history." }
+  ],
+  "paths": {
+    "/account/checkCode": {
+      "post": {
+        "tags": ["Account"],
+        "operationId": "getCheckCode",
+        "summary": "Create an image captcha",
+        "description": "Creates a short-lived captcha and returns its image data URI and one-time key. The key expires after ten minutes and is consumed by registration or login. The backend mapping currently accepts an unrestricted HTTP method; WeTalkWeb uses POST.",
+        "responses": {
+          "200": {
+            "description": "Captcha created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/CaptchaResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                },
+                "example": {
+                  "status": "success",
+                  "code": 200,
+                  "data": {
+                    "check_code_key": "e7f3b1a0-1fdc-4e14-ae6a-2591b7d0d260",
+                    "check_code": "data:image/png;base64,<captcha-image>"
+                  }
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/account/register": {
+      "post": {
+        "tags": ["Account"],
+        "operationId": "registerAccount",
+        "summary": "Register an account",
+        "description": "The server hashes the submitted password. Password constraints are copied from the current backend validation rule. Email ownership is not verified by the current backend.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": { "$ref": "#/components/schemas/RegisterRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Registration result. Inspect code for business success or failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/NullDataResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                },
+                "examples": {
+                  "success": {
+                    "value": { "status": "success", "code": 200, "data": null }
+                  },
+                  "captchaFailure": {
+                    "value": { "status": "error", "code": 600, "message": "图片验证码错误", "data": null }
+                  }
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/account/login": {
+      "post": {
+        "tags": ["Account"],
+        "operationId": "loginAccount",
+        "summary": "Log in",
+        "description": "For compatibility with WeTalkApp, the login password field contains the 32-character lowercase MD5 digest of the password, not the raw password. This is a legacy protocol; it is not a production-grade password transport design.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login result. A successful response includes a token and user summary.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/LoginResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                },
+                "example": {
+                  "status": "success",
+                  "code": 200,
+                  "data": {
+                    "userId": "U10001",
+                    "email": "student@example.com",
+                    "nickName": "Student",
+                    "token": "<session-token>",
+                    "admin": false
+                  }
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/account/getUserInfo": {
+      "post": {
+        "tags": ["Account"],
+        "operationId": "getCurrentUserInfo",
+        "summary": "Read the current user profile",
+        "security": [{ "tokenHeader": [] }],
+        "responses": {
+          "200": {
+            "description": "Current profile for the authenticated token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/UserInfoResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                },
+                "example": {
+                  "status": "success",
+                  "code": 200,
+                  "data": {
+                    "userId": "U10001",
+                    "email": "student@example.com",
+                    "nickName": "Student",
+                    "admin": false
+                  }
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/account/updatePassword": {
+      "post": {
+        "tags": ["Account"],
+        "operationId": "updatePassword",
+        "summary": "Change the current user's password",
+        "description": "The request contains the raw new password; the backend hashes it and forces the active user offline. Send this only over HTTPS in production.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["password"],
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 18,
+                    "pattern": "^(?=.*\\d)(?=.*[a-zA-Z])[\\da-zA-Z~!@#$%^&*_]{8,18}$",
+                    "description": "Raw new password. Must contain at least one letter and one digit."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed; data is null.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/NullDataResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                },
+                "example": { "status": "success", "code": 200, "data": null }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/account/logout": {
+      "post": {
+        "tags": ["Account"],
+        "operationId": "logoutAccount",
+        "summary": "Log out the current user",
+        "security": [{ "tokenHeader": [] }],
+        "responses": {
+          "200": {
+            "description": "Logout completed; data is null.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/NullDataResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                },
+                "example": { "status": "success", "code": 200, "data": null }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/chat/sendMessage": {
+      "post": {
+        "tags": ["Text chat"],
+        "operationId": "sendTextMessage",
+        "summary": "Send a one-to-one text message",
+        "description": "The web text composer supports messageType 2 and limits messages to 500 characters. The backend validates contact membership and persists the message before returning this response.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": { "$ref": "#/components/schemas/SendTextMessageRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved message and generated conversation metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/MessageSendResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                },
+                "example": {
+                  "status": "success",
+                  "code": 200,
+                  "data": {
+                    "messageId": 501,
+                    "sessionId": "U10001_U10002",
+                    "sendUserId": "U10001",
+                    "sendUserNickName": "Student",
+                    "contactId": "U10002",
+                    "contactName": "Friend",
+                    "messageContent": "Hello",
+                    "messageType": 2,
+                    "sendTime": 1780000000000,
+                    "contactType": 0,
+                    "status": 1
+                  }
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/chat/loadHistory": {
+      "post": {
+        "tags": ["Text chat"],
+        "operationId": "loadChatHistory",
+        "summary": "Load a cursor-paged conversation history",
+        "description": "Returns up to 50 messages. Omit beforeMessageId to load the latest page; when supplied, it is an exclusive cursor and older messages are returned in chronological order. The default page size is 30.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": { "$ref": "#/components/schemas/LoadHistoryRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Conversation page. The service verifies the caller's membership before returning messages.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/ChatHistoryResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                },
+                "example": {
+                  "status": "success",
+                  "code": 200,
+                  "data": {
+                    "pageNo": 1,
+                    "pageSize": 30,
+                    "pageTotal": 1,
+                    "totalCount": 1,
+                    "list": [
+                      {
+                        "messageId": 501,
+                        "sessionId": "U10001_U10002",
+                        "messageType": 2,
+                        "messageContent": "Hello",
+                        "sendUserId": "U10001",
+                        "sendUserNickName": "Student",
+                        "sendTime": 1780000000000,
+                        "contactId": "U10002",
+                        "contactType": 0,
+                        "status": 1
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "tokenHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "token",
+        "description": "Current transitional token header used by the backend. Public production deployment still requires the planned secure-cookie and short-lived WebSocket-ticket design."
+      }
+    },
+    "responses": {
+      "BusinessError": {
+        "description": "Business or transport error. The backend commonly returns application errors with HTTP 200 and a non-200 body code. Common body codes include 500, 600, 601, 901, 902, and 903.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/BusinessErrorResponse" },
+            "example": { "status": "error", "code": 901, "message": "登录超时", "data": null }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "BaseResponse": {
+        "type": "object",
+        "required": ["code"],
+        "properties": {
+          "status": { "type": "string", "description": "Typically success or error." },
+          "code": { "type": "integer", "description": "Application code; 200 means success." },
+          "message": { "type": "string" },
+          "data": { "description": "Endpoint-specific payload; null for no-payload operations." }
+        }
+      },
+      "BusinessErrorResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code"],
+            "properties": {
+              "code": { "type": "integer", "enum": [404, 500, 506, 600, 601, 602, 901, 902, 903] }
+            }
+          }
+        ]
+      },
+      "NullDataResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": { "code": { "const": 200 }, "data": { "type": "null" } }
+          }
+        ]
+      },
+      "CaptchaData": {
+        "type": "object",
+        "required": ["check_code", "check_code_key"],
+        "properties": {
+          "check_code": { "type": "string", "description": "PNG data URI for the arithmetic captcha." },
+          "check_code_key": { "type": "string", "format": "uuid", "description": "One-time captcha key; expires after ten minutes." }
+        }
+      },
+      "CaptchaResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/CaptchaData" } }
+          }
+        ]
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["checkCodeKey", "email", "password", "nickName", "checkCode"],
+        "properties": {
+          "checkCodeKey": { "type": "string", "format": "uuid" },
+          "email": { "type": "string", "format": "email" },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 18,
+            "pattern": "^(?=.*\\d)(?=.*[a-zA-Z])[\\da-zA-Z~!@#$%^&*_]{8,18}$",
+            "description": "Raw password sent to the server, which hashes it. Must contain at least one letter and one digit."
+          },
+          "nickName": { "type": "string" },
+          "checkCode": { "type": "string" }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["checkCodeKey", "email", "password", "checkCode"],
+        "properties": {
+          "checkCodeKey": { "type": "string", "format": "uuid" },
+          "email": { "type": "string", "format": "email" },
+          "password": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$",
+            "description": "Lowercase MD5 digest of the raw password, matching the legacy desktop-client protocol."
+          },
+          "checkCode": { "type": "string" }
+        }
+      },
+      "UserInfoVO": {
+        "type": "object",
+        "properties": {
+          "userId": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "nickName": { "type": "string" },
+          "joinType": { "type": "integer" },
+          "sex": { "type": "integer" },
+          "personalSignature": { "type": "string" },
+          "areaName": { "type": "string" },
+          "areaCode": { "type": "string" },
+          "token": { "type": "string", "description": "Present on successful login; not used by profile reads." },
+          "admin": { "type": "boolean" },
+          "contactStatus": { "type": "integer" }
+        }
+      },
+      "LoginResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/UserInfoVO" } }
+          }
+        ]
+      },
+      "UserInfoResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/UserInfoVO" } }
+          }
+        ]
+      },
+      "SendTextMessageRequest": {
+        "type": "object",
+        "required": ["contactId", "messageContent", "messageType"],
+        "properties": {
+          "contactId": { "type": "string", "description": "Recipient user ID for a one-to-one chat." },
+          "messageContent": { "type": "string", "maxLength": 500 },
+          "messageType": { "type": "integer", "const": 2, "description": "2 is a text message in the current web slice." }
+        }
+      },
+      "MessageSendDTO": {
+        "type": "object",
+        "properties": {
+          "messageId": { "type": "integer" },
+          "sessionId": { "type": "string" },
+          "sendUserId": { "type": "string" },
+          "sendUserNickName": { "type": "string" },
+          "contactId": { "type": "string" },
+          "contactName": { "type": "string" },
+          "messageContent": { "type": "string" },
+          "lastMessage": { "type": "string" },
+          "messageType": { "type": "integer" },
+          "sendTime": { "type": "integer", "format": "int64", "description": "Unix epoch milliseconds." },
+          "contactType": { "type": "integer", "description": "0 for direct contact, 1 for group." },
+          "extentData": {},
+          "status": { "type": "integer", "enum": [0, 1], "description": "0 sending; 1 sent." },
+          "fileSize": { "type": "integer", "format": "int64" },
+          "fileName": { "type": "string" },
+          "fileType": { "type": "integer" },
+          "memberCount": { "type": "integer" }
+        }
+      },
+      "MessageSendResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/MessageSendDTO" } }
+          }
+        ]
+      },
+      "LoadHistoryRequest": {
+        "type": "object",
+        "required": ["contactId"],
+        "properties": {
+          "contactId": { "type": "string", "description": "Other participant's user ID for a direct chat." },
+          "beforeMessageId": { "type": "integer", "minimum": 1, "description": "Exclusive cursor; omit to load the newest page." },
+          "pageSize": { "type": "integer", "minimum": 1, "maximum": 50, "default": 30 }
+        }
+      },
+      "ChatMessage": {
+        "type": "object",
+        "properties": {
+          "messageId": { "type": "integer" },
+          "sessionId": { "type": "string" },
+          "messageType": { "type": "integer" },
+          "messageContent": { "type": "string" },
+          "sendUserId": { "type": "string" },
+          "sendUserNickName": { "type": "string" },
+          "sendTime": { "type": "integer", "format": "int64", "description": "Unix epoch milliseconds." },
+          "contactId": { "type": "string" },
+          "contactType": { "type": "integer" },
+          "fileSize": { "type": "integer", "format": "int64" },
+          "fileName": { "type": "string" },
+          "fileType": { "type": "integer" },
+          "status": { "type": "integer", "enum": [0, 1] }
+        }
+      },
+      "ChatHistoryPage": {
+        "type": "object",
+        "required": ["list"],
+        "properties": {
+          "totalCount": { "type": "integer" },
+          "pageSize": { "type": "integer" },
+          "pageNo": { "type": "integer" },
+          "pageTotal": { "type": "integer" },
+          "list": { "type": "array", "items": { "$ref": "#/components/schemas/ChatMessage" } }
+        }
+      },
+      "ChatHistoryResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/ChatHistoryPage" } }
+          }
+        ]
+      }
+    }
+  }
+}
