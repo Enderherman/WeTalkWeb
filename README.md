@@ -180,6 +180,7 @@ WeTalkWeb 是 WeTalk 的浏览器客户端新仓库，使用 Vue 3 + TypeScript 
 - 文档说明 `/api` 同源前缀、`token` 请求头、URL-encoded 表单、业务响应码和当前登录密码 MD5 兼容协议。
 - [WebSocket 协议说明](docs/websocket-protocol.md)记录类型 0–16、代表性帧、心跳/重连机制和群事件真实联调；[数据库 ER 图](docs/database-erd.md)来自后端空表 SQL 并区分业务关联与数据库外键。管理员列表角色和敏感字段的真实后端回归已通过，见 Phase 0 记录。
 - [浏览器支持与文件规则](docs/browser-support.md)记录桌面/平板/手机验收目标、文件上限、媒体扩展名和浏览器权限要求；矩阵仍需真机视觉验收。
+- 主要中性色、强调色、状态色、背景和边框已集中为 `:root` CSS tokens；视觉验收仍需浏览器截图检查。
 
 ## 技术栈
 

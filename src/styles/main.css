@@ -1,7 +1,7 @@
 :root {
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: #242424;
-  background: #fff;
+  color: var(--wt-text);
+  background: var(--wt-white);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -16,6 +16,19 @@
   --wt-accent-hover: #275944;
   --wt-danger: #b42318;
   --wt-radius: 16px;
+  --wt-white: #fff;
+  --wt-neutral-900: #262626;
+  --wt-neutral-700: #555650;
+  --wt-neutral-600: #686863;
+  --wt-neutral-400: #92928c;
+  --wt-neutral-200: #deded9;
+  --wt-neutral-100: #ecece8;
+  --wt-neutral-50: #fbfbfa;
+  --wt-accent-strong: #315d4e;
+  --wt-accent-soft: #e2ebe5;
+  --wt-accent-muted: #f5f8f5;
+  --wt-danger-strong: #a53932;
+  --wt-danger-soft: #fff3f1;
 }
 
 * {
@@ -34,7 +47,7 @@ body,
 body {
   min-height: 100vh;
   color: var(--wt-text);
-  background: #fff;
+  background: var(--wt-white);
 }
 
 button,
@@ -61,8 +74,8 @@ textarea:focus-visible {
   height: 30px;
   place-items: center;
   border-radius: 10px;
-  color: #fff;
-  background: #262626;
+  color: var(--wt-white);
+  background: var(--wt-neutral-900);
   font-size: 15px;
   font-weight: 700;
 }
@@ -129,7 +142,7 @@ textarea:focus-visible {
   margin-top: 27px;
   padding: 0 20px;
   border-radius: 14px;
-  color: #fff;
+  color: var(--wt-white);
   background: var(--wt-accent);
   font-size: 14px;
   font-weight: 600;
@@ -186,7 +199,7 @@ textarea:focus-visible {
   min-height: 100svh;
   place-items: center;
   padding: 64px 24px 72px;
-  background: #fff;
+  background: var(--wt-white);
 }
 
 .auth-brand {
@@ -246,7 +259,7 @@ textarea:focus-visible {
   border: 1px solid #d8d8d4;
   border-radius: 12px;
   color: var(--wt-text);
-  background: #fff;
+  background: var(--wt-white);
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 
@@ -313,7 +326,7 @@ textarea:focus-visible {
 
 .notice-error {
   color: #9f1d15;
-  background: #fff3f1;
+  background: var(--wt-white)3f1;
 }
 
 .notice-success {
@@ -326,8 +339,8 @@ textarea:focus-visible {
   margin-top: 5px;
   border: 0;
   border-radius: 12px;
-  color: #fff;
-  background: #262626;
+  color: var(--wt-white);
+  background: var(--wt-neutral-900);
   font-weight: 600;
   cursor: pointer;
   transition: background 120ms ease, transform 120ms ease;
@@ -385,7 +398,7 @@ textarea:focus-visible {
   height: 100dvh;
   min-height: 520px;
   overflow: hidden;
-  background: #fff;
+  background: var(--wt-white);
 }
 
 .chat-sidebar {
@@ -394,7 +407,7 @@ textarea:focus-visible {
   flex-direction: column;
   width: 272px;
   padding: 18px 13px 12px;
-  background: #f7f7f5;
+  background: var(--wt-soft);
 }
 
 .sidebar-top,
@@ -425,7 +438,7 @@ textarea:focus-visible {
   padding: 0 12px;
   border: 1px solid #e5e5e1;
   border-radius: 12px;
-  background: #fff;
+  background: var(--wt-white);
   text-align: left;
   font-size: 14px;
   font-weight: 500;
@@ -521,8 +534,8 @@ textarea:focus-visible {
   flex: 0 0 auto;
   place-items: center;
   border-radius: 50%;
-  color: #315d4e;
-  background: #e2ebe5;
+  color: var(--wt-accent-strong);
+  background: var(--wt-accent-soft);
   font-size: 13px;
   font-weight: 600;
 }
@@ -580,7 +593,7 @@ textarea:focus-visible {
   place-items: center;
   padding: 0 6px;
   border-radius: 999px;
-  color: #fff;
+  color: var(--wt-white);
   background: #47705c;
   font-size: 10px;
   font-weight: 600;
@@ -598,8 +611,8 @@ textarea:focus-visible {
   display: grid;
   flex: 0 0 auto;
   place-items: center;
-  color: #fff;
-  background: #315d4e;
+  color: var(--wt-white);
+  background: var(--wt-accent-strong);
   font-weight: 600;
 }
 
@@ -628,8 +641,8 @@ textarea:focus-visible {
   place-items: center;
   overflow: hidden;
   border-radius: 50%;
-  color: #315d4e;
-  background: #e2ebe5;
+  color: var(--wt-accent-strong);
+  background: var(--wt-accent-soft);
   font-size: 20px;
   font-weight: 600;
 }
@@ -676,7 +689,7 @@ textarea:focus-visible {
 }
 
 .signout-button {
-  color: #686863;
+  color: var(--wt-neutral-600);
 }
 
 .profile-trigger {
@@ -715,9 +728,9 @@ textarea:focus-visible {
   max-height: min(88dvh, 720px);
   overflow: auto;
   padding: 26px;
-  border: 1px solid #ecece8;
+  border: 1px solid var(--wt-neutral-100);
   border-radius: 24px;
-  background: #fff;
+  background: var(--wt-white);
   box-shadow: 0 24px 80px rgb(17 24 20 / 18%);
 }
 
@@ -733,7 +746,7 @@ textarea:focus-visible {
 
 .contact-search-form label,
 .contact-request-form label {
-  color: #555650;
+  color: var(--wt-neutral-700);
   font-size: 12px;
   font-weight: 500;
 }
@@ -748,11 +761,11 @@ textarea:focus-visible {
   width: 100%;
   min-width: 0;
   padding: 11px 13px;
-  border: 1px solid #deded9;
+  border: 1px solid var(--wt-neutral-200);
   border-radius: 12px;
   outline: none;
   color: var(--wt-text);
-  background: #fff;
+  background: var(--wt-white);
   font: inherit;
   font-size: 14px;
 }
@@ -769,8 +782,8 @@ textarea:focus-visible {
   padding: 0 16px;
   border: 0;
   border-radius: 12px;
-  color: #fff;
-  background: #315d4e;
+  color: var(--wt-white);
+  background: var(--wt-accent-strong);
   font: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -805,19 +818,19 @@ textarea:focus-visible {
 }
 
 .contact-error {
-  color: #a53932;
+  color: var(--wt-danger-strong);
 }
 
 .contact-notice {
-  color: #315d4e;
+  color: var(--wt-accent-strong);
 }
 
 .contact-result {
   margin-top: 19px;
   padding: 15px;
-  border: 1px solid #ecece8;
+  border: 1px solid var(--wt-neutral-100);
   border-radius: 16px;
-  background: #fbfbfa;
+  background: var(--wt-neutral-50);
 }
 
 .contact-result-heading {
@@ -833,8 +846,8 @@ textarea:focus-visible {
   flex: 0 0 auto;
   place-items: center;
   border-radius: 50%;
-  color: #315d4e;
-  background: #e2ebe5;
+  color: var(--wt-accent-strong);
+  background: var(--wt-accent-soft);
   font-size: 15px;
   font-weight: 600;
 }
@@ -879,7 +892,7 @@ textarea:focus-visible {
 .contact-request-form {
   margin-top: 17px;
   padding-top: 16px;
-  border-top: 1px solid #ecece8;
+  border-top: 1px solid var(--wt-neutral-100);
 }
 
 .contact-request-form textarea {
@@ -898,7 +911,7 @@ textarea:focus-visible {
   justify-content: space-between;
   margin-top: 19px;
   padding-bottom: 11px;
-  border-bottom: 1px solid #ecece8;
+  border-bottom: 1px solid var(--wt-neutral-100);
   color: var(--wt-muted);
   font-size: 12px;
 }
@@ -917,9 +930,9 @@ textarea:focus-visible {
 
 .contact-application-card {
   padding: 14px;
-  border: 1px solid #ecece8;
+  border: 1px solid var(--wt-neutral-100);
   border-radius: 16px;
-  background: #fbfbfa;
+  background: var(--wt-neutral-50);
 }
 
 .contact-application-heading {
@@ -937,7 +950,7 @@ textarea:focus-visible {
 }
 
 .contact-application-time {
-  color: #92928c;
+  color: var(--wt-neutral-400);
   font-size: 10px;
 }
 
@@ -962,10 +975,10 @@ textarea:focus-visible {
   min-height: 35px;
   flex: 1 1 auto;
   padding: 0 11px;
-  border: 1px solid #deded9;
+  border: 1px solid var(--wt-neutral-200);
   border-radius: 10px;
-  color: #555650;
-  background: #fff;
+  color: var(--wt-neutral-700);
+  background: var(--wt-white);
   font: inherit;
   font-size: 11px;
   cursor: pointer;
@@ -976,9 +989,9 @@ textarea:focus-visible {
 }
 
 .contact-application-button.is-primary {
-  border-color: #315d4e;
-  color: #fff;
-  background: #315d4e;
+  border-color: var(--wt-accent-strong);
+  color: var(--wt-white);
+  background: var(--wt-accent-strong);
 }
 
 .contact-application-button.is-primary:hover:not(:disabled) {
@@ -1007,10 +1020,10 @@ textarea:focus-visible {
 .applications-pagination button {
   min-height: 36px;
   padding: 0 11px;
-  border: 1px solid #deded9;
+  border: 1px solid var(--wt-neutral-200);
   border-radius: 10px;
-  color: #555650;
-  background: #fff;
+  color: var(--wt-neutral-700);
+  background: var(--wt-white);
   font: inherit;
   cursor: pointer;
 }
@@ -1040,14 +1053,14 @@ textarea:focus-visible {
 .contact-directory-card {
   min-width: 0;
   padding: 11px;
-  border: 1px solid #ecece8;
+  border: 1px solid var(--wt-neutral-100);
   border-radius: 14px;
-  background: #fbfbfa;
+  background: var(--wt-neutral-50);
 }
 
 .contact-directory-card.is-selected {
   border-color: #cad9ce;
-  background: #f5f8f5;
+  background: var(--wt-accent-muted);
 }
 
 .contact-directory-select {
@@ -1073,10 +1086,10 @@ textarea:focus-visible {
 .contact-action-confirm button {
   min-height: 31px;
   padding: 0 10px;
-  border: 1px solid #deded9;
+  border: 1px solid var(--wt-neutral-200);
   border-radius: 9px;
-  color: #555650;
-  background: #fff;
+  color: var(--wt-neutral-700);
+  background: var(--wt-white);
   font: inherit;
   font-size: 10px;
   cursor: pointer;
@@ -1105,7 +1118,7 @@ textarea:focus-visible {
 
 .contact-action-confirm .contact-confirm-button {
   border-color: #a9524b;
-  color: #fff;
+  color: var(--wt-white);
   background: #a9524b;
 }
 
@@ -1122,9 +1135,9 @@ textarea:focus-visible {
   align-self: start;
   min-height: 130px;
   padding: 15px;
-  border: 1px solid #ecece8;
+  border: 1px solid var(--wt-neutral-100);
   border-radius: 15px;
-  background: #fbfbfa;
+  background: var(--wt-neutral-50);
 }
 
 .contact-profile-details {
@@ -1167,8 +1180,8 @@ textarea:focus-visible {
   padding: 0 12px;
   border: 1px solid #dce5de;
   border-radius: 10px;
-  color: #315d4e;
-  background: #f5f8f5;
+  color: var(--wt-accent-strong);
+  background: var(--wt-accent-muted);
   font: inherit;
   font-size: 11px;
   font-weight: 600;
@@ -1185,13 +1198,13 @@ textarea:focus-visible {
   gap: 9px;
   margin-top: 16px;
   padding: 15px;
-  border: 1px solid #ecece8;
+  border: 1px solid var(--wt-neutral-100);
   border-radius: 15px;
-  background: #fbfbfa;
+  background: var(--wt-neutral-50);
 }
 
 .group-create-form label {
-  color: #555650;
+  color: var(--wt-neutral-700);
   font-size: 11px;
   font-weight: 600;
 }
@@ -1202,11 +1215,11 @@ textarea:focus-visible {
   width: 100%;
   min-height: 40px;
   padding: 9px 11px;
-  border: 1px solid #deded9;
+  border: 1px solid var(--wt-neutral-200);
   border-radius: 10px;
   outline: none;
   color: var(--wt-text);
-  background: #fff;
+  background: var(--wt-white);
   font: inherit;
   font-size: 12px;
 }
@@ -1257,10 +1270,10 @@ textarea:focus-visible {
   align-items: center;
   gap: 10px;
   padding: 11px;
-  border: 1px solid #ecece8;
+  border: 1px solid var(--wt-neutral-100);
   border-radius: 14px;
   color: var(--wt-text);
-  background: #fbfbfa;
+  background: var(--wt-neutral-50);
   text-align: left;
   cursor: pointer;
 }
@@ -1268,7 +1281,7 @@ textarea:focus-visible {
 .group-directory-entry:hover,
 .group-directory-entry.is-selected {
   border-color: #cad9ce;
-  background: #f5f8f5;
+  background: var(--wt-accent-muted);
 }
 
 .group-directory-avatar {
@@ -1278,8 +1291,8 @@ textarea:focus-visible {
   flex: 0 0 auto;
   place-items: center;
   border-radius: 13px;
-  color: #315d4e;
-  background: #e2ebe5;
+  color: var(--wt-accent-strong);
+  background: var(--wt-accent-soft);
   font-size: 14px;
   font-weight: 600;
 }
@@ -1293,7 +1306,7 @@ textarea:focus-visible {
   gap: 8px;
   margin-top: 14px;
   padding-top: 13px;
-  border-top: 1px solid #ecece8;
+  border-top: 1px solid var(--wt-neutral-100);
 }
 
 .group-members-section > header {
@@ -1325,8 +1338,8 @@ textarea:focus-visible {
   flex: 0 0 auto;
   place-items: center;
   border-radius: 50%;
-  color: #315d4e;
-  background: #e2ebe5;
+  color: var(--wt-accent-strong);
+  background: var(--wt-accent-soft);
   font-size: 10px;
   font-weight: 600;
 }
@@ -1366,10 +1379,10 @@ textarea:focus-visible {
 .group-member-remove {
   min-height: 28px;
   padding: 0 8px;
-  border: 1px solid #deded9;
+  border: 1px solid var(--wt-neutral-200);
   border-radius: 8px;
   color: #8a3935;
-  background: #fff;
+  background: var(--wt-white);
   font: inherit;
   font-size: 9px;
   cursor: pointer;
@@ -1389,10 +1402,10 @@ textarea:focus-visible {
 .group-action-confirm button {
   min-height: 34px;
   padding: 0 11px;
-  border: 1px solid #deded9;
+  border: 1px solid var(--wt-neutral-200);
   border-radius: 9px;
-  color: #555650;
-  background: #fff;
+  color: var(--wt-neutral-700);
+  background: var(--wt-white);
   font: inherit;
   font-size: 10px;
   cursor: pointer;
@@ -1419,9 +1432,9 @@ textarea:focus-visible {
   gap: 8px;
   margin-top: 12px;
   padding: 12px;
-  border: 1px solid #ecece8;
+  border: 1px solid var(--wt-neutral-100);
   border-radius: 12px;
-  background: #fff;
+  background: var(--wt-white);
 }
 
 .group-member-picker > header {
@@ -1461,9 +1474,9 @@ textarea:focus-visible {
 
 .group-member-picker-actions .contact-confirm-button,
 .group-action-confirm .contact-confirm-button {
-  border-color: #315d4e;
-  color: #fff;
-  background: #315d4e;
+  border-color: var(--wt-accent-strong);
+  color: var(--wt-white);
+  background: var(--wt-accent-strong);
 }
 
 .group-member-picker-actions .contact-confirm-button:hover:not(:disabled),
@@ -1523,14 +1536,14 @@ textarea:focus-visible {
 
 .profile-load-error,
 .profile-form-error {
-  color: #a53932;
+  color: var(--wt-danger-strong);
 }
 
 .profile-details {
   display: grid;
   margin: 21px 0 0;
   padding: 2px 14px;
-  border: 1px solid #ecece8;
+  border: 1px solid var(--wt-neutral-100);
   border-radius: 16px;
 }
 
@@ -1585,17 +1598,17 @@ textarea:focus-visible {
 .text-cache-clear {
   min-height: 34px;
   padding: 0 11px;
-  border: 1px solid #deded9;
+  border: 1px solid var(--wt-neutral-200);
   border-radius: 10px;
-  color: #555650;
-  background: #fff;
+  color: var(--wt-neutral-700);
+  background: var(--wt-white);
   font: inherit;
   font-size: 11px;
   cursor: pointer;
 }
 
 .text-cache-clear:hover:not(:disabled) {
-  background: #f7f7f5;
+  background: var(--wt-soft);
 }
 
 .text-cache-clear:disabled {
@@ -1614,7 +1627,7 @@ textarea:focus-visible {
   gap: 10px;
   margin-top: 21px;
   padding-top: 19px;
-  border-top: 1px solid #ecece8;
+  border-top: 1px solid var(--wt-neutral-100);
 }
 
 .password-form h3 {
@@ -1633,7 +1646,7 @@ textarea:focus-visible {
 
 .password-form label {
   margin-top: 3px;
-  color: #555650;
+  color: var(--wt-neutral-700);
   font-size: 12px;
   font-weight: 500;
 }
@@ -1642,11 +1655,11 @@ textarea:focus-visible {
   width: 100%;
   min-height: 45px;
   padding: 0 13px;
-  border: 1px solid #deded9;
+  border: 1px solid var(--wt-neutral-200);
   border-radius: 12px;
   outline: none;
   color: var(--wt-text);
-  background: #fff;
+  background: var(--wt-white);
   font: inherit;
   font-size: 14px;
 }
@@ -1671,8 +1684,8 @@ textarea:focus-visible {
   margin-top: 4px;
   border: 0;
   border-radius: 12px;
-  color: #fff;
-  background: #315d4e;
+  color: var(--wt-white);
+  background: var(--wt-accent-strong);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
@@ -1694,7 +1707,7 @@ textarea:focus-visible {
   min-width: 0;
   flex-direction: column;
   align-items: center;
-  background: #fff;
+  background: var(--wt-white);
 }
 
 .chat-main.is-file-dragging {
@@ -1869,14 +1882,14 @@ textarea:focus-visible {
 }
 
 .load-older-button:disabled {
-  color: #92928c;
+  color: var(--wt-neutral-400);
   cursor: wait;
 }
 
 .message-history-error {
   align-self: center;
   margin: 5px 0 10px;
-  color: #a53932;
+  color: var(--wt-danger-strong);
   font-size: 12px;
   text-align: center;
 }
@@ -1901,7 +1914,7 @@ textarea:focus-visible {
   border: 1px solid #ededeb;
   border-radius: 17px;
   color: var(--wt-text);
-  background: #f7f7f5;
+  background: var(--wt-soft);
   box-shadow: 0 2px 8px rgb(0 0 0 / 2%);
 }
 
@@ -1968,7 +1981,7 @@ textarea:focus-visible {
   border: 1px solid #e1e3de;
   border-radius: 9px;
   color: #68746b;
-  background: #fff;
+  background: var(--wt-white);
   font-size: 9px;
   font-weight: 700;
 }
@@ -2052,7 +2065,7 @@ textarea:focus-visible {
 }
 
 .file-download-error {
-  color: #a53932;
+  color: var(--wt-danger-strong);
   font-size: 11px;
 }
 
@@ -2074,7 +2087,7 @@ textarea:focus-visible {
   overflow: hidden;
   border: 1px solid rgb(255 255 255 / 35%);
   border-radius: 16px;
-  background: #fff;
+  background: var(--wt-white);
   box-shadow: 0 18px 60px rgb(0 0 0 / 24%);
 }
 
@@ -2114,7 +2127,7 @@ textarea:focus-visible {
   align-items: center;
   gap: 8px;
   margin-top: 6px;
-  color: #92928c;
+  color: var(--wt-neutral-400);
   font-size: 10px;
 }
 
@@ -2125,7 +2138,7 @@ textarea:focus-visible {
 .composer-error {
   width: min(100% - 36px, 720px);
   margin: 0 0 8px;
-  color: #a53932;
+  color: var(--wt-danger-strong);
   font-size: 12px;
 }
 
@@ -2201,7 +2214,7 @@ textarea:focus-visible {
   flex: 0 0 auto;
   border: 0;
   border-radius: 50%;
-  color: #fff;
+  color: var(--wt-white);
   background: #c9c9c4;
   font-size: 21px;
 }
