@@ -97,6 +97,17 @@ describe('chat API', () => {
     expect(postDownload).toHaveBeenCalledWith('/chat/downloadFile', { fileId: 42, showCover: false })
   })
 
+  it('downloads user and group avatars or covers by identifier', async () => {
+    const blob = new Blob(['image bytes'], { type: 'image/png' })
+    vi.mocked(postDownload).mockResolvedValue(blob)
+
+    await expect(chatApi.downloadFile('U100')).resolves.toBe(blob)
+    expect(postDownload).toHaveBeenLastCalledWith('/chat/downloadFile', { fileId: 'U100', showCover: false })
+
+    await expect(chatApi.downloadFile('G300', true)).resolves.toBe(blob)
+    expect(postDownload).toHaveBeenLastCalledWith('/chat/downloadFile', { fileId: 'G300', showCover: true })
+  })
+
 
   it('requests older history using the message ID cursor', async () => {
     const page = { pageNo: 1, pageSize: 30, pageTotal: 1, totalCount: 1, list: [] }

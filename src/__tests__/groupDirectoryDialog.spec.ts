@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { contactApi, type GroupProfile, type UserContactEntry } from '@/api/contacts'
 import { groupApi, type GroupInfoWithMembers } from '@/api/groups'
 import GroupDirectoryDialog from '@/components/GroupDirectoryDialog.vue'
+import { chatApi } from '@/api/chat'
 
 vi.mock('@/api/contacts', () => ({
   contactApi: {
@@ -29,6 +30,8 @@ vi.mock('@/api/groups', () => ({
     dissolveGroup: vi.fn(),
   },
 }))
+
+vi.mock('@/api/chat', () => ({ chatApi: { downloadFile: vi.fn() } }))
 
 const group: UserContactEntry = {
   userId: 'U100',
@@ -60,6 +63,7 @@ const groupDetails: GroupInfoWithMembers = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(chatApi.downloadFile).mockRejectedValue(new Error('Avatar unavailable in unit tests'))
   vi.mocked(contactApi.loadContacts).mockResolvedValue([group])
   vi.mocked(contactApi.loadOwnedGroups).mockResolvedValue([])
   vi.mocked(groupApi.create).mockResolvedValue(null)

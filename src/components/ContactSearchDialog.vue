@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { contactApi, type ContactSearchResult } from '@/api/contacts'
+import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
 
 const props = defineProps<{
   currentUserId: string
@@ -147,9 +148,11 @@ async function sendRequest() {
 
       <section v-if="result" class="contact-result" data-testid="contact-result" aria-label="搜索结果">
         <div class="contact-result-heading">
-          <span class="contact-result-avatar" aria-hidden="true">
-            {{ (result.nickName || result.contactId).slice(0, 1) }}
-          </span>
+          <AvatarThumbnail
+            class="contact-result-avatar"
+            :file-id="result.contactId"
+            :fallback="(result.nickName || result.contactId).slice(0, 1)"
+          />
           <div class="contact-result-copy">
             <strong>{{ result.nickName || 'WeTalk 用户' }}</strong>
             <span>{{ result.contactId }}</span>

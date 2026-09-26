@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { contactApi, type UserContactEntry } from '@/api/contacts'
 import { groupApi, type GroupInfoWithMembers } from '@/api/groups'
+import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
 
 const props = defineProps<{ currentUserId?: string; refreshKey?: number }>()
 
@@ -21,6 +22,7 @@ const selectedGroupId = ref('')
 const groupInfo = ref<GroupInfoWithMembers | null>(null)
 const groupProfile = computed(() => groupInfo.value?.groupInfo || null)
 const groupMembers = computed(() => groupInfo.value?.userContactList || [])
+const avatarRevision = ref(0)
 const isGroupOwner = computed(() => Boolean(props.currentUserId && groupProfile.value?.groupOwnId === props.currentUserId))
 const loading = ref(true)
 const profileLoading = ref(false)
@@ -220,6 +222,7 @@ async function updateGroup() {
       joinType: editForm.joinType,
       avatarFile: avatar,
     })
+    avatarRevision.value += 1
     editNotice.value = '群资料已更新'
     editGroupOpen.value = false
     emit('groupChanged')
@@ -439,7 +442,12 @@ function formatGroupTime(value?: string | null) {
             type="button"
             @click="viewGroup(group)"
           >
-            <span class="group-directory-avatar" aria-hidden="true">{{ (group.groupName || group.groupId).slice(0, 1) }}</span>
+            <AvatarThumbnail
+              class="group-directory-avatar"
+              :file-id="group.groupId"
+              :fallback="(group.groupName || group.groupId).slice(0, 1)"
+              :refresh-key="avatarRevision"
+            />
             <span class="contact-result-copy">
               <strong>{{ group.groupName || group.groupId }}</strong>
               <span>{{ group.memberCount || 0 }} 位成员 · {{ group.groupId }}</span>
@@ -451,7 +459,22 @@ function formatGroupTime(value?: string | null) {
           <p class="eyebrow">群聊资料</p>
           <p v-if="profileLoading" class="contact-status" role="status">正在读取群资料…</p>
           <p v-else-if="profileError" class="contact-error" role="alert">{{ profileError }}</p>
-          <dl v-else-if="groupProfile" class="contact-profile-details">
+          <AvatarThumbnail
+            v-if="groupProfile"
+            class="profile-cover-thumbnail"
+            :file-id="groupProfile.groupId"
+            :show-cover="true"
+            :refresh-key="avatarRevision"
+            test-id="group-profile-cover"
+          />
+          <AvatarThumbnail
+            v-if="groupProfile"
+            class="contact-profile-avatar"
+            :file-id="groupProfile.groupId"
+            :fallback="groupProfile.groupName.slice(0, 1)"
+            :refresh-key="avatarRevision"
+          />
+          <dl v-if="groupProfile" class="contact-profile-details">
             <div><dt>群名称</dt><dd>{{ groupProfile.groupName }}</dd></div>
             <div><dt>群编号</dt><dd>{{ groupProfile.groupId }}</dd></div>
             <div><dt>群主编号</dt><dd>{{ groupProfile.groupOwnId }}</dd></div>
@@ -503,9 +526,11 @@ function formatGroupTime(value?: string | null) {
               <span>{{ groupMembers.length }} / {{ groupProfile?.memberCount || groupMembers.length }}</span>
             </header>
             <div v-for="member in groupMembers" :key="member.userId" class="group-member-row">
-              <span class="group-member-avatar" aria-hidden="true">
-                {{ (member.contactName || member.userId).slice(0, 1) }}
-              </span>
+              <AvatarThumbnail
+                class="group-member-avatar"
+                :file-id="member.userId"
+                :fallback="(member.contactName || member.userId).slice(0, 1)"
+              />
               <span class="group-member-copy">
                 <strong>{{ member.contactName || member.userId }}</strong>
                 <small>{{ member.userId }}</small>

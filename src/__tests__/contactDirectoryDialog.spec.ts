@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { contactApi, type ContactProfile, type UserContactEntry } from '@/api/contacts'
 import ContactDirectoryDialog from '@/components/ContactDirectoryDialog.vue'
+import { chatApi } from '@/api/chat'
 
 vi.mock('@/api/contacts', () => ({
   contactApi: {
@@ -15,6 +16,8 @@ vi.mock('@/api/contacts', () => ({
     blockContact: vi.fn(),
   },
 }))
+
+vi.mock('@/api/chat', () => ({ chatApi: { downloadFile: vi.fn() } }))
 
 const friend: UserContactEntry = {
   userId: 'U100',
@@ -35,6 +38,7 @@ const profile: ContactProfile = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(chatApi.downloadFile).mockRejectedValue(new Error('Avatar unavailable in unit tests'))
   vi.mocked(contactApi.loadContacts).mockResolvedValue([friend])
   vi.mocked(contactApi.getContactUserInfo).mockResolvedValue(profile)
   vi.mocked(contactApi.deleteContact).mockResolvedValue(null)

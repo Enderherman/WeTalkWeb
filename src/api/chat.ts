@@ -26,8 +26,8 @@ export const chatApi = {
       onUploadProgress: onProgress,
     })
   },
-  downloadFile: (messageId: number): Promise<Blob> =>
-    postDownload('/chat/downloadFile', { fileId: messageId, showCover: false }),
+  downloadFile: (fileId: string | number, showCover = false): Promise<Blob> =>
+    postDownload('/chat/downloadFile', { fileId, showCover }),
   loadHistory: (
     contactId: string,
     beforeMessageId: number | null = null,

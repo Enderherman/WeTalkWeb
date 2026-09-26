@@ -621,7 +621,7 @@ describe('authentication flow', () => {
 
       expect(chatApi.downloadFile).toHaveBeenCalledWith(605)
       expect(wrapper.find('[data-testid="media-preview-overlay"] video').exists()).toBe(true)
-      expect(createObjectURL.mock.calls[0]?.[0].type).toBe('video/mp4')
+      expect(createObjectURL.mock.calls.map(([blob]) => blob.type)).toContain('video/mp4')
 
       await wrapper.get('[aria-label="关闭媒体预览"]').trigger('click')
       expect(revokeObjectURL).toHaveBeenCalledWith('blob:video-preview')
@@ -678,7 +678,7 @@ describe('authentication flow', () => {
 
       expect(chatApi.downloadFile).toHaveBeenCalledWith(605)
       expect(wrapper.find('[data-testid="media-preview-overlay"] video').exists()).toBe(true)
-      expect(createObjectURL.mock.calls[0]?.[0].type).toBe('video/mp4')
+      expect(createObjectURL.mock.calls.map(([blob]) => blob.type)).toContain('video/mp4')
 
       await wrapper.get('[aria-label="关闭媒体预览"]').trigger('click')
       expect(revokeObjectURL).toHaveBeenCalledWith('blob:video-preview')

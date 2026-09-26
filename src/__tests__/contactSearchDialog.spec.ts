@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { contactApi, type ContactSearchResult } from '@/api/contacts'
 import ContactSearchDialog from '@/components/ContactSearchDialog.vue'
+import { chatApi } from '@/api/chat'
 
 vi.mock('@/api/contacts', () => ({
   contactApi: {
@@ -9,6 +10,8 @@ vi.mock('@/api/contacts', () => ({
     applyAdd: vi.fn(),
   },
 }))
+
+vi.mock('@/api/chat', () => ({ chatApi: { downloadFile: vi.fn() } }))
 
 const result: ContactSearchResult = {
   contactId: 'U200',
@@ -20,6 +23,7 @@ const result: ContactSearchResult = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(chatApi.downloadFile).mockRejectedValue(new Error('Avatar unavailable in unit tests'))
 })
 
 function mountDialog() {

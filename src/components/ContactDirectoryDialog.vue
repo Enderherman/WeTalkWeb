@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { contactApi, type ContactProfile, type UserContactEntry } from '@/api/contacts'
+import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
 
 const emit = defineEmits<{
   close: []
@@ -138,9 +139,11 @@ function sexLabel(sex?: number | null) {
             :data-testid="`contact-${contact.contactId}`"
           >
             <button class="contact-directory-select" type="button" @click="viewContact(contact)">
-              <span class="contact-result-avatar" aria-hidden="true">
-                {{ (contact.contactName || contact.contactId).slice(0, 1) }}
-              </span>
+              <AvatarThumbnail
+                class="contact-result-avatar"
+                :file-id="contact.contactId"
+                :fallback="(contact.contactName || contact.contactId).slice(0, 1)"
+              />
               <span class="contact-result-copy">
                 <strong>{{ contact.contactName || contact.contactId }}</strong>
                 <span>{{ contact.contactId }}</span>
@@ -169,7 +172,21 @@ function sexLabel(sex?: number | null) {
           <p class="eyebrow">联系人资料</p>
           <p v-if="profileLoading" class="contact-status" role="status">正在读取资料…</p>
           <p v-else-if="profileError" class="contact-error" role="alert">{{ profileError }}</p>
-          <dl v-else-if="selectedProfile" class="contact-profile-details">
+          <AvatarThumbnail
+            v-if="selectedProfile"
+            class="profile-cover-thumbnail"
+            :file-id="selectedProfile.userId"
+            :show-cover="true"
+            :refresh-key="selectedProfile.userId"
+            test-id="contact-profile-cover"
+          />
+          <AvatarThumbnail
+            v-if="selectedProfile"
+            class="contact-profile-avatar"
+            :file-id="selectedProfile.userId"
+            :fallback="(selectedProfile.nickName || selectedContact?.contactName || selectedProfile.userId).slice(0, 1)"
+          />
+          <dl v-if="selectedProfile" class="contact-profile-details">
             <div><dt>昵称</dt><dd>{{ selectedProfile.nickName || selectedContact?.contactName || '—' }}</dd></div>
             <div><dt>账号编号</dt><dd>{{ selectedProfile.userId }}</dd></div>
             <div><dt>性别</dt><dd>{{ sexLabel(selectedProfile.sex) }}</dd></div>

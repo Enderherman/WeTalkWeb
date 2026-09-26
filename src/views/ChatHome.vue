@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { authApi } from '@/api/auth'
 import type { UserProfile } from '@/api/auth'
 import { chatApi } from '@/api/chat'
+import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
 import ContactApplicationsDialog from '@/components/ContactApplicationsDialog.vue'
 import ContactDirectoryDialog from '@/components/ContactDirectoryDialog.vue'
 import ContactSearchDialog from '@/components/ContactSearchDialog.vue'
@@ -554,7 +555,11 @@ async function signOut() {
             type="button"
             @click="selectedSessionId = session.sessionId"
           >
-            <span class="session-avatar" aria-hidden="true">{{ (session.contactName || 'W').slice(0, 1) }}</span>
+            <AvatarThumbnail
+              class="session-avatar"
+              :file-id="session.contactId"
+              :fallback="(session.contactName || 'W').slice(0, 1)"
+            />
             <span class="session-entry-copy">
               <strong>{{ session.contactName || session.contactId }}</strong>
               <small>{{ session.lastMessage || '开始一段新对话' }}</small>
@@ -584,7 +589,11 @@ async function signOut() {
           aria-haspopup="dialog"
           @click="openProfile"
         >
-          <span class="profile-avatar" aria-hidden="true">{{ avatarInitial }}</span>
+          <AvatarThumbnail
+            class="profile-avatar"
+            :file-id="profile?.userId || authStore.session?.userId"
+            :fallback="avatarInitial"
+          />
           <span class="profile-copy">
             <strong>{{ displayName }}</strong>
             <span>{{ profile?.email || authStore.session?.email }}</span>
@@ -875,6 +884,14 @@ async function signOut() {
 
         <p v-if="profileLoading" class="profile-status" role="status">正在读取个人资料…</p>
         <p v-else-if="profileError" class="profile-load-error" role="alert">{{ profileError }}</p>
+
+        <AvatarThumbnail
+          class="profile-cover-thumbnail"
+          :file-id="profile?.userId || authStore.session?.userId"
+          :show-cover="true"
+          :refresh-key="profile?.userId || authStore.session?.userId"
+          test-id="profile-cover"
+        />
 
         <dl class="profile-details">
           <div>
