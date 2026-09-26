@@ -61,6 +61,29 @@ export interface AdminGroupSearch {
   groupOwnIdFuzzy?: string
 }
 
+export interface BeautyAccount {
+  id: number
+  email: string
+  userId: string
+  status: 0 | 1
+}
+
+export interface BeautyAccountPage {
+  totalCount: number
+  pageSize: number
+  pageNo: number
+  pageTotal: number
+  list: BeautyAccount[]
+}
+
+export interface BeautyAccountSearch {
+  pageNo?: number
+  pageSize?: number
+  emailFuzzy?: string
+  userIdFuzzy?: string
+  status?: 0 | 1
+}
+
 export const adminApi = {
   loadUsers: (query: AdminUserSearch = {}): Promise<AdminUserPage> => {
     const values: Record<string, string | number | boolean | null | undefined> = {
@@ -106,6 +129,20 @@ export const adminApi = {
     }
     return postForm<AdminGroupPage>('/admin/loadGroup', values)
   },
+  loadBeautyAccounts: (query: BeautyAccountSearch = {}): Promise<BeautyAccountPage> => {
+    const values: Record<string, string | number | boolean | null | undefined> = {
+      pageNo: query.pageNo,
+      pageSize: query.pageSize,
+      emailFuzzy: query.emailFuzzy,
+      userIdFuzzy: query.userIdFuzzy,
+      status: query.status,
+    }
+    return postForm<BeautyAccountPage>('/userInfoBeauty/loadBeautyAccountList', values)
+  },
+  saveBeautyAccount: (values: { id?: number; email: string; userId: string; status?: 0 | 1 }): Promise<null> =>
+    postForm<null>('/userInfoBeauty/saveBeautyAccount', values),
+  deleteBeautyAccount: (id: number): Promise<null> =>
+    postForm<null>('/userInfoBeauty/deleteBeautyAccount', { id }),
   dissolveGroup: (groupOwnerId: string, groupId: string): Promise<null> =>
     postForm<null>('/admin/dissolutionGroup', { groupOwnerId, groupId }),
 }

@@ -2754,6 +2754,140 @@ textarea:focus-visible {
   font-size: 13px;
 }
 
+.admin-user-search select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--wt-line);
+  border-radius: 10px;
+  background: var(--wt-white);
+  color: var(--wt-text);
+  font-size: 13px;
+}
+
+.beauty-search {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto auto;
+}
+
+.beauty-add-button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--wt-accent);
+  border-radius: 10px;
+  background: var(--wt-accent);
+  color: var(--wt-white);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.beauty-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--wt-line);
+  border-radius: 14px;
+  background: var(--wt-white);
+}
+
+.beauty-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+
+.beauty-table th,
+.beauty-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--wt-line);
+}
+
+.beauty-table th {
+  background: var(--wt-surface);
+  color: var(--wt-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.beauty-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.beauty-id-cell {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.beauty-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.beauty-row-actions button,
+.beauty-delete-confirm button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--wt-line);
+  border-radius: 9px;
+  background: var(--wt-white);
+  color: var(--wt-text);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.beauty-delete-confirm {
+  margin-top: 8px;
+}
+
+.beauty-dialog {
+  display: grid;
+  width: min(100%, 520px);
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid var(--wt-line);
+  border-radius: 20px;
+  background: var(--wt-white);
+  box-shadow: 0 24px 80px rgb(20 24 28 / 22%);
+}
+
+.beauty-dialog-hint {
+  margin: 0;
+  color: var(--wt-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.beauty-edit-form {
+  display: grid;
+  gap: 8px;
+  color: var(--wt-muted);
+  font-size: 12px;
+}
+
+.beauty-edit-form input {
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid var(--wt-line);
+  border-radius: 10px;
+  background: var(--wt-white);
+  color: var(--wt-text);
+  font-size: 13px;
+}
+
+.beauty-edit-form input:focus-visible,
+.admin-user-search select:focus-visible {
+  border-color: var(--wt-accent);
+  outline: 2px solid color-mix(in srgb, var(--wt-accent) 22%, transparent);
+  outline-offset: 1px;
+}
+
+.beauty-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 .admin-user-search button,
 .admin-user-actions button,
 .admin-action-confirm button,
@@ -3039,7 +3173,15 @@ textarea:focus-visible {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
+  .beauty-search {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
   .admin-user-search label:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+
+  .beauty-search label:nth-child(3) {
     grid-column: 1 / -1;
   }
 
@@ -3081,6 +3223,10 @@ textarea:focus-visible {
 
   .admin-settings-field-wide {
     grid-column: auto;
+  }
+
+  .beauty-dialog {
+    padding: 16px;
   }
 
   .admin-robot-image-controls .profile-cover-thumbnail {

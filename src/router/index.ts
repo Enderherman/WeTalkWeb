@@ -11,6 +11,7 @@ const router = createRouter({
     { path: '/admin/users', name: 'admin-users', component: () => import('@/views/AdminUsersView.vue'), meta: { adminOnly: true } },
     { path: '/admin/groups', name: 'admin-groups', component: () => import('@/views/AdminGroupsView.vue'), meta: { adminOnly: true } },
     { path: '/admin/settings', name: 'admin-settings', component: () => import('@/views/AdminSettingsView.vue'), meta: { adminOnly: true } },
+    { path: '/admin/beauty-accounts', name: 'admin-beauty-accounts', component: () => import('@/views/AdminBeautyAccountsView.vue'), meta: { adminOnly: true } },
     { path: '/about', name: 'about', component: () => import('@/views/AboutView.vue') },
     { path: '/service-error', name: 'service-error', component: () => import('@/views/ServiceErrorView.vue') },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') },

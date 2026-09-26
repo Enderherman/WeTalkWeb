@@ -88,4 +88,29 @@ describe('admin API', () => {
     expect(body?.get('robotAvatarFile')).toBe(avatar)
     expect(body?.get('robotAvatarCoverFile')).toBe(cover)
   })
+
+  it('filters, saves, and deletes beauty accounts through protected admin endpoints', async () => {
+    const page = { totalCount: 1, pageSize: 20, pageNo: 1, pageTotal: 1, list: [] }
+    vi.mocked(postForm).mockResolvedValueOnce(page).mockResolvedValue(null)
+
+    await expect(adminApi.loadBeautyAccounts({ pageNo: 1, pageSize: 20, emailFuzzy: 'reserved', status: 0 })).resolves.toEqual(page)
+    expect(postForm).toHaveBeenNthCalledWith(1, '/userInfoBeauty/loadBeautyAccountList', {
+      pageNo: 1,
+      pageSize: 20,
+      emailFuzzy: 'reserved',
+      userIdFuzzy: undefined,
+      status: 0,
+    })
+
+    await adminApi.saveBeautyAccount({ id: 8, email: 'reserved@example.invalid', userId: '12345678901', status: 0 })
+    expect(postForm).toHaveBeenNthCalledWith(2, '/userInfoBeauty/saveBeautyAccount', {
+      id: 8,
+      email: 'reserved@example.invalid',
+      userId: '12345678901',
+      status: 0,
+    })
+
+    await adminApi.deleteBeautyAccount(8)
+    expect(postForm).toHaveBeenNthCalledWith(3, '/userInfoBeauty/deleteBeautyAccount', { id: 8 })
+  })
 })

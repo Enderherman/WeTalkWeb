@@ -117,6 +117,7 @@ function formatDate(value?: string | null) {
       <div class="admin-page-links">
         <button class="about-back-button" data-testid="admin-groups-link" type="button" @click="router.push({ name: 'admin-groups' })">群聊管理</button>
         <button class="about-back-button" data-testid="admin-settings-link" type="button" @click="router.push({ name: 'admin-settings' })">系统设置</button>
+        <button class="about-back-button" data-testid="admin-beauty-link" type="button" @click="router.push({ name: 'admin-beauty-accounts' })">靓号管理</button>
         <button class="about-back-button" data-testid="admin-back-to-chat" type="button" @click="router.push({ name: 'chat' })">返回聊天</button>
       </div>
     </header>

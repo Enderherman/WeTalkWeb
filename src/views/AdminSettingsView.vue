@@ -143,6 +143,7 @@ async function saveSettings() {
       <div class="admin-page-links">
         <button class="about-back-button" data-testid="admin-settings-users" type="button" @click="router.push({ name: 'admin-users' })">用户管理</button>
         <button class="about-back-button" data-testid="admin-settings-groups" type="button" @click="router.push({ name: 'admin-groups' })">群聊管理</button>
+        <button class="about-back-button" data-testid="admin-beauty-link" type="button" @click="router.push({ name: 'admin-beauty-accounts' })">靓号管理</button>
         <button class="about-back-button" data-testid="admin-settings-back" type="button" @click="router.push({ name: 'chat' })">返回聊天</button>
       </div>
     </header>
