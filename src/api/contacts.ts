@@ -60,7 +60,7 @@ export interface GroupProfile {
   groupNotice?: string | null
   joinType: 0 | 1
   status: number
-  memberCount: number
+  memberCount?: number | null
 }
 
 export const contactApi = {

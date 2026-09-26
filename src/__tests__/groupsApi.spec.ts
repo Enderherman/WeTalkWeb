@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { postMultipart } from '@/api/http'
+import { postForm, postMultipart } from '@/api/http'
 import { groupApi } from '@/api/groups'
 
-vi.mock('@/api/http', () => ({ postMultipart: vi.fn() }))
+vi.mock('@/api/http', () => ({ postForm: vi.fn(), postMultipart: vi.fn() }))
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -26,5 +26,13 @@ describe('group API', () => {
     expect(body.get('joinType')).toBe('1')
     expect(body.get('avatarFile')).toBe(avatarFile)
     expect(body.has('coverFile')).toBe(false)
+  })
+
+  it('loads group details and member rows for the directory', async () => {
+    const details = { groupInfo: { groupId: 'G300' }, userContactList: [{ userId: 'U100', contactId: 'G300' }] }
+    vi.mocked(postForm).mockResolvedValue(details)
+
+    await expect(groupApi.getInfoForChat('G300')).resolves.toEqual(details)
+    expect(postForm).toHaveBeenCalledWith('/group/getGroupInfo4Chat', { groupId: 'G300' })
   })
 })

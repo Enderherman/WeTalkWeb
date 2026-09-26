@@ -183,6 +183,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
 
   it('documents group operations and multipart file exchanges', () => {
     expect(contract.components.schemas.GroupInfo.properties.joinType.enum).toEqual([0, 1])
+    expect(contract.components.schemas.GroupInfo.properties.memberCount.type).toEqual(['integer', 'null'])
     expect(contract.components.schemas.SaveGroupRequest.properties.groupName.maxLength).toBe(32)
     expect(contract.components.schemas.SaveGroupRequest.properties.groupNotice.maxLength).toBe(500)
     expect(contract.components.schemas.SaveGroupRequest.properties.avatarFile.format).toBe('binary')

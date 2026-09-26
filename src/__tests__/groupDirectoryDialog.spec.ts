@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { contactApi, type GroupProfile, type UserContactEntry } from '@/api/contacts'
-import { groupApi } from '@/api/groups'
+import { groupApi, type GroupInfoWithMembers } from '@/api/groups'
 import GroupDirectoryDialog from '@/components/GroupDirectoryDialog.vue'
 
 vi.mock('@/api/contacts', () => ({
@@ -19,7 +19,7 @@ vi.mock('@/api/contacts', () => ({
   },
 }))
 
-vi.mock('@/api/groups', () => ({ groupApi: { create: vi.fn() } }))
+vi.mock('@/api/groups', () => ({ groupApi: { create: vi.fn(), getInfoForChat: vi.fn() } }))
 
 const group: UserContactEntry = {
   userId: 'U100',
@@ -27,7 +27,7 @@ const group: UserContactEntry = {
   contactType: 1,
   status: 1,
   contactName: 'Student Group',
-  memberCount: 5,
+  memberCount: null,
 }
 
 const profile: GroupProfile = {
@@ -38,15 +38,23 @@ const profile: GroupProfile = {
   groupNotice: '课程讨论群',
   joinType: 1,
   status: 1,
-  memberCount: 5,
+  memberCount: null,
+}
+
+const groupDetails: GroupInfoWithMembers = {
+  groupInfo: profile,
+  userContactList: [
+    { userId: 'U100', contactId: 'G300', contactName: 'Owner' },
+    { userId: 'U200', contactId: 'G300', contactName: 'Member' },
+  ],
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(contactApi.loadContacts).mockResolvedValue([group])
   vi.mocked(contactApi.loadOwnedGroups).mockResolvedValue([])
-  vi.mocked(contactApi.getGroupInfo).mockResolvedValue(profile)
   vi.mocked(groupApi.create).mockResolvedValue(null)
+  vi.mocked(groupApi.getInfoForChat).mockResolvedValue(groupDetails)
 })
 
 describe('group directory dialog', () => {
@@ -60,9 +68,11 @@ describe('group directory dialog', () => {
     await wrapper.get('[data-testid="group-G300"]').trigger('click')
     await flushPromises()
 
-    expect(contactApi.getGroupInfo).toHaveBeenCalledWith('G300')
+    expect(groupApi.getInfoForChat).toHaveBeenCalledWith('G300')
     expect(wrapper.get('.contact-profile-panel').text()).toContain('课程讨论群')
-    expect(wrapper.get('.contact-profile-panel').text()).toContain('5 人')
+    expect(wrapper.get('.contact-profile-panel').text()).toContain('2 人')
+    expect(wrapper.text()).toContain('Member')
+    expect(wrapper.text()).toContain('群主')
   })
 
   it('shows an empty state when the account has no groups', async () => {

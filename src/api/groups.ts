@@ -1,10 +1,23 @@
-import { postMultipart } from '@/api/http'
+import { postForm, postMultipart } from '@/api/http'
+import type { GroupProfile } from '@/api/contacts'
 
 export interface SaveGroupInput {
   groupName: string
   groupNotice: string
   joinType: 0 | 1
   avatarFile: File
+}
+
+export interface GroupMember {
+  userId: string
+  contactId: string
+  contactName?: string | null
+  sex?: number | null
+}
+
+export interface GroupInfoWithMembers {
+  groupInfo: Omit<GroupProfile, 'memberCount'> & { memberCount?: number | null }
+  userContactList: GroupMember[]
 }
 
 export const groupApi = {
@@ -16,4 +29,6 @@ export const groupApi = {
     body.set('avatarFile', input.avatarFile)
     return postMultipart<null>('/group/saveGroup', body)
   },
+  getInfoForChat: (groupId: string): Promise<GroupInfoWithMembers> =>
+    postForm<GroupInfoWithMembers>('/group/getGroupInfo4Chat', { groupId }),
 }

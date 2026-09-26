@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
-import { contactApi, type GroupProfile } from '@/api/contacts'
-import { groupApi } from '@/api/groups'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { contactApi } from '@/api/contacts'
+import { groupApi, type GroupInfoWithMembers } from '@/api/groups'
 
 const emit = defineEmits<{
   close: []
@@ -16,7 +16,9 @@ interface GroupDirectoryEntry {
 
 const groups = ref<GroupDirectoryEntry[]>([])
 const selectedGroupId = ref('')
-const groupProfile = ref<GroupProfile | null>(null)
+const groupInfo = ref<GroupInfoWithMembers | null>(null)
+const groupProfile = computed(() => groupInfo.value?.groupInfo || null)
+const groupMembers = computed(() => groupInfo.value?.userContactList || [])
 const loading = ref(true)
 const profileLoading = ref(false)
 const loadError = ref('')
@@ -45,7 +47,7 @@ async function loadGroups() {
       ...ownedGroups.map((group) => ({
         groupId: group.groupId,
         groupName: group.groupName,
-        memberCount: group.memberCount,
+        memberCount: group.memberCount || 0,
       })),
       ...memberships
         .filter((group) => !ownedIds.has(group.contactId))
@@ -64,13 +66,13 @@ async function loadGroups() {
 
 async function viewGroup(group: GroupDirectoryEntry) {
   selectedGroupId.value = group.groupId
-  groupProfile.value = null
+  groupInfo.value = null
   profileError.value = ''
   profileLoading.value = true
   const requestId = ++profileRequestId
   try {
-    const result = await contactApi.getGroupInfo(group.groupId)
-    if (requestId === profileRequestId && selectedGroupId.value === group.groupId) groupProfile.value = result
+    const result = await groupApi.getInfoForChat(group.groupId)
+    if (requestId === profileRequestId && selectedGroupId.value === group.groupId) groupInfo.value = result
   } catch (error: unknown) {
     if (requestId === profileRequestId) profileError.value = error instanceof Error ? error.message : '群资料暂时无法读取'
   } finally {
@@ -256,11 +258,27 @@ function formatGroupTime(value?: string | null) {
             <div><dt>群名称</dt><dd>{{ groupProfile.groupName }}</dd></div>
             <div><dt>群编号</dt><dd>{{ groupProfile.groupId }}</dd></div>
             <div><dt>群主编号</dt><dd>{{ groupProfile.groupOwnId }}</dd></div>
-            <div><dt>成员</dt><dd>{{ groupProfile.memberCount }} 人</dd></div>
+            <div><dt>成员</dt><dd>{{ groupProfile.memberCount ?? groupMembers.length }} 人</dd></div>
             <div><dt>加入方式</dt><dd>{{ groupProfile.joinType === 0 ? '无需审核' : '需要审核' }}</dd></div>
             <div><dt>创建日期</dt><dd>{{ formatGroupTime(groupProfile.createTime) }}</dd></div>
             <div class="group-notice-row"><dt>群公告</dt><dd>{{ groupProfile.groupNotice || '暂无公告' }}</dd></div>
           </dl>
+          <section v-if="groupInfo" class="group-members-section" aria-label="群成员">
+            <header>
+              <strong>群成员</strong>
+              <span>{{ groupMembers.length }} / {{ groupProfile?.memberCount || groupMembers.length }}</span>
+            </header>
+            <div v-for="member in groupMembers" :key="member.userId" class="group-member-row">
+              <span class="group-member-avatar" aria-hidden="true">
+                {{ (member.contactName || member.userId).slice(0, 1) }}
+              </span>
+              <span class="group-member-copy">
+                <strong>{{ member.contactName || member.userId }}</strong>
+                <small>{{ member.userId }}</small>
+              </span>
+              <span v-if="member.userId === groupProfile?.groupOwnId" class="group-owner-badge">群主</span>
+            </div>
+          </section>
         </section>
       </div>
     </section>

@@ -1969,7 +1969,7 @@
           "groupNotice": { "type": "string" },
           "joinType": { "type": "integer", "enum": [0, 1] },
           "status": { "type": "integer", "enum": [0, 1], "description": "0 dissolved, 1 active." },
-          "memberCount": { "type": "integer" },
+          "memberCount": { "type": ["integer", "null"], "description": "The chat detail endpoint may leave this null; use userContactList.length instead." },
           "groupOwnerNickName": { "type": "string" }
         }
       },

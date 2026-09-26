@@ -1252,6 +1252,81 @@ textarea:focus-visible {
   white-space: pre-wrap;
 }
 
+.group-members-section {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid #ecece8;
+}
+
+.group-members-section > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--wt-text);
+  font-size: 11px;
+}
+
+.group-members-section > header span {
+  color: var(--wt-muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.group-member-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 0;
+}
+
+.group-member-avatar {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #315d4e;
+  background: #e2ebe5;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.group-member-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+
+.group-member-copy strong,
+.group-member-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-member-copy strong {
+  color: var(--wt-text);
+  font-size: 10px;
+}
+
+.group-member-copy small {
+  color: var(--wt-muted);
+  font-size: 9px;
+}
+
+.group-owner-badge {
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: #52685b;
+  background: #edf3ef;
+  font-size: 9px;
+}
+
 .profile-dialog-header {
   display: flex;
   align-items: flex-start;
