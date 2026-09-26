@@ -58,6 +58,17 @@ export interface AdminGroupSearch {
   groupOwnIdFuzzy?: string
 }
 
+export interface SystemSettings {
+  maxGroupCount: number
+  maxGroupMemberCount: number
+  maxImageSize: number
+  maxVideoSize: number
+  maxFileSize: number
+  robotUid: string
+  robotNickName: string
+  robotWelcome: string
+}
+
 export const adminApi = {
   loadUsers: (query: AdminUserSearch = {}): Promise<AdminUserPage> => {
     const values: Record<string, string | number | boolean | null | undefined> = {
@@ -73,6 +84,11 @@ export const adminApi = {
     postForm<null>('/admin/updateUserStatus', { userId, status }),
   forceOffline: (userId: string): Promise<null> =>
     postForm<null>('/admin/forcedOffOnline', { userId }),
+  loadSystemSettings: (): Promise<SystemSettings> => postForm<SystemSettings>('/admin/getSystemSetting', {}),
+  saveSystemSettings: (settings: SystemSettings): Promise<null> => {
+    const values: Record<string, string | number | boolean | null | undefined> = { ...settings }
+    return postForm<null>('/admin/saveSystemSetting', values)
+  },
   loadGroups: (query: AdminGroupSearch = {}): Promise<AdminGroupPage> => {
     const values: Record<string, string | number | boolean | null | undefined> = {
       pageNo: query.pageNo,

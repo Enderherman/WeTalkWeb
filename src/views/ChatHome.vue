@@ -386,6 +386,11 @@ function openAdminGroups() {
   void router.push({ name: 'admin-groups' })
 }
 
+function openAdminSettings() {
+  sidebarOpen.value = false
+  void router.push({ name: 'admin-settings' })
+}
+
 function openContactSearch() {
   sidebarOpen.value = false
   contactSearchOpen.value = true
@@ -811,6 +816,13 @@ async function signOut() {
           type="button"
           @click="openAdminGroups"
         >管理群聊</button>
+        <button
+          v-if="authStore.session?.admin"
+          class="sidebar-admin-button"
+          data-testid="open-admin-settings"
+          type="button"
+          @click="openAdminSettings"
+        >系统设置</button>
         <button
           class="icon-button signout-button"
           data-testid="signout"

@@ -42,4 +42,24 @@ describe('admin API', () => {
     await expect(adminApi.dissolveGroup('U100', 'G300')).resolves.toBe(page)
     expect(postForm).toHaveBeenNthCalledWith(2, '/admin/dissolutionGroup', { groupOwnerId: 'U100', groupId: 'G300' })
   })
+
+  it('loads and saves the complete system settings DTO', async () => {
+    const settings = {
+      maxGroupCount: 5,
+      maxGroupMemberCount: 500,
+      maxImageSize: 200,
+      maxVideoSize: 500,
+      maxFileSize: 5000,
+      robotUid: 'Urobot',
+      robotNickName: 'WeTalk Robot',
+      robotWelcome: 'Welcome',
+    }
+    vi.mocked(postForm).mockResolvedValue(settings)
+
+    await expect(adminApi.loadSystemSettings()).resolves.toEqual(settings)
+    expect(postForm).toHaveBeenNthCalledWith(1, '/admin/getSystemSetting', {})
+
+    await expect(adminApi.saveSystemSettings(settings)).resolves.toBe(settings)
+    expect(postForm).toHaveBeenNthCalledWith(2, '/admin/saveSystemSetting', settings)
+  })
 })
