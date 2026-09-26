@@ -350,7 +350,7 @@
                 "required": ["contactId"],
                 "properties": {
                   "contactId": { "type": "string", "description": "User ID or group ID." },
-                  "applyInfo": { "type": "string" }
+                  "applyInfo": { "type": "string", "maxLength": 100, "description": "Optional greeting, limited by the database column length." }
                 }
               }
             }
@@ -1856,12 +1856,12 @@
         "type": "object",
         "properties": {
           "contactId": { "type": "string" },
-          "contactType": { "type": "string", "description": "Backend contact-type marker." },
-          "nickName": { "type": "string" },
-          "status": { "type": "integer", "enum": [0, 1, 2, 3, 4, 5, 6, 7] },
-          "statusName": { "type": "string" },
-          "sex": { "type": "integer" },
-          "areaName": { "type": "string" }
+          "contactType": { "type": "string", "enum": ["USER", "GROUP"], "description": "Backend contact-type marker." },
+          "nickName": { "type": ["string", "null"] },
+          "status": { "type": ["integer", "null"], "enum": [0, 1, 2, 3, 4, 5, 6, 7, null] },
+          "statusName": { "type": ["string", "null"] },
+          "sex": { "type": ["integer", "null"] },
+          "areaName": { "type": ["string", "null"] }
         }
       },
       "ContactSearchResponse": {
@@ -1880,7 +1880,7 @@
           {
             "type": "object",
             "required": ["code", "data"],
-            "properties": { "code": { "const": 200 }, "data": { "type": "integer" } }
+            "properties": { "code": { "const": 200 }, "data": { "type": ["integer", "null"], "enum": [0, 1, null] } }
           }
         ]
       },

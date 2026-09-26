@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { authApi } from '@/api/auth'
 import type { UserProfile } from '@/api/auth'
 import { chatApi } from '@/api/chat'
+import ContactSearchDialog from '@/components/ContactSearchDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import { textMessageCache } from '@/storage/textMessageCache'
@@ -16,6 +17,7 @@ const chatStore = useChatStore()
 const sidebarOpen = ref(false)
 const signingOut = ref(false)
 const selectedSessionId = ref('')
+const contactSearchOpen = ref(false)
 const profileOpen = ref(false)
 const profileLoading = ref(false)
 const profileError = ref('')
@@ -182,6 +184,16 @@ function openProfile() {
   passwordError.value = ''
 }
 
+function openContactSearch() {
+  sidebarOpen.value = false
+  contactSearchOpen.value = true
+}
+
+function refreshChatAfterContactAdded() {
+  const session = authStore.session
+  if (session?.token) chatStore.connect(session.token, session.userId)
+}
+
 function closeProfile() {
   if (changingPassword.value) return
   profileOpen.value = false
@@ -283,6 +295,15 @@ async function signOut() {
       <button class="new-chat-button" type="button" disabled>
         <span aria-hidden="true">＋</span>
         新聊天
+      </button>
+      <button
+        class="new-chat-button contact-add-button"
+        data-testid="open-contact-search"
+        type="button"
+        @click="openContactSearch"
+      >
+        <span aria-hidden="true">＋</span>
+        添加好友
       </button>
 
       <section class="history-section" aria-label="聊天记录">
@@ -445,6 +466,14 @@ async function signOut() {
       </div>
       <p class="chat-disclaimer">文字消息由 WeTalk 后端保存并实时同步；历史记录支持分页，本机仅缓存纯文字消息。</p>
     </section>
+
+    <ContactSearchDialog
+      v-if="contactSearchOpen"
+      :current-user-id="authStore.session?.userId || ''"
+      :display-name="displayName"
+      @close="contactSearchOpen = false"
+      @contact-added="refreshChatAfterContactAdded"
+    />
 
     <div v-if="profileOpen" class="profile-overlay" data-testid="profile-overlay" @click.self="closeProfile">
       <section

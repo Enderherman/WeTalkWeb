@@ -166,6 +166,13 @@ describe('WeTalkWeb OpenAPI contract', () => {
 
   it('documents contact relationship types and allowed application responses', () => {
     expect(contract.components.schemas.ContactApplication.properties.status.enum).toEqual([0, 1, 2, 3])
+    expect(contract.components.schemas.ContactSearchResult.properties.contactType.enum).toEqual(['USER', 'GROUP'])
+    expect(contract.components.schemas.ContactSearchResult.properties.status.type).toEqual(['integer', 'null'])
+    expect(contract.components.schemas.ContactSearchResult.properties.status.enum).toContain(null)
+    expect(contract.components.schemas.IntegerDataResponse.allOf[1].properties.data.type).toEqual(['integer', 'null'])
+    expect(
+      contract.paths['/contact/applyAdd'].post.requestBody.content['application/x-www-form-urlencoded'].schema.properties.applyInfo.maxLength,
+    ).toBe(100)
     expect(
       contract.paths['/contact/loadContact'].post.requestBody.content['application/x-www-form-urlencoded'].schema.properties.contactType.enum,
     ).toEqual(['0', '1'])

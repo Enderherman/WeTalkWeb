@@ -414,4 +414,13 @@ describe('authentication flow', () => {
     expect(router.currentRoute.value.name).toBe('login')
     expect(router.currentRoute.value.query.passwordUpdated).toBe('1')
   })
+
+  it('opens and closes the add-friend dialog from the chat sidebar', async () => {
+    const { wrapper } = await mountChat()
+    await wrapper.get('[data-testid="open-contact-search"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="contact-search-overlay"]').exists()).toBe(true)
+    await wrapper.get('[aria-label="关闭添加好友"]').trigger('click')
+    expect(wrapper.find('[data-testid="contact-search-overlay"]').exists()).toBe(false)
+  })
 })
