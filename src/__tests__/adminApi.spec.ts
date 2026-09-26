@@ -23,4 +23,23 @@ describe('admin API', () => {
     await adminApi.forceOffline('U200')
     expect(postForm).toHaveBeenNthCalledWith(2, '/admin/forcedOffOnline', { userId: 'U200' })
   })
+
+  it('loads admin group rows with owner/member summaries and dissolves a selected group', async () => {
+    const page = { totalCount: 0, pageSize: 20, pageNo: 1, pageTotal: 0, list: [] }
+    vi.mocked(postForm).mockResolvedValue(page)
+
+    await expect(adminApi.loadGroups({ pageNo: 1, pageSize: 20, groupIdFuzzy: 'G30' })).resolves.toEqual(page)
+    expect(postForm).toHaveBeenNthCalledWith(1, '/admin/loadGroup', {
+      pageNo: 1,
+      pageSize: 20,
+      groupIdFuzzy: 'G30',
+      groupNameFuzzy: undefined,
+      groupOwnIdFuzzy: undefined,
+      queryGroupOwnerName: true,
+      queryMemberCount: true,
+    })
+
+    await expect(adminApi.dissolveGroup('U100', 'G300')).resolves.toBe(page)
+    expect(postForm).toHaveBeenNthCalledWith(2, '/admin/dissolutionGroup', { groupOwnerId: 'U100', groupId: 'G300' })
+  })
 })

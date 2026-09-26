@@ -30,6 +30,34 @@ export interface AdminUserSearch {
   nickNameFuzzy?: string
 }
 
+export interface AdminGroup {
+  groupId: string
+  groupName: string
+  groupOwnId: string
+  groupOwnerNickName?: string | null
+  memberCount?: number | null
+  status: number
+  joinType?: number | null
+  createTime?: string | null
+  groupNotice?: string | null
+}
+
+export interface AdminGroupPage {
+  totalCount: number
+  pageSize: number
+  pageNo: number
+  pageTotal: number
+  list: AdminGroup[]
+}
+
+export interface AdminGroupSearch {
+  pageNo?: number
+  pageSize?: number
+  groupIdFuzzy?: string
+  groupNameFuzzy?: string
+  groupOwnIdFuzzy?: string
+}
+
 export const adminApi = {
   loadUsers: (query: AdminUserSearch = {}): Promise<AdminUserPage> => {
     const values: Record<string, string | number | boolean | null | undefined> = {
@@ -45,4 +73,18 @@ export const adminApi = {
     postForm<null>('/admin/updateUserStatus', { userId, status }),
   forceOffline: (userId: string): Promise<null> =>
     postForm<null>('/admin/forcedOffOnline', { userId }),
+  loadGroups: (query: AdminGroupSearch = {}): Promise<AdminGroupPage> => {
+    const values: Record<string, string | number | boolean | null | undefined> = {
+      pageNo: query.pageNo,
+      pageSize: query.pageSize,
+      groupIdFuzzy: query.groupIdFuzzy,
+      groupNameFuzzy: query.groupNameFuzzy,
+      groupOwnIdFuzzy: query.groupOwnIdFuzzy,
+      queryGroupOwnerName: true,
+      queryMemberCount: true,
+    }
+    return postForm<AdminGroupPage>('/admin/loadGroup', values)
+  },
+  dissolveGroup: (groupOwnerId: string, groupId: string): Promise<null> =>
+    postForm<null>('/admin/dissolutionGroup', { groupOwnerId, groupId }),
 }

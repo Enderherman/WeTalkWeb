@@ -2710,6 +2710,12 @@ textarea:focus-visible {
   border-bottom: 1px solid var(--wt-line);
 }
 
+.admin-page-links {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
 .admin-users-header h1 {
   margin: 0;
   font-size: 26px;

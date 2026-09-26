@@ -114,9 +114,10 @@ function formatDate(value?: string | null) {
         <h1>用户管理</h1>
         <p>仅管理员可用 · {{ totalCount }} 个账号</p>
       </div>
-      <button class="about-back-button" data-testid="admin-back-to-chat" type="button" @click="router.push({ name: 'chat' })">
-        返回聊天
-      </button>
+      <div class="admin-page-links">
+        <button class="about-back-button" data-testid="admin-groups-link" type="button" @click="router.push({ name: 'admin-groups' })">群聊管理</button>
+        <button class="about-back-button" data-testid="admin-back-to-chat" type="button" @click="router.push({ name: 'chat' })">返回聊天</button>
+      </div>
     </header>
 
     <form class="admin-user-search" data-testid="admin-user-search" @submit.prevent="searchUsers">

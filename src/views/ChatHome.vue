@@ -381,6 +381,11 @@ function openAdminUsers() {
   void router.push({ name: 'admin-users' })
 }
 
+function openAdminGroups() {
+  sidebarOpen.value = false
+  void router.push({ name: 'admin-groups' })
+}
+
 function openContactSearch() {
   sidebarOpen.value = false
   contactSearchOpen.value = true
@@ -799,6 +804,13 @@ async function signOut() {
           type="button"
           @click="openAdminUsers"
         >管理用户</button>
+        <button
+          v-if="authStore.session?.admin"
+          class="sidebar-admin-button"
+          data-testid="open-admin-groups"
+          type="button"
+          @click="openAdminGroups"
+        >管理群聊</button>
         <button
           class="icon-button signout-button"
           data-testid="signout"
