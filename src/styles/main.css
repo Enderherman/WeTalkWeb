@@ -1679,6 +1679,13 @@ textarea:focus-visible {
   white-space: nowrap;
 }
 
+.group-member-count {
+  flex: 0 0 auto;
+  color: var(--wt-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
 .connection-status {
   display: inline-flex;
   flex: 0 0 auto;
@@ -1829,6 +1836,10 @@ textarea:focus-visible {
   justify-content: flex-end;
 }
 
+.message-row.is-system {
+  justify-content: center;
+}
+
 .message-bubble {
   max-width: min(84%, 650px);
   padding: 11px 15px 8px;
@@ -1842,6 +1853,24 @@ textarea:focus-visible {
 .message-row.is-mine .message-bubble {
   border-color: #e0ebe4;
   background: #edf4ef;
+}
+
+.message-row.is-system .message-bubble {
+  max-width: min(94%, 650px);
+  padding: 5px 12px;
+  border: 0;
+  color: #777872;
+  background: #f6f6f3;
+  box-shadow: none;
+}
+
+.message-row.is-system .message-bubble p {
+  font-size: 12px;
+  text-align: center;
+}
+
+.message-row.is-system .message-footer {
+  justify-content: center;
 }
 
 .message-sender {
@@ -1879,6 +1908,14 @@ textarea:focus-visible {
   margin: 0 0 8px;
   color: #a53932;
   font-size: 12px;
+}
+
+.group-session-notice {
+  width: min(100% - 36px, 720px);
+  margin: 0 0 8px;
+  color: #686962;
+  font-size: 12px;
+  text-align: center;
 }
 
 .composer-preview {

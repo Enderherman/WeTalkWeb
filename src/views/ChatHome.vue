@@ -24,6 +24,7 @@ const contactSearchOpen = ref(false)
 const contactApplicationsOpen = ref(false)
 const contactDirectoryOpen = ref(false)
 const groupDirectoryOpen = ref(false)
+const groupDirectoryRefreshKey = ref(0)
 const profileOpen = ref(false)
 const profileLoading = ref(false)
 const profileError = ref('')
@@ -41,7 +42,7 @@ const selectedSession = computed(
 )
 const selectedMessages = computed(() =>
   chatStore.initialMessages
-    .filter((message) => message.sessionId === selectedSessionId.value && message.messageType === 2)
+    .filter((message) => message.sessionId === selectedSessionId.value && [2, 3, 8, 9, 11, 12].includes(message.messageType))
     .sort((a, b) => a.sendTime - b.sendTime)
     .slice(-80),
 )
@@ -83,6 +84,13 @@ watch(
 watch(selectedSessionId, (sessionId) => {
   void loadLatestHistory(sessionId)
 })
+
+watch(
+  () => chatStore.groupEventVersion,
+  (version, previousVersion) => {
+    if (version !== previousVersion && groupDirectoryOpen.value) groupDirectoryRefreshKey.value += 1
+  },
+)
 
 watch(selectedMessages, async () => {
   if (preservingScroll.value) return
@@ -258,7 +266,13 @@ async function changePassword() {
 
 async function sendTextMessage() {
   const content = messageDraft.value.trim()
-  if (!selectedSession.value || !content || sendingMessage.value) return
+  if (
+    !selectedSession.value ||
+    selectedSession.value.groupClosed ||
+    selectedSession.value.groupAccessRevoked ||
+    !content ||
+    sendingMessage.value
+  ) return
 
   sendingMessage.value = true
   messageError.value = ''
@@ -416,6 +430,11 @@ async function signOut() {
           ☰
         </button>
         <span class="chat-topbar-title">{{ selectedSession?.contactName || 'WeTalk' }}</span>
+        <small
+          v-if="selectedSession?.contactType === 1 && typeof selectedSession.memberCount === 'number'"
+          class="group-member-count"
+          data-testid="group-member-count"
+        >{{ selectedSession.memberCount }} 位成员</small>
         <span class="connection-status" :class="`is-${chatStore.connectionStatus}`" data-testid="connection-status">
           <i aria-hidden="true"></i>{{ connectionLabel }}
         </span>
@@ -456,18 +475,21 @@ async function signOut() {
             </time>
             <article
               class="message-row"
-              :class="{ 'is-mine': message.sendUserId === authStore.session?.userId }"
+              :class="{ 'is-mine': message.messageType === 2 && message.sendUserId === authStore.session?.userId, 'is-system': message.messageType !== 2 }"
               :data-testid="`message-${message.messageId}`"
             >
               <div class="message-bubble">
-                <strong v-if="message.sendUserId !== authStore.session?.userId" class="message-sender">
+                <strong
+                  v-if="message.messageType === 2 && message.sendUserId !== authStore.session?.userId"
+                  class="message-sender"
+                >
                   {{ message.sendUserNickName }}
                 </strong>
                 <p>{{ message.messageContent }}</p>
                 <div class="message-footer">
                   <time>{{ formatMessageTime(message.sendTime) }}</time>
                   <span
-                    v-if="message.sendUserId === authStore.session?.userId"
+                    v-if="message.messageType === 2 && message.sendUserId === authStore.session?.userId"
                     class="message-send-status"
                     aria-label="服务端已接收并保存"
                     data-testid="message-send-status"
@@ -491,10 +513,16 @@ async function signOut() {
       </div>
 
       <p v-if="messageError" class="composer-error" role="alert">{{ messageError }}</p>
+      <p v-if="selectedSession?.groupClosed" class="group-session-notice" role="status">
+        群聊已解散，无法继续发送消息。
+      </p>
+      <p v-else-if="selectedSession?.groupAccessRevoked" class="group-session-notice" role="status">
+        你已退出或被移出群聊，无法继续发送消息。
+      </p>
       <div class="composer-preview" aria-label="聊天输入框">
         <textarea
           v-model="messageDraft"
-          :disabled="!selectedSession || sendingMessage"
+          :disabled="!selectedSession || selectedSession.groupClosed || selectedSession.groupAccessRevoked || sendingMessage"
           rows="2"
           maxlength="500"
           placeholder="发送文字消息，Enter 发送，Shift+Enter 换行"
@@ -504,7 +532,7 @@ async function signOut() {
         <button
           class="composer-send"
           type="button"
-          :disabled="!selectedSession || !messageDraft.trim() || sendingMessage"
+          :disabled="!selectedSession || selectedSession.groupClosed || selectedSession.groupAccessRevoked || !messageDraft.trim() || sendingMessage"
           :aria-label="sendingMessage ? '正在发送' : '发送消息'"
           data-testid="send-message"
           @click="sendTextMessage"
@@ -525,8 +553,8 @@ async function signOut() {
     <GroupDirectoryDialog
       v-if="groupDirectoryOpen"
       :current-user-id="authStore.session?.userId || ''"
+      :refresh-key="groupDirectoryRefreshKey"
       @close="groupDirectoryOpen = false"
-      @group-changed="refreshChatSession"
     />
 
     <ContactApplicationsDialog

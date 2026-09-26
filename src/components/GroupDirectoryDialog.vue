@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { contactApi, type UserContactEntry } from '@/api/contacts'
 import { groupApi, type GroupInfoWithMembers } from '@/api/groups'
 
-const props = defineProps<{ currentUserId?: string }>()
+const props = defineProps<{ currentUserId?: string; refreshKey?: number }>()
 
 const emit = defineEmits<{
   close: []
@@ -55,6 +55,13 @@ const availableFriends = computed(() => {
 let profileRequestId = 0
 
 onMounted(() => void loadGroups())
+
+watch(
+  () => props.refreshKey,
+  (value, previousValue) => {
+    if (value !== undefined && value !== previousValue) void refreshSelectedGroup()
+  },
+)
 
 async function loadGroups() {
   loading.value = true

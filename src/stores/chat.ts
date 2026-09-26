@@ -10,7 +10,9 @@ export interface ChatSessionSummary {
   lastMessage: string
   lastReceiveTime: number
   contactType: number
-  memberCount?: number
+  memberCount?: number | null
+  groupClosed?: boolean
+  groupAccessRevoked?: boolean
 }
 
 export interface InitialChatMessage {
@@ -18,10 +20,13 @@ export interface InitialChatMessage {
   sessionId: string
   messageType: number
   messageContent: string
-  sendUserId: string
-  sendUserNickName: string
+  sendUserId: string | null
+  sendUserNickName: string | null
   sendTime: number
   contactId: string
+  contactName?: string
+  memberCount?: number
+  extentData?: unknown
 }
 
 export interface ChatHistoryPage {
@@ -55,6 +60,7 @@ export const useChatStore = defineStore('chat', {
     initialMessages: [] as InitialChatMessage[],
     historyBySession: {} as Record<string, SessionHistoryState>,
     applyCount: 0,
+    groupEventVersion: 0,
     connectionError: '',
   }),
   actions: {
@@ -66,6 +72,7 @@ export const useChatStore = defineStore('chat', {
         this.initialMessages = []
         this.historyBySession = {}
         this.applyCount = 0
+        this.groupEventVersion = 0
       }
       this.accountId = accountId
       this.connectionError = ''
@@ -94,7 +101,25 @@ export const useChatStore = defineStore('chat', {
         const merged = new Map<number, InitialChatMessage>()
         for (const item of retainedMessages) merged.set(item.messageId, item)
         for (const item of data.chatMessageList) merged.set(item.messageId, item)
-        this.sessionList = data.chatSessionList
+        const currentGroupState = new Map(
+          this.sessionList.map((session) => [
+            session.contactId,
+            {
+              groupClosed: session.groupClosed,
+              groupAccessRevoked: session.groupAccessRevoked,
+              memberCount: session.memberCount,
+            },
+          ]),
+        )
+        this.sessionList = data.chatSessionList.map((session) => {
+          const previous = currentGroupState.get(session.contactId)
+          return {
+            ...session,
+            groupClosed: previous?.groupClosed,
+            groupAccessRevoked: previous?.groupAccessRevoked,
+            memberCount: session.memberCount ?? previous?.memberCount,
+          }
+        })
         this.initialMessages = [...merged.values()].sort((a, b) => a.sendTime - b.sendTime)
         this.historyBySession = Object.fromEntries(
           Object.entries(this.historyBySession).filter(([sessionId]) => sessionIds.has(sessionId)),
@@ -117,10 +142,104 @@ export const useChatStore = defineStore('chat', {
         return
       }
 
+      if ([3, 8, 9, 10, 11, 12].includes(message.messageType)) {
+        this.receiveGroupEvent(message)
+        return
+      }
+
       if (message.messageType === 7) {
         this.disconnect()
         if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
       }
+    },
+    receiveGroupEvent(message: ServerMessage) {
+      const groupId = typeof message.contactId === 'string' ? message.contactId : ''
+      if (!groupId) return
+      const messageType = message.messageType
+      const eventName = typeof message.extentData === 'string' ? message.extentData : ''
+      const sessionData =
+        message.extentData && typeof message.extentData === 'object'
+          ? (message.extentData as Partial<ChatSessionSummary>)
+          : null
+      const messageId = Number(message.messageId)
+      if (
+        messageType !== 10 &&
+        Number.isFinite(messageId) &&
+        this.initialMessages.some((item) => item.messageId === messageId)
+      ) return
+      let session = this.sessionList.find((item) => item.contactId === groupId)
+
+      const eventSessionId =
+        typeof message.sessionId === 'string'
+          ? message.sessionId
+          : typeof sessionData?.sessionId === 'string'
+            ? sessionData.sessionId
+            : ''
+      if (!session && (messageType === 3 || messageType === 9) && eventSessionId) {
+        session = {
+          sessionId: eventSessionId,
+          contactId: groupId,
+          contactName:
+            (typeof message.contactName === 'string' ? message.contactName : '') ||
+            (typeof sessionData?.contactName === 'string' ? sessionData.contactName : groupId),
+          lastMessage:
+            (typeof message.messageContent === 'string' ? message.messageContent : '') ||
+            (typeof sessionData?.lastMessage === 'string' ? sessionData.lastMessage : ''),
+          lastReceiveTime:
+            Number(message.sendTime) ||
+            (typeof sessionData?.lastReceiveTime === 'number' ? sessionData.lastReceiveTime : 0),
+          contactType: 1,
+          memberCount:
+            typeof message.memberCount === 'number'
+              ? message.memberCount
+              : typeof sessionData?.memberCount === 'number'
+                ? sessionData.memberCount
+                : undefined,
+        }
+        this.sessionList = [...this.sessionList, session]
+      }
+
+      if (session && messageType === 10) {
+        const updatedName = eventName || (typeof message.contactName === 'string' ? message.contactName : '')
+        if (updatedName) session.contactName = updatedName
+        this.groupEventVersion += 1
+        this.sessionList = [...this.sessionList].sort((a, b) => b.lastReceiveTime - a.lastReceiveTime)
+        return
+      }
+
+      if (session) {
+        const memberCount = Number(message.memberCount)
+        if (Number.isFinite(memberCount) && memberCount >= 0) {
+          session.memberCount = memberCount
+        } else if (messageType === 3 && typeof sessionData?.memberCount === 'number') {
+          session.memberCount = sessionData.memberCount
+        } else if (messageType === 9 && typeof session.memberCount === 'number') {
+          session.memberCount += 1
+        } else if ((messageType === 11 || messageType === 12) && typeof session.memberCount === 'number') {
+          session.memberCount = Math.max(0, session.memberCount - 1)
+        }
+
+        if (messageType === 8) session.groupClosed = true
+        if ((messageType === 11 || messageType === 12) && message.extentData === this.accountId) {
+          session.groupAccessRevoked = true
+        }
+        if (messageType === 3 || messageType === 9) {
+          session.groupClosed = false
+          session.groupAccessRevoked = false
+        }
+
+        if (Number.isFinite(messageId)) {
+          const eventMessage = message as unknown as InitialChatMessage
+          if (!this.initialMessages.some((item) => item.messageId === eventMessage.messageId)) {
+            this.initialMessages = [...this.initialMessages, eventMessage].sort((a, b) => a.sendTime - b.sendTime)
+          }
+          session.lastMessage = typeof message.messageContent === 'string' ? message.messageContent : session.lastMessage
+          session.lastReceiveTime = Number(message.sendTime) || session.lastReceiveTime
+        }
+      }
+
+      this.groupEventVersion += 1
+      this.sessionList = [...this.sessionList].sort((a, b) => b.lastReceiveTime - a.lastReceiveTime)
     },
     appendMessage(message: InitialChatMessage, sentByCurrentUser: boolean) {
       if (this.initialMessages.some((item) => item.messageId === message.messageId)) return
@@ -178,6 +297,7 @@ export const useChatStore = defineStore('chat', {
       this.historyBySession = {}
       this.accountId = ''
       this.applyCount = 0
+      this.groupEventVersion = 0
       this.connectionError = ''
     },
   },
