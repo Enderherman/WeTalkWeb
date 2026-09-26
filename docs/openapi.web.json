@@ -1,9 +1,9 @@
 {
   "openapi": "3.2.1",
   "info": {
-    "title": "WeTalk Web API Contract — Auth, Contacts, and Text Chat",
+    "title": "WeTalk Web API Contract",
     "version": "0.1.0",
-    "description": "This contract describes the HTTP endpoints currently used by WeTalkWeb for authentication, profile/password operations, contact search/requests/lists/relationship management, one-to-one text messages, and cursor-paged history. It is a client-slice contract, not the complete backend API inventory. Group, file, admin, beauty-account, app-update endpoints and WebSocket frames remain separate Phase 0 deliverables.\n\nRequests use application/x-www-form-urlencoded and the same-origin /api prefix. Business errors are normally returned in the BaseResponse body, often with HTTP 200; clients must inspect code. Login sends a lowercase MD5 digest for compatibility with the existing Electron client, while registration and password change send the raw password over HTTPS and the server hashes it. This legacy protocol must be replaced before public production use."
+    "description": "This contract covers all 43 current backend REST endpoints used by WeTalkApp and the planned WeTalkWeb client. WebSocket frames and production deployment settings are documented separately.\n\nRequests use application/x-www-form-urlencoded and the same-origin /api prefix unless an operation specifies multipart/form-data or a binary response. Business errors are normally returned in the BaseResponse body, often with HTTP 200; clients must inspect code. Login sends a lowercase MD5 digest for compatibility with the existing Electron client, while registration and password change send the raw password over HTTPS and the server hashes it. This legacy protocol must be replaced before public production use. The admin user schema omits password data; its live response redaction will be verified after the in-progress backend change is committed."
   },
   "servers": [
     {
@@ -15,6 +15,8 @@
     { "name": "Account", "description": "Authentication and current-user profile operations." },
     { "name": "Contacts", "description": "Contact search, requests, lists, and relationship management." },
     { "name": "Groups", "description": "Group creation, member operations, and group profiles." },
+    { "name": "Admin", "description": "Administrator-only user, group, system, and beauty-account operations." },
+    { "name": "App update", "description": "Administrator release management and authenticated update checks." },
     { "name": "Files", "description": "Authenticated message-file upload and download." },
     { "name": "Text chat", "description": "Web-supported one-to-one text messaging and history." }
   ],
@@ -869,6 +871,310 @@
         }
       }
     },
+    "/admin/loadUser": {
+      "post": {
+        "tags": ["Admin"],
+        "operationId": "adminLoadUsers",
+        "summary": "Load a paged user list",
+        "description": "Requires the admin role in addition to the token. The web contract exposes the fields used by the admin list and excludes password data.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/AdminUserQuery" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/AdminUserPageResult" },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/admin/updateUserStatus": {
+      "post": {
+        "tags": ["Admin"],
+        "operationId": "adminUpdateUserStatus",
+        "summary": "Enable or disable a user account",
+        "description": "Requires the admin role.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/AdminUpdateUserStatusRequest" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/NullOperationResult" },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/admin/forcedOffOnline": {
+      "post": {
+        "tags": ["Admin"],
+        "operationId": "adminForceUserOffline",
+        "summary": "Force a user offline",
+        "description": "Requires the admin role.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": { "type": "object", "required": ["userId"], "properties": { "userId": { "type": "string" } } }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/NullOperationResult" },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/admin/loadGroup": {
+      "post": {
+        "tags": ["Admin"],
+        "operationId": "adminLoadGroups",
+        "summary": "Load a paged group list",
+        "description": "Requires the admin role.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/AdminGroupQuery" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/AdminGroupPageResult" },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/admin/dissolutionGroup": {
+      "post": {
+        "tags": ["Admin"],
+        "operationId": "adminDissolveGroup",
+        "summary": "Dissolve a group as an administrator",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["groupOwnerId", "groupId"],
+                "properties": { "groupOwnerId": { "type": "string" }, "groupId": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/NullOperationResult" },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/admin/getSystemSetting": {
+      "post": {
+        "tags": ["Admin"],
+        "operationId": "adminGetSystemSettings",
+        "summary": "Read administrative system settings",
+        "description": "Requires the admin role. The regular-user settings endpoint is /account/getSysSetting.",
+        "security": [{ "tokenHeader": [] }],
+        "responses": {
+          "200": {
+            "description": "Current system settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/SystemSettingsResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/admin/saveSystemSetting": {
+      "post": {
+        "tags": ["Admin"],
+        "operationId": "adminSaveSystemSettings",
+        "summary": "Save system settings and optional robot avatar",
+        "description": "Requires the admin role. Supply robotAvatarFile and robotAvatarCoverFile together when replacing the avatar.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "multipart/form-data": { "schema": { "$ref": "#/components/schemas/AdminSystemSettingsRequest" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/NullOperationResult" },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/userInfoBeauty/loadBeautyAccountList": {
+      "post": {
+        "tags": ["Admin"],
+        "operationId": "adminLoadBeautyAccounts",
+        "summary": "Load a paged list of reserved user IDs",
+        "description": "Requires the admin role.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/BeautyAccountQuery" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/BeautyAccountPageResult" },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/userInfoBeauty/saveBeautyAccount": {
+      "post": {
+        "tags": ["Admin"],
+        "operationId": "adminSaveBeautyAccount",
+        "summary": "Create or update a reserved user ID",
+        "description": "Requires the admin role.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/BeautyAccountRequest" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/NullOperationResult" },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/userInfoBeauty/deleteBeautyAccount": {
+      "post": {
+        "tags": ["Admin"],
+        "operationId": "adminDeleteBeautyAccount",
+        "summary": "Delete a reserved user ID",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": { "type": "object", "required": ["id"], "properties": { "id": { "type": "integer", "minimum": 1 } } }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/NullOperationResult" },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/app/loadUpdateList": {
+      "post": {
+        "tags": ["App update"],
+        "operationId": "adminLoadAppUpdates",
+        "summary": "Load app update records",
+        "description": "Requires the admin role.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/AppUpdateQuery" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/AppUpdatePageResult" },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/app/saveUpdate": {
+      "post": {
+        "tags": ["App update"],
+        "operationId": "adminSaveAppUpdate",
+        "summary": "Create or update an app release",
+        "description": "Requires the admin role. file is needed when fileType is 0; outerLink is used for fileType 1.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "multipart/form-data": { "schema": { "$ref": "#/components/schemas/AppUpdateSaveRequest" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/NullOperationResult" },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/app/deleteUpdate": {
+      "post": {
+        "tags": ["App update"],
+        "operationId": "adminDeleteAppUpdate",
+        "summary": "Delete an app update record",
+        "description": "Requires the admin role.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": { "type": "object", "required": ["id"], "properties": { "id": { "type": "integer", "minimum": 1 } } }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/NullOperationResult" },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/app/postUpdate": {
+      "post": {
+        "tags": ["App update"],
+        "operationId": "adminPostAppUpdate",
+        "summary": "Publish or stage an app update",
+        "description": "Requires the admin role. status 0 is draft, 1 is gray release, and 2 is full release.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": { "$ref": "#/components/schemas/PostAppUpdateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/NullOperationResult" },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/app/checkUpdate": {
+      "post": {
+        "tags": ["App update"],
+        "operationId": "checkForAppUpdate",
+        "summary": "Check for a published app update",
+        "description": "Requires a valid token but not the admin role. When version is omitted or empty, the server returns an empty success response.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": { "version": { "type": "string" }, "uid": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Update information, null when no version was supplied or no update is available, or a business error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/AppUpdateCheckResponse" },
+                    { "$ref": "#/components/schemas/NullDataResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
     "/chat/uploadFile": {
       "post": {
         "tags": ["Files"],
@@ -1068,6 +1374,71 @@
             "example": { "status": "error", "code": 901, "message": "登录超时", "data": null }
           }
         }
+      },
+      "NullOperationResult": {
+        "description": "The operation completed without a data payload or returned a body-level business error.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                { "$ref": "#/components/schemas/NullDataResponse" },
+                { "$ref": "#/components/schemas/BusinessErrorResponse" }
+              ]
+            }
+          }
+        }
+      },
+      "AdminUserPageResult": {
+        "description": "Admin user page or body-level business error.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                { "$ref": "#/components/schemas/AdminUserPageResponse" },
+                { "$ref": "#/components/schemas/BusinessErrorResponse" }
+              ]
+            }
+          }
+        }
+      },
+      "AdminGroupPageResult": {
+        "description": "Admin group page or body-level business error.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                { "$ref": "#/components/schemas/AdminGroupPageResponse" },
+                { "$ref": "#/components/schemas/BusinessErrorResponse" }
+              ]
+            }
+          }
+        }
+      },
+      "BeautyAccountPageResult": {
+        "description": "Beauty-account page or body-level business error.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                { "$ref": "#/components/schemas/BeautyAccountPageResponse" },
+                { "$ref": "#/components/schemas/BusinessErrorResponse" }
+              ]
+            }
+          }
+        }
+      },
+      "AppUpdatePageResult": {
+        "description": "App update page or body-level business error.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                { "$ref": "#/components/schemas/AppUpdatePageResponse" },
+                { "$ref": "#/components/schemas/BusinessErrorResponse" }
+              ]
+            }
+          }
+        }
       }
     },
     "schemas": {
@@ -1209,6 +1580,263 @@
             "required": ["code", "data"],
             "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/SystemSettings" } }
           }
+        ]
+      },
+      "AdminUserQuery": {
+        "type": "object",
+        "description": "The web contract includes safe admin-list filters only; password filters are intentionally excluded.",
+        "properties": {
+          "pageNo": { "type": "integer", "minimum": 1 },
+          "pageSize": { "type": "integer", "minimum": 1 },
+          "userId": { "type": "string" },
+          "userIdFuzzy": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "emailFuzzy": { "type": "string" },
+          "nickName": { "type": "string" },
+          "nickNameFuzzy": { "type": "string" },
+          "joinType": { "type": "integer", "enum": [0, 1] },
+          "sex": { "type": "integer", "enum": [0, 1] },
+          "personalSignatureFuzzy": { "type": "string" },
+          "status": { "type": "integer" },
+          "createTimeStart": { "type": "string" },
+          "createTimeEnd": { "type": "string" },
+          "lastLoginTimeStart": { "type": "string" },
+          "lastLoginTimeEnd": { "type": "string" },
+          "areaNameFuzzy": { "type": "string" },
+          "areaCodeFuzzy": { "type": "string" },
+          "lastOffTime": { "type": "integer", "format": "int64" },
+          "isDelete": { "type": "integer" }
+        }
+      },
+      "AdminUserInfo": {
+        "type": "object",
+        "description": "Safe fields used by the admin user list. Password hashes are excluded by the contract; live response redaction remains to be rechecked after the backend update is committed.",
+        "properties": {
+          "userId": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "nickName": { "type": "string" },
+          "joinType": { "type": "integer", "enum": [0, 1] },
+          "sex": { "type": "integer", "enum": [0, 1] },
+          "personalSignature": { "type": "string" },
+          "status": { "type": "integer" },
+          "createTime": { "type": "string" },
+          "lastLoginTime": { "type": "string" },
+          "areaName": { "type": "string" },
+          "areaCode": { "type": "string" },
+          "lastOffTime": { "type": "integer", "format": "int64" },
+          "isDelete": { "type": "integer" },
+          "onlineType": { "type": "integer", "enum": [0, 1] }
+        }
+      },
+      "AdminUserPage": {
+        "type": "object",
+        "required": ["list"],
+        "properties": {
+          "totalCount": { "type": "integer" },
+          "pageSize": { "type": "integer" },
+          "pageNo": { "type": "integer" },
+          "pageTotal": { "type": "integer" },
+          "list": { "type": "array", "items": { "$ref": "#/components/schemas/AdminUserInfo" } }
+        }
+      },
+      "AdminUserPageResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          { "type": "object", "required": ["code", "data"], "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/AdminUserPage" } } }
+        ]
+      },
+      "AdminUpdateUserStatusRequest": {
+        "type": "object",
+        "required": ["userId", "status"],
+        "properties": { "userId": { "type": "string" }, "status": { "type": "integer", "enum": [0, 1], "description": "0 disabled, 1 enabled." } }
+      },
+      "AdminGroupQuery": {
+        "type": "object",
+        "properties": {
+          "pageNo": { "type": "integer", "minimum": 1 },
+          "pageSize": { "type": "integer", "minimum": 1 },
+          "groupId": { "type": "string" },
+          "groupIdFuzzy": { "type": "string" },
+          "groupName": { "type": "string" },
+          "groupNameFuzzy": { "type": "string" },
+          "groupOwnId": { "type": "string" },
+          "groupOwnIdFuzzy": { "type": "string" },
+          "createTimeStart": { "type": "string" },
+          "createTimeEnd": { "type": "string" },
+          "groupNotice": { "type": "string" },
+          "groupNoticeFuzzy": { "type": "string" },
+          "joinType": { "type": "integer", "enum": [0, 1] },
+          "status": { "type": "integer", "enum": [0, 1] }
+        }
+      },
+      "AdminGroupPage": {
+        "type": "object",
+        "required": ["list"],
+        "properties": {
+          "totalCount": { "type": "integer" },
+          "pageSize": { "type": "integer" },
+          "pageNo": { "type": "integer" },
+          "pageTotal": { "type": "integer" },
+          "list": { "type": "array", "items": { "$ref": "#/components/schemas/GroupInfo" } }
+        }
+      },
+      "AdminGroupPageResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          { "type": "object", "required": ["code", "data"], "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/AdminGroupPage" } } }
+        ]
+      },
+      "AdminSystemSettingsRequest": {
+        "type": "object",
+        "properties": {
+          "maxGroupCount": { "type": "integer" },
+          "maxGroupMemberCount": { "type": "integer" },
+          "maxImageSize": { "type": "integer" },
+          "maxVideoSize": { "type": "integer" },
+          "maxFileSize": { "type": "integer" },
+          "robotUid": { "type": "string" },
+          "robotNickName": { "type": "string" },
+          "robotWelcome": { "type": "string" },
+          "robotAvatarFile": { "type": "string", "format": "binary" },
+          "robotAvatarCoverFile": { "type": "string", "format": "binary" }
+        }
+      },
+      "BeautyAccountQuery": {
+        "type": "object",
+        "properties": {
+          "pageNo": { "type": "integer", "minimum": 1 },
+          "pageSize": { "type": "integer", "minimum": 1 },
+          "id": { "type": "integer" },
+          "email": { "type": "string", "format": "email" },
+          "emailFuzzy": { "type": "string" },
+          "userId": { "type": "string" },
+          "userIdFuzzy": { "type": "string" },
+          "status": { "type": "integer", "enum": [0, 1] }
+        }
+      },
+      "BeautyAccount": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "email": { "type": "string", "format": "email" },
+          "userId": { "type": "string" },
+          "status": { "type": "integer", "enum": [0, 1] }
+        }
+      },
+      "BeautyAccountPage": {
+        "type": "object",
+        "required": ["list"],
+        "properties": {
+          "totalCount": { "type": "integer" },
+          "pageSize": { "type": "integer" },
+          "pageNo": { "type": "integer" },
+          "pageTotal": { "type": "integer" },
+          "list": { "type": "array", "items": { "$ref": "#/components/schemas/BeautyAccount" } }
+        }
+      },
+      "BeautyAccountPageResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          { "type": "object", "required": ["code", "data"], "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/BeautyAccountPage" } } }
+        ]
+      },
+      "BeautyAccountRequest": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "email": { "type": "string", "format": "email" },
+          "userId": { "type": "string" },
+          "status": { "type": "integer", "enum": [0, 1] }
+        }
+      },
+      "AppUpdateQuery": {
+        "type": "object",
+        "properties": {
+          "pageNo": { "type": "integer", "minimum": 1 },
+          "pageSize": { "type": "integer", "minimum": 1 },
+          "id": { "type": "integer" },
+          "version": { "type": "string" },
+          "versionFuzzy": { "type": "string" },
+          "updateDesc": { "type": "string" },
+          "updateDescFuzzy": { "type": "string" },
+          "createTimeStart": { "type": "string" },
+          "createTimeEnd": { "type": "string" },
+          "status": { "type": "integer", "enum": [0, 1, 2] },
+          "grayscaleUid": { "type": "string" },
+          "grayscaleUidFuzzy": { "type": "string" },
+          "fileType": { "type": "integer", "enum": [0, 1] },
+          "outerLink": { "type": "string", "format": "uri" },
+          "outerLinkFuzzy": { "type": "string" }
+        }
+      },
+      "AppUpdateRecord": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "version": { "type": "string" },
+          "updateDesc": { "type": "string" },
+          "updateDescArray": { "type": "array", "items": { "type": "string" } },
+          "createTime": { "type": "string" },
+          "status": { "type": "integer", "enum": [0, 1, 2] },
+          "grayscaleUid": { "type": "string" },
+          "fileType": { "type": "integer", "enum": [0, 1] },
+          "outerLink": { "type": "string", "format": "uri" }
+        }
+      },
+      "AppUpdatePage": {
+        "type": "object",
+        "required": ["list"],
+        "properties": {
+          "totalCount": { "type": "integer" },
+          "pageSize": { "type": "integer" },
+          "pageNo": { "type": "integer" },
+          "pageTotal": { "type": "integer" },
+          "list": { "type": "array", "items": { "$ref": "#/components/schemas/AppUpdateRecord" } }
+        }
+      },
+      "AppUpdatePageResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          { "type": "object", "required": ["code", "data"], "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/AppUpdatePage" } } }
+        ]
+      },
+      "AppUpdateSaveRequest": {
+        "type": "object",
+        "required": ["version", "updateDesc", "fileType"],
+        "properties": {
+          "id": { "type": "integer" },
+          "version": { "type": "string" },
+          "updateDesc": { "type": "string" },
+          "fileType": { "type": "integer", "enum": [0, 1] },
+          "outerLink": { "type": "string", "format": "uri" },
+          "file": { "type": "string", "format": "binary", "description": "Required when fileType is 0." }
+        }
+      },
+      "PostAppUpdateRequest": {
+        "type": "object",
+        "required": ["id", "status"],
+        "properties": {
+          "id": { "type": "integer", "minimum": 1 },
+          "status": { "type": "integer", "enum": [0, 1, 2] },
+          "grayscaleUid": { "type": "string" }
+        }
+      },
+      "AppUpdateVO": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "version": { "type": "string" },
+          "updateList": { "type": "array", "items": { "type": "string" } },
+          "size": { "type": "integer", "format": "int64" },
+          "fileName": { "type": "string" },
+          "fileType": { "type": "integer", "enum": [0, 1] },
+          "outerLink": { "type": "string", "format": "uri" }
+        }
+      },
+      "AppUpdateCheckResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          { "type": "object", "required": ["code", "data"], "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/AppUpdateVO" } } }
         ]
       },
       "SaveUserInfoRequest": {

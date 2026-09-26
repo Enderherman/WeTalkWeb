@@ -17,6 +17,18 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/account/register',
       '/account/saveUserInfo',
       '/account/updatePassword',
+      '/admin/dissolutionGroup',
+      '/admin/forcedOffOnline',
+      '/admin/getSystemSetting',
+      '/admin/loadGroup',
+      '/admin/loadUser',
+      '/admin/saveSystemSetting',
+      '/admin/updateUserStatus',
+      '/app/checkUpdate',
+      '/app/deleteUpdate',
+      '/app/loadUpdateList',
+      '/app/postUpdate',
+      '/app/saveUpdate',
       '/chat/downloadFile',
       '/chat/loadHistory',
       '/chat/sendMessage',
@@ -37,6 +49,9 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/group/leaveGroup',
       '/group/loadMyGroup',
       '/group/saveGroup',
+      '/userInfoBeauty/deleteBeautyAccount',
+      '/userInfoBeauty/loadBeautyAccountList',
+      '/userInfoBeauty/saveBeautyAccount',
     ])
 
     const operationIds = Object.values(contract.paths).map((path: any) => path.post.operationId)
@@ -61,6 +76,21 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/contact/getContactUserInfo',
       '/contact/delContact',
       '/contact/addContact2BlackList',
+      '/admin/loadUser',
+      '/admin/updateUserStatus',
+      '/admin/forcedOffOnline',
+      '/admin/loadGroup',
+      '/admin/dissolutionGroup',
+      '/admin/getSystemSetting',
+      '/admin/saveSystemSetting',
+      '/userInfoBeauty/loadBeautyAccountList',
+      '/userInfoBeauty/saveBeautyAccount',
+      '/userInfoBeauty/deleteBeautyAccount',
+      '/app/loadUpdateList',
+      '/app/saveUpdate',
+      '/app/deleteUpdate',
+      '/app/postUpdate',
+      '/app/checkUpdate',
       '/group/saveGroup',
       '/group/loadMyGroup',
       '/group/getGroupInfo',
@@ -122,9 +152,13 @@ describe('WeTalkWeb OpenAPI contract', () => {
         )
         continue
       }
-      const schema = contract.paths[pathName].post.responses['200'].content['application/json'].schema
-      expect(schema.oneOf).toHaveLength(2)
-      expect(schema.oneOf[1].$ref).toBe('#/components/schemas/BusinessErrorResponse')
+      let response = contract.paths[pathName].post.responses['200']
+      if (response.$ref) {
+        response = contract.components.responses[response.$ref.split('/').at(-1)!]
+      }
+      const schema = response.content['application/json'].schema
+      expect(schema.oneOf).toHaveLength(pathName === '/app/checkUpdate' ? 3 : 2)
+      expect(schema.oneOf.some((entry: { $ref?: string }) => entry.$ref === '#/components/schemas/BusinessErrorResponse')).toBe(true)
     }
     expect(contract.components.schemas.BusinessErrorResponse.allOf[1].properties.code.enum).toContain(600)
     expect(contract.components.schemas.BusinessErrorResponse.allOf[1].properties.code.enum).toContain(901)
@@ -163,5 +197,12 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(contract.components.schemas.SaveUserInfoRequest.properties.coverFile.format).toBe('binary')
     expect(contract.components.schemas.SaveUserInfoRequest.properties).not.toHaveProperty('password')
     expect(contract.components.schemas.SaveUserInfoRequest.properties).not.toHaveProperty('email')
+  })
+
+  it('keeps administrative user payloads password-free and documents role limits', () => {
+    expect(contract.components.schemas.AdminUserInfo.properties).not.toHaveProperty('password')
+    expect(contract.components.schemas.AdminUserQuery.properties).not.toHaveProperty('password')
+    expect(contract.components.schemas.PostAppUpdateRequest.properties.status.enum).toEqual([0, 1, 2])
+    expect(contract.paths['/app/checkUpdate'].post.description).toContain('not the admin role')
   })
 })
