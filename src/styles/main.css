@@ -533,9 +533,39 @@ textarea:focus-visible {
 }
 
 .pending-apply-count {
-  margin: 14px 8px 0;
-  color: #777772;
-  font-size: 11px;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 14px 0 0;
+  padding: 8px;
+  border: 0;
+  border-radius: 10px;
+  color: #62635d;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pending-apply-count:hover,
+.pending-apply-count:focus-visible {
+  background: #ededea;
+}
+
+.pending-apply-badge {
+  display: grid;
+  min-width: 21px;
+  height: 21px;
+  place-items: center;
+  padding: 0 6px;
+  border-radius: 999px;
+  color: #fff;
+  background: #47705c;
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .sidebar-bottom {
@@ -818,6 +848,134 @@ textarea:focus-visible {
 
 .contact-submit-button {
   width: 100%;
+}
+
+.applications-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 19px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid #ecece8;
+  color: var(--wt-muted);
+  font-size: 12px;
+}
+
+.applications-summary strong {
+  color: var(--wt-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.contact-applications-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.contact-application-card {
+  padding: 14px;
+  border: 1px solid #ecece8;
+  border-radius: 16px;
+  background: #fbfbfa;
+}
+
+.contact-application-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.contact-application-message {
+  margin: 12px 0 7px;
+  color: #4e4e4a;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.contact-application-time {
+  color: #92928c;
+  font-size: 10px;
+}
+
+.contact-application-status {
+  display: inline-flex;
+  margin-top: 11px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: #637266;
+  background: #edf3ef;
+  font-size: 10px;
+}
+
+.contact-application-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.contact-application-button {
+  min-height: 35px;
+  flex: 1 1 auto;
+  padding: 0 11px;
+  border: 1px solid #deded9;
+  border-radius: 10px;
+  color: #555650;
+  background: #fff;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.contact-application-button:hover:not(:disabled) {
+  background: #f3f4f1;
+}
+
+.contact-application-button.is-primary {
+  border-color: #315d4e;
+  color: #fff;
+  background: #315d4e;
+}
+
+.contact-application-button.is-primary:hover:not(:disabled) {
+  background: #284e41;
+}
+
+.contact-application-button.is-danger {
+  color: #8a3935;
+}
+
+.contact-application-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.applications-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 16px;
+  color: var(--wt-muted);
+  font-size: 11px;
+}
+
+.applications-pagination button {
+  min-height: 36px;
+  padding: 0 11px;
+  border: 1px solid #deded9;
+  border-radius: 10px;
+  color: #555650;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.applications-pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .profile-dialog-header {

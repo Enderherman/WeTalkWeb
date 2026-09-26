@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { authApi } from '@/api/auth'
 import type { UserProfile } from '@/api/auth'
 import { chatApi } from '@/api/chat'
+import ContactApplicationsDialog from '@/components/ContactApplicationsDialog.vue'
 import ContactSearchDialog from '@/components/ContactSearchDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
@@ -18,6 +19,7 @@ const sidebarOpen = ref(false)
 const signingOut = ref(false)
 const selectedSessionId = ref('')
 const contactSearchOpen = ref(false)
+const contactApplicationsOpen = ref(false)
 const profileOpen = ref(false)
 const profileLoading = ref(false)
 const profileError = ref('')
@@ -189,7 +191,12 @@ function openContactSearch() {
   contactSearchOpen.value = true
 }
 
-function refreshChatAfterContactAdded() {
+function openContactApplications() {
+  sidebarOpen.value = false
+  contactApplicationsOpen.value = true
+}
+
+function refreshChatSession() {
   const session = authStore.session
   if (session?.token) chatStore.connect(session.token, session.userId)
 }
@@ -328,9 +335,19 @@ async function signOut() {
             </span>
           </button>
         </div>
-        <p v-if="chatStore.initialized && chatStore.applyCount > 0" class="pending-apply-count">
-          好友申请 {{ chatStore.applyCount }}
-        </p>
+        <button
+          v-if="chatStore.initialized"
+          class="pending-apply-count"
+          data-testid="open-contact-applications"
+          type="button"
+          aria-haspopup="dialog"
+          @click="openContactApplications"
+        >
+          <span>好友申请</span>
+          <span v-if="chatStore.applyCount > 0" class="pending-apply-badge">
+            {{ chatStore.applyCount > 99 ? '99+' : chatStore.applyCount }}
+          </span>
+        </button>
       </section>
 
       <div class="sidebar-bottom">
@@ -467,12 +484,18 @@ async function signOut() {
       <p class="chat-disclaimer">文字消息由 WeTalk 后端保存并实时同步；历史记录支持分页，本机仅缓存纯文字消息。</p>
     </section>
 
+    <ContactApplicationsDialog
+      v-if="contactApplicationsOpen"
+      @close="contactApplicationsOpen = false"
+      @application-handled="refreshChatSession"
+    />
+
     <ContactSearchDialog
       v-if="contactSearchOpen"
       :current-user-id="authStore.session?.userId || ''"
       :display-name="displayName"
       @close="contactSearchOpen = false"
-      @contact-added="refreshChatAfterContactAdded"
+      @contact-added="refreshChatSession"
     />
 
     <div v-if="profileOpen" class="profile-overlay" data-testid="profile-overlay" @click.self="closeProfile">

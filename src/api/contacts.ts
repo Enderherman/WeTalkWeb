@@ -10,9 +10,36 @@ export interface ContactSearchResult {
   areaName?: string | null
 }
 
+export interface ContactApplication {
+  applyId: number
+  applyUserId: string
+  receiveUserId: string
+  contactType: 0 | 1
+  contactId: string
+  lastApplyTime: number
+  status: 0 | 1 | 2 | 3
+  applyInfo?: string | null
+  statusName?: string | null
+  contactName?: string | null
+}
+
+export interface ContactApplicationsPage {
+  totalCount: number
+  pageSize: number
+  pageNo: number
+  pageTotal: number
+  list: ContactApplication[]
+}
+
+export type ContactApplicationDecision = 1 | 2 | 3
+
 export const contactApi = {
   search: (contactId: string): Promise<ContactSearchResult | null> =>
     postForm<ContactSearchResult | null>('/contact/search', { contactId }),
   applyAdd: (contactId: string, applyInfo = ''): Promise<number | null> =>
     postForm<number | null>('/contact/applyAdd', { contactId, applyInfo }),
+  loadApplications: (pageNo = 1): Promise<ContactApplicationsPage> =>
+    postForm<ContactApplicationsPage>('/contact/loadApply', { pageNo }),
+  handleApplication: (applyId: number, status: ContactApplicationDecision): Promise<null> =>
+    postForm<null>('/contact/dealWithApply', { applyId, status }),
 }

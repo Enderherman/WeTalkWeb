@@ -112,6 +112,11 @@ export const useChatStore = defineStore('chat', {
         return
       }
 
+      if (message.messageType === 4) {
+        this.applyCount += 1
+        return
+      }
+
       if (message.messageType === 7) {
         this.disconnect()
         if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))

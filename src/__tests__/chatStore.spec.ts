@@ -76,6 +76,17 @@ describe('chat initialization state', () => {
     expect(chatStore.sessionList[0]?.lastReceiveTime).toBe(2000)
   })
 
+  it('increments the application badge when a live friend request arrives', () => {
+    setActivePinia(createPinia())
+    const chatStore = useChatStore()
+    chatStore.applyCount = 2
+
+    chatStore.receiveMessage({ messageType: 4, messageContent: 'Please add me' })
+
+    expect(chatStore.applyCount).toBe(3)
+    expect(chatStore.initialMessages).toHaveLength(0)
+  })
+
   it('merges older history pages in chronological order and updates the cursor', () => {
     setActivePinia(createPinia())
     const chatStore = useChatStore()

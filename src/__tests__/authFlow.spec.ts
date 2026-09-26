@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { chatApi } from '@/api/chat'
 import { authApi } from '@/api/auth'
+import { contactApi } from '@/api/contacts'
 import type { AuthUser } from '@/api/auth'
 import App from '@/App.vue'
 import { createRealtimeClient } from '@/api/realtime'
@@ -29,6 +30,15 @@ vi.mock('@/api/chat', () => ({
   chatApi: {
     sendTextMessage: vi.fn(),
     loadHistory: vi.fn(),
+  },
+}))
+
+vi.mock('@/api/contacts', () => ({
+  contactApi: {
+    search: vi.fn(),
+    applyAdd: vi.fn(),
+    loadApplications: vi.fn(),
+    handleApplication: vi.fn(),
   },
 }))
 
@@ -90,6 +100,8 @@ beforeEach(() => {
     admin: false,
   })
   vi.mocked(authApi.updatePassword).mockResolvedValue(undefined)
+  vi.mocked(contactApi.loadApplications).mockResolvedValue({ totalCount: 0, pageSize: 15, pageNo: 1, pageTotal: 0, list: [] })
+  vi.mocked(contactApi.handleApplication).mockResolvedValue(null)
   vi.mocked(chatApi.loadHistory).mockResolvedValue({
     pageNo: 1,
     pageSize: 30,
@@ -422,5 +434,19 @@ describe('authentication flow', () => {
     expect(wrapper.find('[data-testid="contact-search-overlay"]').exists()).toBe(true)
     await wrapper.get('[aria-label="关闭添加好友"]').trigger('click')
     expect(wrapper.find('[data-testid="contact-search-overlay"]').exists()).toBe(false)
+  })
+
+  it('opens the received-application inbox from the chat sidebar', async () => {
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: { chatSessionList: [], chatMessageList: [], applyCount: 1 },
+    })
+    await flushPromises()
+    await wrapper.get('[data-testid="open-contact-applications"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="contact-applications-overlay"]').exists()).toBe(true)
+    expect(contactApi.loadApplications).toHaveBeenCalledWith(1)
   })
 })

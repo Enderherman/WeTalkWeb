@@ -28,4 +28,19 @@ describe('contact API', () => {
     await expect(contactApi.applyAdd('U200')).resolves.toBeNull()
     expect(postForm).toHaveBeenCalledWith('/contact/applyAdd', { contactId: 'U200', applyInfo: '' })
   })
+
+  it('loads a page of received contact applications', async () => {
+    const page = { totalCount: 1, pageSize: 15, pageNo: 2, pageTotal: 2, list: [] }
+    vi.mocked(postForm).mockResolvedValue(page)
+
+    await expect(contactApi.loadApplications(2)).resolves.toEqual(page)
+    expect(postForm).toHaveBeenCalledWith('/contact/loadApply', { pageNo: 2 })
+  })
+
+  it('handles a received application with the chosen decision code', async () => {
+    vi.mocked(postForm).mockResolvedValue(null)
+
+    await expect(contactApi.handleApplication(91, 3)).resolves.toBeNull()
+    expect(postForm).toHaveBeenCalledWith('/contact/dealWithApply', { applyId: 91, status: 3 })
+  })
 })
