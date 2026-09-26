@@ -27,6 +27,12 @@ export interface InitialChatMessage {
   contactName?: string
   memberCount?: number
   extentData?: unknown
+  fileSize?: number
+  fileName?: string
+  fileType?: number
+  status?: number
+  uploadProgress?: number
+  uploadError?: string
 }
 
 export interface ChatHistoryPage {
@@ -134,6 +140,16 @@ export const useChatStore = defineStore('chat', {
 
       if (message.messageType === 2) {
         this.appendMessage(message as unknown as InitialChatMessage, false)
+        return
+      }
+
+      if (message.messageType === 5) {
+        this.appendMessage(message as unknown as InitialChatMessage, false)
+        return
+      }
+
+      if (message.messageType === 6) {
+        this.markFileUploadComplete(Number(message.messageId))
         return
       }
 
@@ -249,12 +265,32 @@ export const useChatStore = defineStore('chat', {
       }
       const session = this.sessionList.find((item) => item.sessionId === message.sessionId)
       if (session) {
-        session.lastMessage = sentByCurrentUser
-          ? message.messageContent
-          : `${message.sendUserNickName}: ${message.messageContent}`
+        const messagePreview = message.messageType === 5 ? message.fileName || '文件' : message.messageContent
+        session.lastMessage = sentByCurrentUser || message.messageType === 5
+          ? messagePreview
+          : `${message.sendUserNickName}: ${messagePreview}`
         session.lastReceiveTime = message.sendTime
       }
       this.sessionList = [...this.sessionList].sort((a, b) => b.lastReceiveTime - a.lastReceiveTime)
+    },
+    setFileUploadProgress(messageId: number, progress: number) {
+      this.initialMessages = this.initialMessages.map((message) =>
+        message.messageId === messageId
+          ? { ...message, uploadProgress: Math.max(0, Math.min(100, progress)), uploadError: undefined }
+          : message,
+      )
+    },
+    markFileUploadFailed(messageId: number, message: string) {
+      this.initialMessages = this.initialMessages.map((item) =>
+        item.messageId === messageId ? { ...item, uploadError: message } : item,
+      )
+    },
+    markFileUploadComplete(messageId: number) {
+      this.initialMessages = this.initialMessages.map((message) =>
+        message.messageId === messageId
+          ? { ...message, status: 1, uploadProgress: 100, uploadError: undefined }
+          : message,
+      )
     },
     mergeCachedMessages(sessionId: string, messages: InitialChatMessage[]) {
       const existing = this.initialMessages.filter((message) => message.sessionId === sessionId)

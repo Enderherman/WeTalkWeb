@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { postForm } from '@/api/http'
+import { postForm, postMultipart } from '@/api/http'
 import { chatApi } from '@/api/chat'
 
-vi.mock('@/api/http', () => ({ postForm: vi.fn() }))
+vi.mock('@/api/http', () => ({ postForm: vi.fn(), postMultipart: vi.fn() }))
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -26,6 +26,35 @@ describe('chat API', () => {
       messageContent: 'Hello',
       messageType: 2,
     })
+  })
+
+  it('creates file-message metadata before uploading a generic file', async () => {
+    const file = new File(['notes'], 'notes.txt', { type: 'text/plain' })
+    vi.mocked(postForm).mockResolvedValue({ messageId: 42 })
+
+    await expect(chatApi.sendFileMessage('U200', file)).resolves.toEqual({ messageId: 42 })
+    expect(postForm).toHaveBeenCalledWith('/chat/sendMessage', {
+      contactId: 'U200',
+      messageContent: '[文件]',
+      messageType: 5,
+      fileSize: file.size,
+      fileName: 'notes.txt',
+      fileType: 2,
+    })
+  })
+
+  it('uploads the file with its message ID and reports upload progress', async () => {
+    const file = new File(['notes'], 'notes.txt', { type: 'text/plain' })
+    const onProgress = vi.fn()
+    vi.mocked(postMultipart).mockResolvedValue('上传成功')
+
+    await expect(chatApi.uploadFile(42, file, onProgress)).resolves.toBe('上传成功')
+    const [path, body, options] = vi.mocked(postMultipart).mock.calls[0]!
+    expect(path).toBe('/chat/uploadFile')
+    expect(body.get('messageId')).toBe('42')
+    expect(body.get('file')).toBe(file)
+    expect(options?.timeoutMs).toBe(0)
+    expect(options?.onUploadProgress).toBe(onProgress)
   })
 
   it('requests older history using the message ID cursor', async () => {

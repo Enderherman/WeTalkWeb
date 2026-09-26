@@ -1196,7 +1196,7 @@
               "application/json": {
                 "schema": {
                   "oneOf": [
-                    { "$ref": "#/components/schemas/NullDataResponse" },
+                    { "$ref": "#/components/schemas/StringDataResponse" },
                     { "$ref": "#/components/schemas/BusinessErrorResponse" }
                   ]
                 }
@@ -1250,16 +1250,16 @@
     },
     "/chat/sendMessage": {
       "post": {
-        "tags": ["Text chat"],
-        "operationId": "sendTextMessage",
-        "summary": "Send a one-to-one text message",
-        "description": "The web text composer supports messageType 2 and limits messages to 500 characters. The backend validates contact membership and persists the message before returning this response.",
+        "tags": ["Chat"],
+        "operationId": "sendChatMessageMetadata",
+        "summary": "Create text or file-message metadata",
+        "description": "Supports text messageType 2 and file/media messageType 5. For type 5, the client first creates message metadata, then uploads the file with /chat/uploadFile. The backend validates contact membership and persists the message before returning this response.",
         "security": [{ "tokenHeader": [] }],
         "requestBody": {
           "required": true,
           "content": {
             "application/x-www-form-urlencoded": {
-              "schema": { "$ref": "#/components/schemas/SendTextMessageRequest" }
+              "schema": { "$ref": "#/components/schemas/SendChatMessageRequest" }
             }
           }
         },
@@ -1884,6 +1884,16 @@
           }
         ]
       },
+      "StringDataResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": { "code": { "const": 200 }, "data": { "type": "string" } }
+          }
+        ]
+      },
       "ContactApplication": {
         "type": "object",
         "properties": {
@@ -2022,13 +2032,16 @@
           "cover": { "type": "string", "format": "binary", "description": "Optional cover or thumbnail image." }
         }
       },
-      "SendTextMessageRequest": {
+      "SendChatMessageRequest": {
         "type": "object",
         "required": ["contactId", "messageContent", "messageType"],
         "properties": {
-          "contactId": { "type": "string", "description": "Recipient user ID for a one-to-one chat." },
+          "contactId": { "type": "string", "description": "Recipient user ID for a direct chat, or group ID for a group chat." },
           "messageContent": { "type": "string", "maxLength": 500 },
-          "messageType": { "type": "integer", "const": 2, "description": "2 is a text message in the current web slice." }
+          "messageType": { "type": "integer", "enum": [2, 5], "description": "2 is text; 5 creates file/media message metadata before upload." },
+          "fileSize": { "type": "integer", "format": "int64", "minimum": 0, "description": "Required by the web client for messageType 5." },
+          "fileName": { "type": "string", "maxLength": 200, "description": "Required by the web client for messageType 5." },
+          "fileType": { "type": "integer", "enum": [0, 1, 2], "description": "0 image, 1 video/audio, 2 ordinary file." }
         }
       },
       "MessageSendDTO": {

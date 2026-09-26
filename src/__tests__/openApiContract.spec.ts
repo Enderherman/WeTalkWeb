@@ -115,7 +115,9 @@ describe('WeTalkWeb OpenAPI contract', () => {
   it('preserves the current credential and text-history constraints', () => {
     expect(contract.components.schemas.LoginRequest.properties.password.pattern).toBe('^[a-f0-9]{32}$')
     expect(contract.components.schemas.RegisterRequest.properties.password.minLength).toBe(8)
-    expect(contract.components.schemas.SendTextMessageRequest.properties.messageContent.maxLength).toBe(500)
+    expect(contract.components.schemas.SendChatMessageRequest.properties.messageContent.maxLength).toBe(500)
+    expect(contract.components.schemas.SendChatMessageRequest.properties.messageType.enum).toEqual([2, 5])
+    expect(contract.components.schemas.SendChatMessageRequest.properties.fileType.enum).toEqual([0, 1, 2])
     expect(contract.components.schemas.LoadHistoryRequest.properties.pageSize.maximum).toBe(50)
   })
 
@@ -195,6 +197,9 @@ describe('WeTalkWeb OpenAPI contract', () => {
       contract.paths['/chat/uploadFile'].post.requestBody.content['multipart/form-data'].schema.$ref,
     ).toBe('#/components/schemas/UploadChatFileRequest')
     expect(contract.components.schemas.UploadChatFileRequest.required).toEqual(['messageId', 'file'])
+    expect(contract.paths['/chat/uploadFile'].post.responses['200'].content['application/json'].schema.oneOf[0].$ref).toBe(
+      '#/components/schemas/StringDataResponse',
+    )
     expect(contract.components.schemas.UploadChatFileRequest.properties.cover).toMatchObject({
       format: 'binary',
       description: 'Optional cover or thumbnail image.',

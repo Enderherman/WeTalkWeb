@@ -9,8 +9,9 @@ import ContactDirectoryDialog from '@/components/ContactDirectoryDialog.vue'
 import ContactSearchDialog from '@/components/ContactSearchDialog.vue'
 import GroupDirectoryDialog from '@/components/GroupDirectoryDialog.vue'
 import { useAuthStore } from '@/stores/auth'
-import { useChatStore } from '@/stores/chat'
+import { useChatStore, type InitialChatMessage } from '@/stores/chat'
 import { textMessageCache } from '@/storage/textMessageCache'
+import { validateOrdinaryFile } from '@/utils/fileValidation'
 import { validatePassword } from '@/utils/authValidation'
 import { formatMessageTimeDivider, shouldShowMessageTime } from '@/utils/messageTime'
 
@@ -42,7 +43,7 @@ const selectedSession = computed(
 )
 const selectedMessages = computed(() =>
   chatStore.initialMessages
-    .filter((message) => message.sessionId === selectedSessionId.value && [2, 3, 8, 9, 11, 12].includes(message.messageType))
+    .filter((message) => message.sessionId === selectedSessionId.value && [2, 3, 5, 8, 9, 11, 12].includes(message.messageType))
     .sort((a, b) => a.sendTime - b.sendTime)
     .slice(-80),
 )
@@ -50,6 +51,10 @@ const currentHistory = computed(() => chatStore.historyBySession[selectedSession
 const messageDraft = ref('')
 const sendingMessage = ref(false)
 const messageError = ref('')
+const fileInput = ref<HTMLInputElement | null>(null)
+const fileUploadError = ref('')
+const fileUploading = ref(false)
+const pendingUploadFiles = reactive(new Map<number, File>())
 const messagePanel = ref<HTMLElement | null>(null)
 const historyLoading = ref(false)
 const olderMessagesLoading = ref(false)
@@ -287,6 +292,86 @@ async function sendTextMessage() {
   }
 }
 
+function chooseAttachment() {
+  fileUploadError.value = ''
+  fileInput.value?.click()
+}
+
+async function selectAttachment(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0] || null
+  input.value = ''
+  if (!file) return
+  fileUploadError.value = ''
+
+  const session = selectedSession.value
+  if (!session || session.groupClosed || session.groupAccessRevoked) {
+    fileUploadError.value = '当前会话不可发送文件'
+    return
+  }
+  const validationError = validateOrdinaryFile(file)
+  if (validationError) {
+    fileUploadError.value = validationError
+    return
+  }
+  await sendFileAttachment(session.contactId, file)
+}
+
+async function sendFileAttachment(contactId: string, file: File) {
+  if (fileUploading.value) return
+  fileUploading.value = true
+  fileUploadError.value = ''
+  let message: InitialChatMessage | null = null
+  try {
+    message = await chatApi.sendFileMessage(contactId, file)
+    chatStore.appendMessage(message, true)
+    pendingUploadFiles.set(message.messageId, file)
+    await uploadFileForMessage(message.messageId, file)
+  } catch (error: unknown) {
+    if (message) {
+      chatStore.markFileUploadFailed(message.messageId, '上传失败，请重试')
+    } else {
+      fileUploadError.value = error instanceof Error ? error.message : '文件消息发送失败，请稍后重试'
+    }
+  } finally {
+    fileUploading.value = false
+  }
+}
+
+async function uploadFileForMessage(messageId: number, file: File) {
+  await chatApi.uploadFile(messageId, file, (progress) => chatStore.setFileUploadProgress(messageId, progress))
+  chatStore.markFileUploadComplete(messageId)
+  pendingUploadFiles.delete(messageId)
+}
+
+async function retryFileUpload(messageId: number) {
+  const file = pendingUploadFiles.get(messageId)
+  if (!file || fileUploading.value) return
+  fileUploading.value = true
+  fileUploadError.value = ''
+  try {
+    await uploadFileForMessage(messageId, file)
+  } catch {
+    chatStore.markFileUploadFailed(messageId, '上传失败，请重试')
+  } finally {
+    fileUploading.value = false
+  }
+}
+
+function formatFileSize(value?: number) {
+  const bytes = Number(value) || 0
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+function fileUploadStatus(message: InitialChatMessage) {
+  if (message.uploadError) return message.uploadError
+  if (message.status === 1) return '已上传 · ' + formatFileSize(message.fileSize)
+  if (message.uploadProgress !== undefined) return '正在上传 ' + message.uploadProgress + '%'
+  return '等待上传'
+}
+
 function formatMessageTime(sendTime: number) {
   return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(sendTime))
 }
@@ -475,17 +560,36 @@ async function signOut() {
             </time>
             <article
               class="message-row"
-              :class="{ 'is-mine': message.messageType === 2 && message.sendUserId === authStore.session?.userId, 'is-system': message.messageType !== 2 }"
+              :class="{ 'is-mine': (message.messageType === 2 || message.messageType === 5) && message.sendUserId === authStore.session?.userId, 'is-system': message.messageType !== 2 && message.messageType !== 5 }"
               :data-testid="`message-${message.messageId}`"
             >
               <div class="message-bubble">
                 <strong
-                  v-if="message.messageType === 2 && message.sendUserId !== authStore.session?.userId"
+                  v-if="(message.messageType === 2 || message.messageType === 5) && message.sendUserId !== authStore.session?.userId"
                   class="message-sender"
                 >
                   {{ message.sendUserNickName }}
                 </strong>
-                <p>{{ message.messageContent }}</p>
+                <div v-if="message.messageType === 5" class="file-message-card" data-testid="file-attachment">
+                  <div class="file-message-main">
+                    <span class="file-message-mark" aria-hidden="true">FILE</span>
+                    <span class="file-message-copy">
+                      <strong>{{ message.fileName || '附件' }}</strong>
+                      <small>{{ formatFileSize(message.fileSize) }}</small>
+                    </span>
+                  </div>
+                  <div class="file-message-status">
+                    <span>{{ fileUploadStatus(message) }}</span>
+                    <button
+                      v-if="message.uploadError && pendingUploadFiles.has(message.messageId)"
+                      class="file-upload-retry"
+                      type="button"
+                      :disabled="fileUploading"
+                      @click="retryFileUpload(message.messageId)"
+                    >重试上传</button>
+                  </div>
+                </div>
+                <p v-else>{{ message.messageContent }}</p>
                 <div class="message-footer">
                   <time>{{ formatMessageTime(message.sendTime) }}</time>
                   <span
@@ -513,6 +617,7 @@ async function signOut() {
       </div>
 
       <p v-if="messageError" class="composer-error" role="alert">{{ messageError }}</p>
+      <p v-if="fileUploadError" class="composer-error" data-testid="file-upload-error" role="alert">{{ fileUploadError }}</p>
       <p v-if="selectedSession?.groupClosed" class="group-session-notice" role="status">
         群聊已解散，无法继续发送消息。
       </p>
@@ -520,6 +625,23 @@ async function signOut() {
         你已退出或被移出群聊，无法继续发送消息。
       </p>
       <div class="composer-preview" aria-label="聊天输入框">
+        <input
+          ref="fileInput"
+          class="file-attach-input"
+          data-testid="file-input"
+          type="file"
+          :disabled="!selectedSession || selectedSession.groupClosed || selectedSession.groupAccessRevoked || fileUploading"
+          @change="selectAttachment"
+        />
+        <button
+          class="file-attach-button"
+          data-testid="attach-file"
+          type="button"
+          aria-label="选择普通文件"
+          title="选择普通文件"
+          :disabled="!selectedSession || selectedSession.groupClosed || selectedSession.groupAccessRevoked || fileUploading"
+          @click="chooseAttachment"
+        >＋</button>
         <textarea
           v-model="messageDraft"
           :disabled="!selectedSession || selectedSession.groupClosed || selectedSession.groupAccessRevoked || sendingMessage"

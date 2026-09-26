@@ -1889,6 +1889,78 @@ textarea:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.file-message-card {
+  display: flex;
+  min-width: min(240px, 60vw);
+  max-width: min(430px, 76vw);
+  flex-direction: column;
+  gap: 8px;
+}
+
+.file-message-main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 11px;
+}
+
+.file-message-mark {
+  display: grid;
+  width: 38px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #e1e3de;
+  border-radius: 9px;
+  color: #68746b;
+  background: #fff;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.file-message-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.file-message-copy strong {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.file-message-copy small,
+.file-message-status {
+  color: #85857f;
+  font-size: 11px;
+}
+
+.file-message-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 22px;
+}
+
+.file-upload-retry {
+  border: 0;
+  border-radius: 7px;
+  padding: 4px 8px;
+  color: #477159;
+  background: #e8f1eb;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.file-upload-retry:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .message-footer {
   display: flex;
   justify-content: flex-end;
@@ -1947,6 +2019,33 @@ textarea:focus-visible {
 
 .composer-preview textarea::placeholder {
   color: #999993;
+}
+
+.file-attach-input {
+  display: none;
+}
+
+.file-attach-button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: #63645e;
+  background: #eeefeb;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.file-attach-button:hover:not(:disabled) {
+  background: #e5e8e2;
+}
+
+.file-attach-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .composer-send {

@@ -313,6 +313,49 @@ describe('chat initialization state', () => {
     expect(chatStore.sessionList[0]?.memberCount).toBe(2)
   })
 
+  it('tracks ordinary file upload progress and completes on the type 6 event', () => {
+    setActivePinia(createPinia())
+    const chatStore = useChatStore()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S100',
+          contactId: 'U200',
+          contactName: 'Friend',
+          lastMessage: '',
+          lastReceiveTime: 1000,
+          contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+
+    chatStore.receiveMessage({
+      messageId: 60,
+      sessionId: 'S100',
+      messageType: 5,
+      messageContent: '[文件]',
+      sendUserId: 'U100',
+      sendUserNickName: 'Student',
+      sendTime: 2000,
+      contactId: 'U200',
+      fileName: 'notes.txt',
+      fileSize: 2048,
+      fileType: 2,
+      status: 0,
+    })
+    chatStore.setFileUploadProgress(60, 45)
+    expect(chatStore.initialMessages[0]?.uploadProgress).toBe(45)
+
+    chatStore.receiveMessage({ messageType: 6, messageId: 60, contactId: 'U200', status: 1 })
+
+    expect(chatStore.initialMessages[0]?.status).toBe(1)
+    expect(chatStore.initialMessages[0]?.uploadProgress).toBe(100)
+    expect(chatStore.sessionList[0]?.lastMessage).toBe('notes.txt')
+  })
+
   it('marks a dissolved group as closed and retains its system message', () => {
     setActivePinia(createPinia())
     const chatStore = useChatStore()
