@@ -557,17 +557,131 @@ describe('authentication flow', () => {
     })
     await flushPromises()
     try {
-      await wrapper.get('[data-testid="preview-image"]').trigger('click')
+      await wrapper.get('[data-testid="preview-media"]').trigger('click')
       await flushPromises()
 
       expect(chatApi.downloadFile).toHaveBeenCalledWith(604)
       expect(createObjectURL).toHaveBeenCalledWith(blob)
-      expect(wrapper.get('[data-testid="image-preview-overlay"] img').attributes('src')).toBe('blob:image-preview')
-      expect(wrapper.get('[data-testid="image-preview-overlay"] img').attributes('alt')).toBe('photo.png')
+      expect(wrapper.get('[data-testid="media-preview-overlay"] img').attributes('src')).toBe('blob:image-preview')
+      expect(wrapper.get('[data-testid="media-preview-overlay"] img').attributes('alt')).toBe('photo.png')
 
-      await wrapper.get('[aria-label="关闭图片预览"]').trigger('click')
-      expect(wrapper.find('[data-testid="image-preview-overlay"]').exists()).toBe(false)
+      await wrapper.get('[aria-label="关闭媒体预览"]').trigger('click')
+      expect(wrapper.find('[data-testid="media-preview-overlay"]').exists()).toBe(false)
       expect(revokeObjectURL).toHaveBeenCalledWith('blob:image-preview')
+    } finally {
+      wrapper.unmount()
+      if (originalCreate) Object.defineProperty(URL, 'createObjectURL', originalCreate)
+      else Reflect.deleteProperty(URL, 'createObjectURL')
+      if (originalRevoke) Object.defineProperty(URL, 'revokeObjectURL', originalRevoke)
+      else Reflect.deleteProperty(URL, 'revokeObjectURL')
+    }
+  })
+
+  it('opens an uploaded video in the media preview player', async () => {
+    vi.mocked(chatApi.downloadFile).mockResolvedValue(new Blob(['video bytes'], { type: 'application/octet-stream' }))
+    const originalCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL')
+    const originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL')
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:video-preview')
+    const revokeObjectURL = vi.fn()
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200',
+          contactId: 'U200',
+          contactName: 'Friend',
+          lastMessage: 'clip.mp4',
+          lastReceiveTime: 2000,
+          contactType: 0,
+        }],
+        chatMessageList: [{
+          messageId: 605,
+          sessionId: 'S200',
+          messageType: 5,
+          messageContent: '[媒体]',
+          sendUserId: 'U200',
+          sendUserNickName: 'Friend',
+          sendTime: 2000,
+          contactId: 'U100',
+          fileName: 'clip.mp4',
+          fileSize: 10,
+          fileType: 1,
+          status: 1,
+        }],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+    try {
+      await wrapper.get('[data-testid="preview-media"]').trigger('click')
+      await flushPromises()
+
+      expect(chatApi.downloadFile).toHaveBeenCalledWith(605)
+      expect(wrapper.find('[data-testid="media-preview-overlay"] video').exists()).toBe(true)
+      expect(createObjectURL.mock.calls[0]?.[0].type).toBe('video/mp4')
+
+      await wrapper.get('[aria-label="关闭媒体预览"]').trigger('click')
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:video-preview')
+    } finally {
+      wrapper.unmount()
+      if (originalCreate) Object.defineProperty(URL, 'createObjectURL', originalCreate)
+      else Reflect.deleteProperty(URL, 'createObjectURL')
+      if (originalRevoke) Object.defineProperty(URL, 'revokeObjectURL', originalRevoke)
+      else Reflect.deleteProperty(URL, 'revokeObjectURL')
+    }
+  })
+
+  it('opens a video attachment in the media player with a browser video MIME type', async () => {
+    vi.mocked(chatApi.downloadFile).mockResolvedValue(new Blob(['video bytes'], { type: 'application/octet-stream' }))
+    const originalCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL')
+    const originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL')
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:video-preview')
+    const revokeObjectURL = vi.fn()
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200',
+          contactId: 'U200',
+          contactName: 'Friend',
+          lastMessage: 'clip.mp4',
+          lastReceiveTime: 2000,
+          contactType: 0,
+        }],
+        chatMessageList: [{
+          messageId: 605,
+          sessionId: 'S200',
+          messageType: 5,
+          messageContent: '[媒体]',
+          sendUserId: 'U200',
+          sendUserNickName: 'Friend',
+          sendTime: 2000,
+          contactId: 'U100',
+          fileName: 'clip.mp4',
+          fileSize: 10,
+          fileType: 1,
+          status: 1,
+        }],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+    try {
+      await wrapper.get('[data-testid="preview-media"]').trigger('click')
+      await flushPromises()
+
+      expect(chatApi.downloadFile).toHaveBeenCalledWith(605)
+      expect(wrapper.find('[data-testid="media-preview-overlay"] video').exists()).toBe(true)
+      expect(createObjectURL.mock.calls[0]?.[0].type).toBe('video/mp4')
+
+      await wrapper.get('[aria-label="关闭媒体预览"]').trigger('click')
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:video-preview')
     } finally {
       wrapper.unmount()
       if (originalCreate) Object.defineProperty(URL, 'createObjectURL', originalCreate)

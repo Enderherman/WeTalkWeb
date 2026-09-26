@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   getChatFileType,
+  getChatMediaKind,
+  getChatMediaMimeType,
   MAX_ATTACHMENT_SIZE_BYTES,
   MAX_IMAGE_SIZE_BYTES,
   validateChatFile,
@@ -27,9 +29,15 @@ describe('chat file validation', () => {
   it('accepts images within their limit and classifies image/media extensions', () => {
     expect(getChatFileType('photo.PNG')).toBe(0)
     expect(getChatFileType('movie.MP4')).toBe(1)
+    expect(getChatFileType('song.mp3')).toBe(1)
+    expect(getChatMediaKind('movie.mp4')).toBe('video')
+    expect(getChatMediaKind('song.mp3')).toBe('audio')
+    expect(getChatMediaMimeType('photo.PNG')).toBe('image/png')
+    expect(getChatMediaMimeType('movie.mp4')).toBe('video/mp4')
+    expect(getChatMediaMimeType('song.mp3')).toBe('audio/mpeg')
     expect(validateChatFile({ name: 'photo.png', size: MAX_IMAGE_SIZE_BYTES })).toBeNull()
     expect(validateChatFile({ name: 'oversized.jpg', size: MAX_IMAGE_SIZE_BYTES + 1 })).toBe('图片不能超过 200 MB')
-    expect(validateChatFile({ name: 'recording.mp3', size: 1 })).toBe('视频和音频后续接入')
+    expect(validateChatFile({ name: 'recording.mp3', size: 1 })).toBeNull()
   })
 
   it('rejects extensions outside the backend safe extension pattern', () => {

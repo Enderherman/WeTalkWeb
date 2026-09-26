@@ -11,7 +11,7 @@ import GroupDirectoryDialog from '@/components/GroupDirectoryDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore, type InitialChatMessage } from '@/stores/chat'
 import { textMessageCache } from '@/storage/textMessageCache'
-import { getChatFileType, validateChatFile } from '@/utils/fileValidation'
+import { getChatFileType, getChatMediaKind, getChatMediaMimeType, validateChatFile } from '@/utils/fileValidation'
 import { validatePassword } from '@/utils/authValidation'
 import { formatMessageTimeDivider, shouldShowMessageTime } from '@/utils/messageTime'
 
@@ -58,10 +58,10 @@ const fileDragActive = ref(false)
 const pendingUploadFiles = reactive(new Map<number, File>())
 const downloadingFiles = reactive(new Set<number>())
 const fileDownloadErrors = reactive(new Map<number, string>())
-const imagePreviewMessage = ref<InitialChatMessage | null>(null)
-const imagePreviewUrl = ref('')
-const imagePreviewLoadingId = ref<number | null>(null)
-const imagePreviewErrors = reactive(new Map<number, string>())
+const mediaPreviewMessage = ref<InitialChatMessage | null>(null)
+const mediaPreviewUrl = ref('')
+const mediaPreviewLoadingId = ref<number | null>(null)
+const mediaPreviewErrors = reactive(new Map<number, string>())
 const messagePanel = ref<HTMLElement | null>(null)
 const historyLoading = ref(false)
 const olderMessagesLoading = ref(false)
@@ -119,7 +119,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   historyRequestId += 1
-  closeImagePreview()
+  closeMediaPreview()
   chatStore.disconnect()
 })
 
@@ -429,26 +429,28 @@ async function downloadAttachment(message: InitialChatMessage) {
   }
 }
 
-async function previewImage(message: InitialChatMessage) {
-  if (message.fileType !== 0 || message.status !== 1 || imagePreviewLoadingId.value !== null) return
-  closeImagePreview()
-  imagePreviewErrors.delete(message.messageId)
-  imagePreviewLoadingId.value = message.messageId
+async function previewMedia(message: InitialChatMessage) {
+  if ((message.fileType !== 0 && message.fileType !== 1) || message.status !== 1 || mediaPreviewLoadingId.value !== null) return
+  closeMediaPreview()
+  mediaPreviewErrors.delete(message.messageId)
+  mediaPreviewLoadingId.value = message.messageId
   try {
     const blob = await chatApi.downloadFile(message.messageId)
-    imagePreviewUrl.value = URL.createObjectURL(blob)
-    imagePreviewMessage.value = message
+    const mimeType = getChatMediaMimeType(message.fileName || '')
+    const previewBlob = mimeType ? new Blob([blob], { type: mimeType }) : blob
+    mediaPreviewUrl.value = URL.createObjectURL(previewBlob)
+    mediaPreviewMessage.value = message
   } catch {
-    imagePreviewErrors.set(message.messageId, '图片预览失败，请稍后重试')
+    mediaPreviewErrors.set(message.messageId, '媒体预览失败，请稍后重试')
   } finally {
-    imagePreviewLoadingId.value = null
+    mediaPreviewLoadingId.value = null
   }
 }
 
-function closeImagePreview() {
-  if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value)
-  imagePreviewUrl.value = ''
-  imagePreviewMessage.value = null
+function closeMediaPreview() {
+  if (mediaPreviewUrl.value) URL.revokeObjectURL(mediaPreviewUrl.value)
+  mediaPreviewUrl.value = ''
+  mediaPreviewMessage.value = null
 }
 
 function formatFileSize(value?: number) {
@@ -685,13 +687,13 @@ async function signOut() {
                   <div class="file-message-status">
                     <span>{{ fileUploadStatus(message) }}</span>
                     <button
-                      v-if="message.fileType === 0"
+                      v-if="message.fileType === 0 || message.fileType === 1"
                       class="file-preview-button"
-                      data-testid="preview-image"
+                      data-testid="preview-media"
                       type="button"
-                      :disabled="message.status !== 1 || imagePreviewLoadingId !== null"
-                      @click="previewImage(message)"
-                    >{{ imagePreviewLoadingId === message.messageId ? '加载中…' : '预览' }}</button>
+                      :disabled="message.status !== 1 || mediaPreviewLoadingId !== null"
+                      @click="previewMedia(message)"
+                    >{{ mediaPreviewLoadingId === message.messageId ? '加载中…' : message.fileType === 0 ? '预览图片' : '播放' }}</button>
                     <button
                       class="file-download-button"
                       data-testid="download-file"
@@ -707,8 +709,8 @@ async function signOut() {
                       @click="retryFileUpload(message.messageId)"
                     >重试上传</button>
                   </div>
-                  <small v-if="imagePreviewErrors.has(message.messageId)" class="file-download-error" role="alert">
-                    {{ imagePreviewErrors.get(message.messageId) }}
+                  <small v-if="mediaPreviewErrors.has(message.messageId)" class="file-download-error" role="alert">
+                    {{ mediaPreviewErrors.get(message.messageId) }}
                   </small>
                   <small v-if="fileDownloadErrors.has(message.messageId)" class="file-download-error" role="alert">
                     {{ fileDownloadErrors.get(message.messageId) }}
@@ -792,24 +794,36 @@ async function signOut() {
     </section>
 
     <div
-      v-if="imagePreviewMessage && imagePreviewUrl"
-      class="image-preview-overlay"
-      data-testid="image-preview-overlay"
-      @click.self="closeImagePreview"
+      v-if="mediaPreviewMessage && mediaPreviewUrl"
+      class="media-preview-overlay"
+      data-testid="media-preview-overlay"
+      @click.self="closeMediaPreview"
     >
       <section
-        class="image-preview-dialog"
+        class="media-preview-dialog"
         role="dialog"
         aria-modal="true"
-        aria-label="图片预览"
+        aria-label="媒体预览"
         tabindex="-1"
-        @keydown.esc.stop.prevent="closeImagePreview"
+        @keydown.esc.stop.prevent="closeMediaPreview"
       >
         <header>
-          <strong>{{ imagePreviewMessage.fileName || '图片' }}</strong>
-          <button class="icon-button" type="button" aria-label="关闭图片预览" @click="closeImagePreview">×</button>
+          <strong>{{ mediaPreviewMessage.fileName || '媒体文件' }}</strong>
+          <button class="icon-button" type="button" aria-label="关闭媒体预览" @click="closeMediaPreview">×</button>
         </header>
-        <img :src="imagePreviewUrl" :alt="imagePreviewMessage.fileName || '聊天图片'" />
+        <img
+          v-if="getChatMediaKind(mediaPreviewMessage.fileName || '') === 'image'"
+          :src="mediaPreviewUrl"
+          :alt="mediaPreviewMessage.fileName || '聊天图片'"
+        />
+        <video
+          v-else-if="getChatMediaKind(mediaPreviewMessage.fileName || '') === 'video'"
+          :src="mediaPreviewUrl"
+          controls
+          playsinline
+          preload="metadata"
+        ></video>
+        <audio v-else :src="mediaPreviewUrl" controls preload="metadata"></audio>
       </section>
     </div>
 

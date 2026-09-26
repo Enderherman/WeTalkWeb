@@ -11,7 +11,7 @@ export const chatApi = {
   sendFileMessage: (contactId: string, file: File, fileType: 0 | 1 | 2 = 2): Promise<InitialChatMessage> =>
     postForm<InitialChatMessage>('/chat/sendMessage', {
       contactId,
-      messageContent: '[文件]',
+      messageContent: fileType === 0 ? '[图片]' : fileType === 1 ? '[媒体]' : '[文件]',
       messageType: 5,
       fileSize: file.size,
       fileName: file.name,

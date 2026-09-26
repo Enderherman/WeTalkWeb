@@ -51,11 +51,27 @@ describe('chat API', () => {
 
     expect(postForm).toHaveBeenCalledWith('/chat/sendMessage', {
       contactId: 'U200',
-      messageContent: '[文件]',
+      messageContent: '[图片]',
       messageType: 5,
       fileSize: file.size,
       fileName: 'photo.png',
       fileType: 0,
+    })
+  })
+
+  it('marks audio/video metadata with the backend media file type', async () => {
+    const file = new File(['video'], 'clip.mp4', { type: 'video/mp4' })
+    vi.mocked(postForm).mockResolvedValue({ messageId: 44 })
+
+    await chatApi.sendFileMessage('G300', file, 1)
+
+    expect(postForm).toHaveBeenCalledWith('/chat/sendMessage', {
+      contactId: 'G300',
+      messageContent: '[媒体]',
+      messageType: 5,
+      fileSize: file.size,
+      fileName: 'clip.mp4',
+      fileType: 1,
     })
   })
 

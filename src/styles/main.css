@@ -2020,7 +2020,7 @@ textarea:focus-visible {
   font-size: 11px;
 }
 
-.image-preview-overlay {
+.media-preview-overlay {
   position: fixed;
   z-index: 60;
   inset: 0;
@@ -2030,7 +2030,7 @@ textarea:focus-visible {
   background: rgb(24 27 25 / 72%);
 }
 
-.image-preview-dialog {
+.media-preview-dialog {
   display: flex;
   max-width: min(96vw, 1100px);
   max-height: 94dvh;
@@ -2042,7 +2042,7 @@ textarea:focus-visible {
   box-shadow: 0 18px 60px rgb(0 0 0 / 24%);
 }
 
-.image-preview-dialog header {
+.media-preview-dialog header {
   display: flex;
   min-height: 48px;
   align-items: center;
@@ -2052,18 +2052,24 @@ textarea:focus-visible {
   color: var(--wt-text);
 }
 
-.image-preview-dialog header strong {
+.media-preview-dialog header strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.image-preview-dialog img {
+.media-preview-dialog img,
+.media-preview-dialog video {
   display: block;
   max-width: 96vw;
   max-height: calc(94dvh - 60px);
   object-fit: contain;
   background: #f3f3f1;
+}
+
+.media-preview-dialog audio {
+  width: min(86vw, 560px);
+  padding: 16px;
 }
 
 .message-footer {
