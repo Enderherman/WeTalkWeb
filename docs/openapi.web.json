@@ -1,9 +1,9 @@
 {
   "openapi": "3.2.1",
   "info": {
-    "title": "WeTalk Web API Contract — Auth and Text Chat",
+    "title": "WeTalk Web API Contract — Auth, Contacts, and Text Chat",
     "version": "0.1.0",
-    "description": "This contract describes the HTTP endpoints currently used by WeTalkWeb for authentication, profile/password operations, one-to-one text messages, and cursor-paged history. It is a client-slice contract, not the complete backend API inventory. Other REST endpoints and WebSocket frames remain separate Phase 0 deliverables.\n\nRequests use application/x-www-form-urlencoded and the same-origin /api prefix. Business errors are normally returned in the BaseResponse body, often with HTTP 200; clients must inspect code. Login sends a lowercase MD5 digest for compatibility with the existing Electron client, while registration and password change send the raw password over HTTPS and the server hashes it. This legacy protocol must be replaced before public production use."
+    "description": "This contract describes the HTTP endpoints currently used by WeTalkWeb for authentication, profile/password operations, contact search/requests/lists/relationship management, one-to-one text messages, and cursor-paged history. It is a client-slice contract, not the complete backend API inventory. Group, file, admin, beauty-account, app-update endpoints and WebSocket frames remain separate Phase 0 deliverables.\n\nRequests use application/x-www-form-urlencoded and the same-origin /api prefix. Business errors are normally returned in the BaseResponse body, often with HTTP 200; clients must inspect code. Login sends a lowercase MD5 digest for compatibility with the existing Electron client, while registration and password change send the raw password over HTTPS and the server hashes it. This legacy protocol must be replaced before public production use."
   },
   "servers": [
     {
@@ -13,6 +13,7 @@
   ],
   "tags": [
     { "name": "Account", "description": "Authentication and current-user profile operations." },
+    { "name": "Contacts", "description": "Contact search, requests, lists, and relationship management." },
     { "name": "Text chat", "description": "Web-supported one-to-one text messaging and history." }
   ],
   "paths": {
@@ -229,6 +230,336 @@
                   ]
                 },
                 "example": { "status": "success", "code": 200, "data": null }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/contact/search": {
+      "post": {
+        "tags": ["Contacts"],
+        "operationId": "searchContact",
+        "summary": "Search for a user or group",
+        "description": "Searches by the contact ID. The result includes the relationship status visible to the current user.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["contactId"],
+                "properties": { "contactId": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Matching contact summary or a body-level business error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/ContactSearchResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/contact/applyAdd": {
+      "post": {
+        "tags": ["Contacts"],
+        "operationId": "applyToContact",
+        "summary": "Apply to add a friend or join a group",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["contactId"],
+                "properties": {
+                  "contactId": { "type": "string", "description": "User ID or group ID." },
+                  "applyInfo": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns the target's join type when the request is accepted or recorded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/IntegerDataResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/contact/loadApply": {
+      "post": {
+        "tags": ["Contacts"],
+        "operationId": "loadContactApplications",
+        "summary": "Load received contact applications",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": { "pageNo": { "type": "integer", "minimum": 1 } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paged contact applications ordered by the latest application time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/ContactApplyPageResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/contact/dealWithApply": {
+      "post": {
+        "tags": ["Contacts"],
+        "operationId": "respondToContactApplication",
+        "summary": "Accept, reject, or block a contact application",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["applyId", "status"],
+                "properties": {
+                  "applyId": { "type": "integer", "minimum": 1 },
+                  "status": { "type": "integer", "enum": [1, 2, 3], "description": "1 accept, 2 reject, 3 block." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Application handled; data is null.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/NullDataResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/contact/loadContact": {
+      "post": {
+        "tags": ["Contacts"],
+        "operationId": "loadContacts",
+        "summary": "Load the current user's contacts or groups",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["contactType"],
+                "properties": { "contactType": { "type": "string", "enum": ["0", "1"], "description": "0 users, 1 groups." } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Contact entries of the requested type.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/ContactListResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/contact/getContactInfo": {
+      "post": {
+        "tags": ["Contacts"],
+        "operationId": "getContactInfo",
+        "summary": "Read visible information for a contact",
+        "description": "This operation may return a user who is not yet a friend, with contactStatus set to the non-friend value.",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["contactId"],
+                "properties": { "contactId": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Visible contact profile.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/UserInfoResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/contact/getContactUserInfo": {
+      "post": {
+        "tags": ["Contacts"],
+        "operationId": "getFriendInfo",
+        "summary": "Read friend-only user information",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["contactId"],
+                "properties": { "contactId": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Friend profile; non-friends receive a business error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/UserInfoResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/contact/delContact": {
+      "post": {
+        "tags": ["Contacts"],
+        "operationId": "deleteContact",
+        "summary": "Remove a contact",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["contactId"],
+                "properties": { "contactId": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Contact removed; data is null.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/NullDataResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/contact/addContact2BlackList": {
+      "post": {
+        "tags": ["Contacts"],
+        "operationId": "blockContact",
+        "summary": "Block a contact",
+        "security": [{ "tokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["contactId"],
+                "properties": { "contactId": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Contact blocked; data is null.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/NullDataResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
               }
             }
           },
@@ -479,6 +810,101 @@
             "type": "object",
             "required": ["code", "data"],
             "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/UserInfoVO" } }
+          }
+        ]
+      },
+      "ContactSearchResult": {
+        "type": "object",
+        "properties": {
+          "contactId": { "type": "string" },
+          "contactType": { "type": "string", "description": "Backend contact-type marker." },
+          "nickName": { "type": "string" },
+          "status": { "type": "integer", "enum": [0, 1, 2, 3, 4, 5, 6, 7] },
+          "statusName": { "type": "string" },
+          "sex": { "type": "integer" },
+          "areaName": { "type": "string" }
+        }
+      },
+      "ContactSearchResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/ContactSearchResult" } }
+          }
+        ]
+      },
+      "IntegerDataResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": { "code": { "const": 200 }, "data": { "type": "integer" } }
+          }
+        ]
+      },
+      "ContactApplication": {
+        "type": "object",
+        "properties": {
+          "applyId": { "type": "integer" },
+          "applyUserId": { "type": "string" },
+          "receiveUserId": { "type": "string" },
+          "contactType": { "type": "integer", "enum": [0, 1] },
+          "contactId": { "type": "string" },
+          "lastApplyTime": { "type": "integer", "format": "int64", "description": "Unix epoch milliseconds." },
+          "status": { "type": "integer", "enum": [0, 1, 2, 3] },
+          "applyInfo": { "type": "string" },
+          "statusName": { "type": "string" },
+          "contactName": { "type": "string" }
+        }
+      },
+      "ContactApplicationPage": {
+        "type": "object",
+        "required": ["list"],
+        "properties": {
+          "totalCount": { "type": "integer" },
+          "pageSize": { "type": "integer", "default": 15 },
+          "pageNo": { "type": "integer" },
+          "pageTotal": { "type": "integer" },
+          "list": { "type": "array", "items": { "$ref": "#/components/schemas/ContactApplication" } }
+        }
+      },
+      "ContactApplyPageResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/ContactApplicationPage" } }
+          }
+        ]
+      },
+      "UserContact": {
+        "type": "object",
+        "properties": {
+          "userId": { "type": "string" },
+          "contactId": { "type": "string" },
+          "contactType": { "type": "integer", "enum": [0, 1] },
+          "createTime": { "type": "string", "description": "Formatted local time, yyyy-MM-dd HH:mm:ss, GMT+8." },
+          "status": { "type": "integer", "enum": [0, 1, 2, 3, 4, 5, 6, 7] },
+          "updateTime": { "type": "string", "description": "Formatted local time, yyyy-MM-dd HH:mm:ss, GMT+8." },
+          "contactName": { "type": "string" },
+          "sex": { "type": "integer" },
+          "memberCount": { "type": "integer" }
+        }
+      },
+      "ContactListResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": {
+              "code": { "const": 200 },
+              "data": { "type": "array", "items": { "$ref": "#/components/schemas/UserContact" } }
+            }
           }
         ]
       },

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const contract = JSON.parse(readFileSync(resolve(process.cwd(), 'docs/openapi.web.json'), 'utf8'))
 
 describe('WeTalkWeb OpenAPI contract', () => {
-  it('documents the currently integrated account and text-chat endpoints', () => {
+  it('documents the currently integrated account, contact, and text-chat endpoints', () => {
     expect(contract.openapi).toBe('3.2.1')
     expect(contract.servers[0].url).toBe('/api')
     expect(Object.keys(contract.paths).sort()).toEqual([
@@ -17,6 +17,15 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/account/updatePassword',
       '/chat/loadHistory',
       '/chat/sendMessage',
+      '/contact/addContact2BlackList',
+      '/contact/applyAdd',
+      '/contact/dealWithApply',
+      '/contact/delContact',
+      '/contact/getContactInfo',
+      '/contact/getContactUserInfo',
+      '/contact/loadApply',
+      '/contact/loadContact',
+      '/contact/search',
     ])
 
     const operationIds = Object.values(contract.paths).map((path: any) => path.post.operationId)
@@ -30,6 +39,15 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/account/logout',
       '/chat/sendMessage',
       '/chat/loadHistory',
+      '/contact/search',
+      '/contact/applyAdd',
+      '/contact/loadApply',
+      '/contact/dealWithApply',
+      '/contact/loadContact',
+      '/contact/getContactInfo',
+      '/contact/getContactUserInfo',
+      '/contact/delContact',
+      '/contact/addContact2BlackList',
     ]
 
     for (const path of protectedPaths) {
@@ -82,5 +100,15 @@ describe('WeTalkWeb OpenAPI contract', () => {
     }
     expect(contract.components.schemas.BusinessErrorResponse.allOf[1].properties.code.enum).toContain(600)
     expect(contract.components.schemas.BusinessErrorResponse.allOf[1].properties.code.enum).toContain(901)
+  })
+
+  it('documents contact relationship types and allowed application responses', () => {
+    expect(contract.components.schemas.ContactApplication.properties.status.enum).toEqual([0, 1, 2, 3])
+    expect(
+      contract.paths['/contact/loadContact'].post.requestBody.content['application/x-www-form-urlencoded'].schema.properties.contactType.enum,
+    ).toEqual(['0', '1'])
+    expect(
+      contract.paths['/contact/dealWithApply'].post.requestBody.content['application/x-www-form-urlencoded'].schema.properties.status.enum,
+    ).toEqual([1, 2, 3])
   })
 })
