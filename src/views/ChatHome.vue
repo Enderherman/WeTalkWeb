@@ -54,6 +54,7 @@ const messageError = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 const fileUploadError = ref('')
 const fileUploading = ref(false)
+const fileDragActive = ref(false)
 const pendingUploadFiles = reactive(new Map<number, File>())
 const downloadingFiles = reactive(new Set<number>())
 const fileDownloadErrors = reactive(new Map<number, string>())
@@ -63,6 +64,7 @@ const olderMessagesLoading = ref(false)
 const historyError = ref('')
 const preservingScroll = ref(false)
 let historyRequestId = 0
+let fileDragDepth = 0
 const connectionLabel = computed(() => {
   switch (chatStore.connectionStatus) {
     case 'connected':
@@ -304,6 +306,10 @@ async function selectAttachment(event: Event) {
   const file = input.files?.[0] || null
   input.value = ''
   if (!file) return
+  await processAttachment(file)
+}
+
+async function processAttachment(file: File) {
   fileUploadError.value = ''
 
   const session = selectedSession.value
@@ -317,6 +323,38 @@ async function selectAttachment(event: Event) {
     return
   }
   await sendFileAttachment(session.contactId, file)
+}
+
+function hasDraggedFiles(event: DragEvent) {
+  return Array.from(event.dataTransfer?.types || []).includes('Files')
+}
+
+function handleFileDragEnter(event: DragEvent) {
+  if (!hasDraggedFiles(event)) return
+  fileDragDepth += 1
+  fileDragActive.value = true
+}
+
+function handleFileDragOver(event: DragEvent) {
+  if (hasDraggedFiles(event) && event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+}
+
+function handleFileDragLeave(event: DragEvent) {
+  if (!hasDraggedFiles(event)) return
+  fileDragDepth = Math.max(0, fileDragDepth - 1)
+  if (fileDragDepth === 0) fileDragActive.value = false
+}
+
+function handleFileDrop(event: DragEvent) {
+  fileDragDepth = 0
+  fileDragActive.value = false
+  const files = Array.from(event.dataTransfer?.files || [])
+  if (files.length === 0) return
+  if (files.length > 1) {
+    fileUploadError.value = '一次拖放一个文件，请分次发送'
+    return
+  }
+  void processAttachment(files[0]!)
 }
 
 async function sendFileAttachment(contactId: string, file: File) {
@@ -537,7 +575,18 @@ async function signOut() {
       </div>
     </aside>
 
-    <section class="chat-main">
+    <section
+      class="chat-main"
+      data-testid="chat-main"
+      :class="{ 'is-file-dragging': fileDragActive }"
+      @dragenter.prevent="handleFileDragEnter"
+      @dragover.prevent="handleFileDragOver"
+      @dragleave.prevent="handleFileDragLeave"
+      @drop.prevent="handleFileDrop"
+    >
+      <div v-if="fileDragActive" class="file-drop-overlay" data-testid="file-drop-overlay">
+        松开鼠标以上传普通文件
+      </div>
       <header class="chat-topbar">
         <button class="icon-button mobile-menu-open" type="button" aria-label="打开导航菜单" @click="sidebarOpen = true">
           ☰

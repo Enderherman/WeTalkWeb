@@ -400,6 +400,57 @@ describe('authentication flow', () => {
     wrapper.unmount()
   })
 
+  it('accepts a normal file dropped into the chat panel', async () => {
+    vi.mocked(chatApi.sendFileMessage).mockResolvedValue({
+      messageId: 603,
+      sessionId: 'S200',
+      messageType: 5,
+      messageContent: '[文件]',
+      sendUserId: 'U100',
+      sendUserNickName: 'Old Name',
+      sendTime: 2000,
+      contactId: 'U200',
+      fileName: 'dropped.txt',
+      fileSize: 9,
+      fileType: 2,
+      status: 0,
+    })
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200',
+          contactId: 'U200',
+          contactName: 'Friend',
+          lastMessage: '',
+          lastReceiveTime: 1000,
+          contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+    const file = new File(['drop file'], 'dropped.txt', { type: 'text/plain' })
+    const transfer = { types: ['Files'], files: [file], dropEffect: 'none' }
+    const dragEnter = new Event('dragenter', { bubbles: true, cancelable: true })
+    Object.defineProperty(dragEnter, 'dataTransfer', { value: transfer })
+    wrapper.get('[data-testid="chat-main"]').element.dispatchEvent(dragEnter)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="file-drop-overlay"]').exists()).toBe(true)
+
+    const drop = new Event('drop', { bubbles: true, cancelable: true })
+    Object.defineProperty(drop, 'dataTransfer', { value: transfer })
+    wrapper.get('[data-testid="chat-main"]').element.dispatchEvent(drop)
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="file-drop-overlay"]').exists()).toBe(false)
+    expect(chatApi.sendFileMessage).toHaveBeenCalledWith('U200', file)
+    expect(wrapper.get('[data-testid="file-attachment"]').text()).toContain('dropped.txt')
+    wrapper.unmount()
+  })
+
   it('downloads an uploaded file using its original filename', async () => {
     const blob = new Blob(['file bytes'], { type: 'application/octet-stream' })
     vi.mocked(chatApi.downloadFile).mockResolvedValue(blob)

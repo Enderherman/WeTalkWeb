@@ -1661,6 +1661,25 @@ textarea:focus-visible {
   background: #fff;
 }
 
+.chat-main.is-file-dragging {
+  background: #f8fbf8;
+}
+
+.file-drop-overlay {
+  position: absolute;
+  z-index: 15;
+  inset: 12px;
+  display: grid;
+  place-items: center;
+  border: 2px dashed #87aa92;
+  border-radius: 18px;
+  color: #486952;
+  background: rgb(255 255 255 / 92%);
+  font-size: 15px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
 .chat-topbar {
   width: 100%;
   height: 58px;
