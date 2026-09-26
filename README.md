@@ -136,7 +136,7 @@ WeTalkWeb 是 WeTalk 的浏览器客户端新仓库，使用 Vue 3 + TypeScript 
 
 - `docs/openapi.web.json` 使用 OpenAPI 3.2.1，覆盖后端 0.0.2 的全部 43 个 REST 接口；包含可选文件封面、完整下载流及管理员用户敏感字段约束。
 - 文档说明 `/api` 同源前缀、`token` 请求头、URL-encoded 表单、业务响应码和当前登录密码 MD5 兼容协议。
-- [WebSocket 协议说明](docs/websocket-protocol.md)记录类型 0–16、代表性帧、心跳/重连机制和群事件真实联调；[数据库 ER 图](docs/database-erd.md)来自后端空表 SQL 并区分业务关联与数据库外键。环境变量模板及管理员角色/敏感字段真实回归仍在 Phase 0 待办中。
+- [WebSocket 协议说明](docs/websocket-protocol.md)记录类型 0–16、代表性帧、心跳/重连机制和群事件真实联调；[数据库 ER 图](docs/database-erd.md)来自后端空表 SQL 并区分业务关联与数据库外键。管理员角色/敏感字段真实回归仍在 Phase 0 待办中。
 
 ## 技术栈
 
@@ -162,6 +162,8 @@ npm run build
 开发服务器将 /api 代理到 http://127.0.0.1:5050，将 /ws 代理到 ws://127.0.0.1:5051。需要后端及其 MySQL、Redis 依赖运行，页面才能完成真实账号注册和登录。
 
 默认 API 地址为同源 /api。如需连接其他环境，复制 .env.example 为 .env.local 并设置 VITE_API_BASE_URL；不要把密钥放进 VITE_ 变量，因为这些值会被打包进浏览器。
+
+.env.example 当前只设置 VITE_API_BASE_URL=/api。该变量控制 REST 请求；WebSocket 仍走同源 /ws，由 Vite 代理目标或生产反向代理配置。后端运行变量模板和默认值见同级 backend 仓库的 .env.example 与 README 环境变量表。
 
 ## 与现有账号接口的兼容
 
