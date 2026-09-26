@@ -42,12 +42,32 @@ const avatarInitial = computed(() => displayName.value.slice(0, 1).toUpperCase()
 const selectedSession = computed(
   () => chatStore.sessionList.find((session) => session.sessionId === selectedSessionId.value) || null,
 )
-const selectedMessages = computed(() =>
+const messageSearchOpen = ref(false)
+const messageSearchQuery = ref('')
+const searchJumpMessageId = ref<number | null>(null)
+const conversationMessages = computed(() =>
   chatStore.initialMessages
     .filter((message) => message.sessionId === selectedSessionId.value && [2, 3, 5, 8, 9, 11, 12].includes(message.messageType))
     .sort((a, b) => a.sendTime - b.sendTime)
-    .slice(-80),
 )
+const selectedMessages = computed(() => {
+  const messages = conversationMessages.value
+  if (searchJumpMessageId.value !== null) {
+    const targetIndex = messages.findIndex((message) => message.messageId === searchJumpMessageId.value)
+    if (targetIndex >= 0) return messages.slice(Math.max(0, targetIndex - 40), targetIndex + 40)
+  }
+  return messages.slice(-80)
+})
+const messageSearchResults = computed(() => {
+  const query = messageSearchQuery.value.trim().toLocaleLowerCase()
+  if (!query) return []
+  return chatStore.initialMessages
+    .filter((message) => message.sessionId === selectedSessionId.value && [2, 5].includes(message.messageType))
+    .filter((message) => [message.messageContent, message.fileName, message.sendUserNickName]
+      .some((value) => typeof value === 'string' && value.toLocaleLowerCase().includes(query)))
+    .sort((a, b) => b.sendTime - a.sendTime)
+    .slice(0, 50)
+})
 const currentHistory = computed(() => chatStore.historyBySession[selectedSessionId.value] || null)
 const messageDraft = ref('')
 const sendingMessage = ref(false)
@@ -97,7 +117,13 @@ watch(
 
 watch(selectedSessionId, (sessionId) => {
   chatStore.setActiveSession(sessionId)
+  messageSearchQuery.value = ''
+  searchJumpMessageId.value = null
   void loadLatestHistory(sessionId)
+})
+
+watch(messageSearchQuery, () => {
+  searchJumpMessageId.value = null
 })
 
 watch(
@@ -110,6 +136,11 @@ watch(
 watch(selectedMessages, async () => {
   if (preservingScroll.value) return
   await nextTick()
+  if (searchJumpMessageId.value !== null) {
+    const target = messagePanel.value?.querySelector(`[data-testid="message-${searchJumpMessageId.value}"]`)
+    target?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+    return
+  }
   if (messagePanel.value) messagePanel.value.scrollTop = messagePanel.value.scrollHeight
 })
 
@@ -232,6 +263,22 @@ function openContactDirectory() {
 function openGroupDirectory() {
   sidebarOpen.value = false
   groupDirectoryOpen.value = true
+}
+
+function toggleMessageSearch() {
+  messageSearchOpen.value = !messageSearchOpen.value
+  if (!messageSearchOpen.value) {
+    messageSearchQuery.value = ''
+    searchJumpMessageId.value = null
+  }
+}
+
+function jumpToSearchResult(messageId: number) {
+  searchJumpMessageId.value = messageId
+}
+
+function returnToLatestMessages() {
+  searchJumpMessageId.value = null
 }
 
 function refreshChatSession() {
@@ -643,10 +690,81 @@ async function signOut() {
           class="group-member-count"
           data-testid="group-member-count"
         >{{ selectedSession.memberCount }} 位成员</small>
+        <button
+          v-if="selectedSession"
+          class="icon-button message-search-toggle"
+          data-testid="toggle-message-search"
+          type="button"
+          :aria-label="messageSearchOpen ? '关闭消息搜索' : '搜索本会话消息'"
+          :aria-pressed="messageSearchOpen"
+          @click="toggleMessageSearch"
+        >⌕</button>
         <span class="connection-status" :class="`is-${chatStore.connectionStatus}`" data-testid="connection-status">
           <i aria-hidden="true"></i>{{ connectionLabel }}
         </span>
       </header>
+
+      <section
+        v-if="messageSearchOpen && selectedSession"
+        class="message-search-panel"
+        data-testid="message-search-panel"
+        aria-label="搜索本会话消息"
+      >
+        <div class="message-search-input-row">
+          <input
+            v-model="messageSearchQuery"
+            data-testid="message-search-input"
+            type="search"
+            autocomplete="off"
+            placeholder="搜索已加载的消息或文件名"
+            aria-label="搜索已加载的消息或文件名"
+          />
+          <button
+            v-if="messageSearchQuery"
+            class="message-search-clear"
+            data-testid="clear-message-search"
+            type="button"
+            @click="messageSearchQuery = ''"
+          >清除</button>
+          <button
+            v-if="searchJumpMessageId !== null"
+            class="message-search-clear"
+            data-testid="return-to-latest-message"
+            type="button"
+            @click="returnToLatestMessages"
+          >最新消息</button>
+        </div>
+        <p class="message-search-hint" role="status">
+          {{ messageSearchQuery.trim() ? `显示 ${messageSearchResults.length} 条匹配记录（最多 50 条）` : '搜索当前已加载的文字消息和文件名' }}
+        </p>
+        <p v-if="messageSearchQuery.trim() && messageSearchResults.length === 0" class="message-search-empty">
+          当前已加载记录中没有匹配项；可以加载更早消息后继续搜索。
+        </p>
+        <div v-if="messageSearchResults.length > 0" class="message-search-results" data-testid="message-search-results">
+          <button
+            v-for="message in messageSearchResults"
+            :key="message.messageId"
+            class="message-search-result"
+            :data-testid="`message-search-result-${message.messageId}`"
+            type="button"
+            @click="jumpToSearchResult(message.messageId)"
+          >
+            <span class="message-search-result-copy">
+              <strong>{{ message.sendUserId === authStore.session?.userId ? '我' : message.sendUserNickName || '消息' }}</strong>
+              <small>{{ message.fileName || message.messageContent }}</small>
+            </span>
+            <time>{{ formatMessageTime(message.sendTime) }}</time>
+          </button>
+        </div>
+        <button
+          v-if="currentHistory?.hasMore"
+          class="message-search-older"
+          data-testid="search-older-messages"
+          type="button"
+          :disabled="olderMessagesLoading"
+          @click="loadOlderMessages"
+        >{{ olderMessagesLoading ? '正在加载…' : '加载更早消息并继续搜索' }}</button>
+      </section>
 
       <div v-if="selectedSession" ref="messagePanel" class="conversation-panel" data-testid="message-panel">
         <div v-if="historyLoading && selectedMessages.length === 0" class="conversation-empty">

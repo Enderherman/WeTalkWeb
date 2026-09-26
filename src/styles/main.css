@@ -1761,6 +1761,118 @@ textarea:focus-visible {
   white-space: nowrap;
 }
 
+.message-search-toggle {
+  flex: 0 0 auto;
+}
+
+.message-search-panel {
+  display: grid;
+  width: min(100% - 36px, 720px);
+  max-height: min(34dvh, 320px);
+  flex: 0 0 auto;
+  gap: 8px;
+  margin: 0 auto 10px;
+  padding: 10px 12px;
+  overflow: hidden;
+  border: 1px solid var(--wt-line);
+  border-radius: 16px;
+  background: var(--wt-white);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 6%);
+}
+
+.message-search-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.message-search-input-row input {
+  min-width: 0;
+  min-height: 38px;
+  flex: 1;
+  padding: 0 12px;
+  border: 1px solid var(--wt-line);
+  border-radius: 11px;
+  background: var(--wt-neutral-50);
+  font-size: 13px;
+}
+
+.message-search-clear,
+.message-search-older {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--wt-accent-strong);
+  background: var(--wt-accent-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.message-search-hint,
+.message-search-empty {
+  margin: 0;
+  color: var(--wt-muted);
+  font-size: 11px;
+}
+
+.message-search-results {
+  display: grid;
+  gap: 4px;
+  overflow-y: auto;
+}
+
+.message-search-result {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.message-search-result:hover,
+.message-search-result:focus-visible {
+  background: var(--wt-soft);
+}
+
+.message-search-result-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.message-search-result-copy strong,
+.message-search-result-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-search-result-copy strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.message-search-result-copy small,
+.message-search-result time {
+  color: var(--wt-muted);
+  font-size: 11px;
+}
+
+.message-search-result time {
+  flex: 0 0 auto;
+}
+
+.message-search-older {
+  justify-self: start;
+}
+
 .group-member-count {
   flex: 0 0 auto;
   color: var(--wt-muted);

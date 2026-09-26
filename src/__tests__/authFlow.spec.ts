@@ -348,6 +348,49 @@ describe('authentication flow', () => {
     expect(wrapper.find('[data-testid="session-unread-S200"]').exists()).toBe(false)
   })
 
+  it('searches loaded chat history by text or filename and jumps to an older result', async () => {
+    const { wrapper, chatStore } = await mountChat()
+    const messages = Array.from({ length: 90 }, (_, index) => ({
+      messageId: index + 1,
+      sessionId: 'S200',
+      messageType: index === 0 ? 5 : 2,
+      messageContent: index === 0 ? '[文件]' : `Message ${index + 1}`,
+      sendUserId: 'U200',
+      sendUserNickName: 'Friend',
+      sendTime: (index + 1) * 1000,
+      contactId: 'U100',
+      ...(index === 0 ? { fileName: 'Needle invoice.pdf', fileType: 2, fileSize: 1024, status: 1 } : {}),
+    }))
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200',
+          contactId: 'U200',
+          contactName: 'Friend',
+          lastMessage: 'Message 90',
+          lastReceiveTime: 90_000,
+          contactType: 0,
+        }],
+        chatMessageList: messages,
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+    expect(wrapper.find('[data-testid="message-1"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="toggle-message-search"]').trigger('click')
+    await wrapper.get('[data-testid="message-search-input"]').setValue('invoice')
+    expect(wrapper.get('[data-testid="message-search-result-1"]').text()).toContain('Needle invoice.pdf')
+    await wrapper.get('[data-testid="message-search-result-1"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="message-1"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="return-to-latest-message"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="message-1"]').exists()).toBe(false)
+  })
+
   it('sends a selected-session text message and adds the saved message to the view', async () => {
     const sentMessage = {
       messageId: 101,
