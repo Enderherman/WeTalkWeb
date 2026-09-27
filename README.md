@@ -401,6 +401,10 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 - 已在 NAS 部署 Web 与后端：Nginx 网页入口使用 `<NAS_LAN_IP>:8081`（默认 8080 已被占用），`/api` 和 `/ws` 走同源代理，后端宿主机端口只绑定回环地址；复用既有 MySQL/Redis 数据卷。数据库先备份后应用迁移 002/003，readiness 与 `/healthz` 返回 UP/ok。
 - Playwright 双账号真实后端验收覆盖注册、Cookie 登录、WebSocket、好友申请、消息发送/幂等重试、历史恢复、type 17 已读回执，以及 NAS 上附件上传/接收方下载字节校验；临时账号、关系、消息和文件均已清理。Chromium 360/390/768/1280 和 WebKit 登录/注册 390/768/1280 模拟视口无横向溢出，244 项单测、类型检查、生产构建与 NAS Docker 构建通过。数据库逻辑备份恢复演练已通过；文件目录备份恢复与应用镜像回滚、实体设备验收、HTTPS/WSS 仍待完成。
 
+### NAS WebKit 模拟键盘验收
+
+- 实际 NAS 登录/注册页在 WebKit 390/768/1280 模拟视口无横向溢出、无页面异常；邮箱/密码/验证码/提交控件的 Tab 顺序通过，模式切换链接可获取焦点。该 WebKit 模拟不代替 iOS Safari 真机验收。
+
 ### 本轮修复：Nginx 安全响应头继承
 
 - Nginx location 自己设置 `Cache-Control` 时不会继承 server 级 `add_header`；因此 HTML 入口和 `/assets/` 之前缺少 `X-Content-Type-Options`、`Referrer-Policy` 和 `X-Frame-Options`。
