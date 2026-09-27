@@ -1,10 +1,23 @@
 import type { InitialChatMessage } from '@/stores/chat'
 
 const databaseName = 'wetalk-web-text-cache'
-const databaseVersion = 1
+const databaseVersion = 2
 const messageStoreName = 'messages'
+const pendingMessageStoreName = 'pending_messages'
 
 interface CachedTextMessage extends InitialChatMessage {
+  accountId: string
+}
+
+export interface PendingTextMessage {
+  clientMessageId: string
+  sessionId: string
+  contactId: string
+  messageContent: string
+  createdAt: number
+}
+
+interface StoredPendingTextMessage extends PendingTextMessage {
   accountId: string
 }
 
@@ -32,12 +45,19 @@ export class TextMessageCache {
       const request = this.factory!.open(this.name, databaseVersion)
       request.onupgradeneeded = () => {
         const db = request.result
-        if (db.objectStoreNames.contains(messageStoreName)) return
-        const store = db.createObjectStore(messageStoreName, {
-          keyPath: ['accountId', 'sessionId', 'messageId'],
-        })
-        store.createIndex('byAccount', 'accountId', { unique: false })
-        store.createIndex('byAccountSessionTime', ['accountId', 'sessionId', 'sendTime'], { unique: false })
+        if (!db.objectStoreNames.contains(messageStoreName)) {
+          const store = db.createObjectStore(messageStoreName, {
+            keyPath: ['accountId', 'sessionId', 'messageId'],
+          })
+          store.createIndex('byAccount', 'accountId', { unique: false })
+          store.createIndex('byAccountSessionTime', ['accountId', 'sessionId', 'sendTime'], { unique: false })
+        }
+        if (!db.objectStoreNames.contains(pendingMessageStoreName)) {
+          const store = db.createObjectStore(pendingMessageStoreName, {
+            keyPath: ['accountId', 'clientMessageId'],
+          })
+          store.createIndex('byAccount', 'accountId', { unique: false })
+        }
       }
       request.onsuccess = () => {
         request.result.onversionchange = () => request.result.close()
@@ -110,19 +130,56 @@ export class TextMessageCache {
     await transactionDone(transaction)
   }
 
+  async getPendingTextMessages(accountId: string): Promise<PendingTextMessage[]> {
+    const db = await this.openDatabase()
+    if (!db) return []
+
+    const transaction = db.transaction(pendingMessageStoreName, 'readonly')
+    const done = transactionDone(transaction)
+    const request = transaction.objectStore(pendingMessageStoreName).index('byAccount').getAll(accountId)
+    const rows = await new Promise<StoredPendingTextMessage[]>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result as StoredPendingTextMessage[])
+      request.onerror = () => reject(request.error || new Error('无法读取待发送消息'))
+    })
+    await done
+    return rows
+      .sort((left, right) => left.createdAt - right.createdAt || left.clientMessageId.localeCompare(right.clientMessageId))
+      .map(({ accountId: _accountId, ...message }) => message)
+  }
+
+  async savePendingTextMessage(accountId: string, message: PendingTextMessage): Promise<boolean> {
+    if (!accountId) return false
+    const db = await this.openDatabase()
+    if (!db) return false
+
+    const transaction = db.transaction(pendingMessageStoreName, 'readwrite')
+    transaction.objectStore(pendingMessageStoreName).put({ accountId, ...message } satisfies StoredPendingTextMessage)
+    await transactionDone(transaction)
+    return true
+  }
+
+  async deletePendingTextMessage(accountId: string, clientMessageId: string): Promise<void> {
+    const db = await this.openDatabase()
+    if (!db) return
+    const transaction = db.transaction(pendingMessageStoreName, 'readwrite')
+    transaction.objectStore(pendingMessageStoreName).delete([accountId, clientMessageId])
+    await transactionDone(transaction)
+  }
+
   async clearAccount(accountId: string): Promise<void> {
     const db = await this.openDatabase()
     if (!db) return
-    const transaction = db.transaction(messageStoreName, 'readwrite')
-    const index = transaction.objectStore(messageStoreName).index('byAccount')
-    const request = index.openCursor(IDBKeyRange.only(accountId))
-    request.onsuccess = () => {
-      const cursor = request.result
-      if (!cursor) return
-      cursor.delete()
-      cursor.continue()
+    const transaction = db.transaction([messageStoreName, pendingMessageStoreName], 'readwrite')
+    for (const storeName of [messageStoreName, pendingMessageStoreName]) {
+      const request = transaction.objectStore(storeName).index('byAccount').openCursor(IDBKeyRange.only(accountId))
+      request.onsuccess = () => {
+        const cursor = request.result
+        if (!cursor) return
+        cursor.delete()
+        cursor.continue()
+      }
+      request.onerror = () => transaction.abort()
     }
-    request.onerror = () => transaction.abort()
     await transactionDone(transaction)
   }
 

@@ -15,7 +15,7 @@ import { useChatStore, type InitialChatMessage } from '@/stores/chat'
 import { useDownloadPreferencesStore } from '@/stores/downloadPreferences'
 import { useSystemSettingsStore } from '@/stores/systemSettings'
 import type { DownloadLocationMode } from '@/storage/downloadPreferences'
-import { textMessageCache } from '@/storage/textMessageCache'
+import { textMessageCache, type PendingTextMessage } from '@/storage/textMessageCache'
 import { createVideoCover } from '@/utils/videoThumbnail'
 import { getChatFileType, getChatMediaKind, getChatMediaMimeType, validateChatFile } from '@/utils/fileValidation'
 import { validatePassword } from '@/utils/authValidation'
@@ -35,7 +35,10 @@ const chatNavigation = ref<HTMLElement | null>(null)
 const messageComposer = ref<HTMLTextAreaElement | null>(null)
 const signingOut = ref(false)
 const selectedSessionId = ref('')
-const pendingTextMessage = ref<{ clientMessageId: string; contactId: string; content: string } | null>(null)
+const pendingTextMessage = ref<PendingTextMessage | null>(null)
+const pendingTextMessages = ref<PendingTextMessage[]>([])
+const replayingPendingMessages = ref(false)
+const pendingQueueError = ref('')
 const contactSearchOpen = ref(false)
 const contactApplicationsOpen = ref(false)
 const contactDirectoryOpen = ref(false)
@@ -194,6 +197,7 @@ watch(selectedMessages, async () => {
 })
 
 onMounted(() => {
+  window.addEventListener('online', handlePendingMessagesOnline)
   void loadProfile()
   void systemSettingsStore.load().catch(() => undefined)
   const session = authStore.session
@@ -201,6 +205,7 @@ onMounted(() => {
     void downloadPreferencesStore.load(session.userId)
     void loadWebReleaseNotice()
     chatStore.connect(session.userId)
+    void restorePendingTextMessages(session.userId)
   }
 })
 
@@ -218,6 +223,7 @@ function dismissWebReleaseNotice() {
 }
 
 onBeforeUnmount(() => {
+  window.removeEventListener('online', handlePendingMessagesOnline)
   historyRequestId += 1
   closeMediaPreview(false)
   chatStore.disconnect()
@@ -534,11 +540,13 @@ function closeProfile() {
 
 async function clearLocalTextCache() {
   const accountId = authStore.session?.userId
-  if (!accountId || clearingTextCache.value) return
+  if (!accountId || clearingTextCache.value || replayingPendingMessages.value) return
   clearingTextCache.value = true
   cacheNotice.value = ''
   try {
     await textMessageCache.clearAccount(accountId)
+    pendingTextMessages.value = []
+    pendingTextMessage.value = null
     cacheNotice.value = '本机文字缓存已清除'
   } catch {
     cacheNotice.value = '缓存暂时无法清除，请稍后重试'
@@ -605,25 +613,130 @@ async function changePassword() {
   }
 }
 
+function browserIsOnline() {
+  return typeof navigator === 'undefined' || navigator.onLine !== false
+}
+
+function handlePendingMessagesOnline() {
+  pendingQueueError.value = ''
+  void replayPendingTextMessages()
+}
+
+async function restorePendingTextMessages(accountId: string) {
+  try {
+    const pending = await textMessageCache.getPendingTextMessages(accountId)
+    if (authStore.session?.userId !== accountId) return
+    pendingTextMessages.value = pending
+    if (pending.length && browserIsOnline()) void replayPendingTextMessages()
+  } catch {
+    pendingQueueError.value = '无法读取本机待发送消息；请保留草稿并稍后重试。'
+  }
+}
+
+async function replayPendingTextMessages() {
+  const accountId = authStore.session?.userId
+  if (!accountId || replayingPendingMessages.value || !browserIsOnline()) return
+  replayingPendingMessages.value = true
+  pendingQueueError.value = ''
+  try {
+    const pending = await textMessageCache.getPendingTextMessages(accountId)
+    pendingTextMessages.value = pending
+    for (const item of pending) {
+      if (!browserIsOnline() || authStore.session?.userId !== accountId) break
+      try {
+        const message = await chatApi.sendTextMessage(item.contactId, item.messageContent, item.clientMessageId)
+        chatStore.appendMessage(message, true)
+        await textMessageCache.deletePendingTextMessage(accountId, item.clientMessageId)
+        pendingTextMessages.value = pendingTextMessages.value.filter(
+          (pendingMessage) => pendingMessage.clientMessageId !== item.clientMessageId,
+        )
+      } catch (error: unknown) {
+        pendingQueueError.value = error instanceof Error ? error.message : '待发送消息仍未送达，请稍后重试。'
+        break
+      }
+    }
+  } catch {
+    pendingQueueError.value = '本机待发送消息暂时无法读取，请稍后重试。'
+  } finally {
+    replayingPendingMessages.value = false
+  }
+}
+
+async function discardPendingTextMessage(clientMessageId: string) {
+  const accountId = authStore.session?.userId
+  if (!accountId) return
+  try {
+    await textMessageCache.deletePendingTextMessage(accountId, clientMessageId)
+    pendingTextMessages.value = pendingTextMessages.value.filter((item) => item.clientMessageId !== clientMessageId)
+    pendingQueueError.value = ''
+  } catch {
+    pendingQueueError.value = '无法从本机待发送队列移除这条消息。'
+  }
+}
+
+function pendingContactName(message: PendingTextMessage) {
+  return chatStore.sessionList.find((session) => session.sessionId === message.sessionId)?.contactName || message.contactId
+}
+
+function retryPendingMessages() {
+  pendingQueueError.value = ''
+  void replayPendingTextMessages()
+}
+
 async function sendTextMessage() {
   const content = messageDraft.value.trim()
+  const selected = selectedSession.value
   if (
-    !selectedSession.value ||
-    selectedSession.value.groupClosed ||
-    selectedSession.value.groupAccessRevoked ||
+    !selected ||
+    selected.groupClosed ||
+    selected.groupAccessRevoked ||
     !content ||
-    sendingMessage.value
+    sendingMessage.value ||
+    replayingPendingMessages.value
   ) return
 
   sendingMessage.value = true
   messageError.value = ''
   try {
-    const contactId = selectedSession.value.contactId
+    const contactId = selected.contactId
     const existingAttempt = pendingTextMessage.value
-    const clientMessageId = existingAttempt && existingAttempt.contactId === contactId && existingAttempt.content === content
+    const clientMessageId = existingAttempt && existingAttempt.contactId === contactId && existingAttempt.messageContent === content
       ? existingAttempt.clientMessageId
       : crypto.randomUUID()
-    pendingTextMessage.value = { clientMessageId, contactId, content }
+    const lastQueuedAt = pendingTextMessages.value.reduce((latest, item) => Math.max(latest, item.createdAt), 0)
+    const pending: PendingTextMessage = {
+      clientMessageId,
+      sessionId: selected.sessionId,
+      contactId,
+      messageContent: content,
+      createdAt: existingAttempt?.clientMessageId === clientMessageId
+        ? existingAttempt.createdAt
+        : Math.max(Date.now(), lastQueuedAt + 1),
+    }
+    pendingTextMessage.value = pending
+    const accountId = authStore.session?.userId || ''
+    let persisted = false
+    try {
+      persisted = await textMessageCache.savePendingTextMessage(accountId, pending)
+    } catch {}
+
+    if (persisted) {
+      pendingTextMessages.value = [
+        ...pendingTextMessages.value.filter((item) => item.clientMessageId !== clientMessageId),
+        pending,
+      ].sort((left, right) => left.createdAt - right.createdAt)
+      pendingTextMessage.value = null
+      messageDraft.value = ''
+      if (!browserIsOnline()) return
+      await replayPendingTextMessages()
+      return
+    }
+
+    if (!browserIsOnline()) {
+      messageError.value = '网络不可用且本机待发送队列不可用；消息仍保留在输入框中。'
+      return
+    }
+
     const message = await chatApi.sendTextMessage(contactId, content, clientMessageId)
     chatStore.appendMessage(message, true)
     messageDraft.value = ''
@@ -1375,6 +1488,46 @@ async function signOut() {
         </p>
       </div>
 
+      <section
+        v-if="pendingTextMessages.length"
+        class="pending-text-queue"
+        data-testid="pending-text-queue"
+        aria-label="待发送文字消息"
+      >
+        <header class="pending-text-queue-header">
+          <strong>待发送消息（{{ pendingTextMessages.length }}）</strong>
+          <span role="status">{{ replayingPendingMessages ? '正在按顺序发送…' : '消息已保存在本机，恢复联网后会自动重试。' }}</span>
+        </header>
+        <div
+          v-for="pending in pendingTextMessages"
+          :key="pending.clientMessageId"
+          class="pending-text-queue-item"
+          :data-testid="`pending-text-${pending.clientMessageId}`"
+        >
+          <div class="pending-text-queue-copy">
+            <strong>{{ pendingContactName(pending) }}</strong>
+            <span>{{ pending.messageContent }}</span>
+          </div>
+          <button
+            class="message-retry-button"
+            type="button"
+            :disabled="replayingPendingMessages || !browserIsOnline()"
+            @click="retryPendingMessages"
+          >重试</button>
+          <button
+            class="pending-text-remove-button"
+            type="button"
+            :disabled="replayingPendingMessages"
+            :aria-label="`从本机队列移除发往 ${pendingContactName(pending)} 的消息`"
+            @click="discardPendingTextMessage(pending.clientMessageId)"
+          >移除</button>
+        </div>
+        <p v-if="pendingQueueError" class="composer-error" data-testid="pending-queue-error" role="alert">
+          {{ pendingQueueError }}
+        </p>
+        <small>“移除”只删除本机重试记录；如果服务器已接收消息，不会撤回。</small>
+      </section>
+
       <div v-if="messageError" class="message-error-row">
         <p class="composer-error" role="alert">{{ messageError }}</p>
         <button
@@ -1413,7 +1566,7 @@ async function signOut() {
         >＋</button>
         <textarea
           v-model="messageDraft"
-          :disabled="!selectedSession || selectedSession.groupClosed || selectedSession.groupAccessRevoked || sendingMessage"
+          :disabled="!selectedSession || selectedSession.groupClosed || selectedSession.groupAccessRevoked || sendingMessage || replayingPendingMessages"
           rows="2"
           maxlength="500"
           placeholder="发送文字消息，Enter 发送，Shift+Enter 换行"
@@ -1425,7 +1578,7 @@ async function signOut() {
         <button
           class="composer-send"
           type="button"
-          :disabled="!selectedSession || selectedSession.groupClosed || selectedSession.groupAccessRevoked || !messageDraft.trim() || sendingMessage"
+          :disabled="!selectedSession || selectedSession.groupClosed || selectedSession.groupAccessRevoked || !messageDraft.trim() || sendingMessage || replayingPendingMessages"
           :aria-label="sendingMessage ? '正在发送' : '发送消息'"
           data-testid="send-message"
           @click="sendTextMessage"

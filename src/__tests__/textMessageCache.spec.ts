@@ -5,8 +5,8 @@ import { TextMessageCache } from '@/storage/textMessageCache'
 
 const openCaches: TextMessageCache[] = []
 
-function createCache() {
-  const cache = new TextMessageCache(`we-talk-test-${Math.random().toString(16).slice(2)}`, indexedDB)
+function createCache(name = `we-talk-test-${Math.random().toString(16).slice(2)}`) {
+  const cache = new TextMessageCache(name, indexedDB)
   openCaches.push(cache)
   return cache
 }
@@ -59,6 +59,35 @@ describe('text-only IndexedDB cache', () => {
 
     expect(await cache.getLatestTextMessages('U100', 'S1')).toEqual([])
     expect((await cache.getLatestTextMessages('U200', 'S1'))[0]?.messageId).toBe(3)
+  })
+
+  it('persists pending text per account in send order and deletes it with that account cache', async () => {
+    const databaseName = `we-talk-test-pending-${Math.random().toString(16).slice(2)}`
+    const cache = createCache(databaseName)
+    const pending = (clientMessageId: string, content: string, createdAt: number) => ({
+      clientMessageId,
+      sessionId: 'S1',
+      contactId: 'U200',
+      messageContent: content,
+      createdAt,
+    })
+
+    await cache.savePendingTextMessage('U100', pending('later-key', 'Later', 2000))
+    await cache.savePendingTextMessage('U100', pending('earlier-key', 'Earlier', 1000))
+    await cache.savePendingTextMessage('U200', pending('other-account-key', 'Private', 500))
+
+    cache.close()
+    await Promise.resolve()
+    const reopened = createCache(databaseName)
+
+    expect((await reopened.getPendingTextMessages('U100')).map((message) => message.messageContent)).toEqual(['Earlier', 'Later'])
+    await reopened.deletePendingTextMessage('U100', 'earlier-key')
+    expect((await reopened.getPendingTextMessages('U100')).map((message) => message.clientMessageId)).toEqual(['later-key'])
+
+    await reopened.clearAccount('U100')
+
+    expect(await reopened.getPendingTextMessages('U100')).toEqual([])
+    expect((await reopened.getPendingTextMessages('U200'))[0]?.messageContent).toBe('Private')
   })
 
   it('caches completed AI text but skips empty placeholders and stream frames', async () => {

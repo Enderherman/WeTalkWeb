@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { chatApi } from '@/api/chat'
 import { appUpdateApi } from '@/api/appUpdates'
 import { authApi } from '@/api/auth'
@@ -16,6 +16,12 @@ import ChatHome from '@/views/ChatHome.vue'
 import { useChatStore } from '@/stores/chat'
 import { useAuthStore } from '@/stores/auth'
 import { textMessageCache } from '@/storage/textMessageCache'
+
+const mountedChatCleanup = new Set<() => void>()
+
+afterEach(() => {
+  for (const cleanup of [...mountedChatCleanup]) cleanup()
+})
 
 const { downloadPreferences } = vi.hoisted(() => ({
   downloadPreferences: {
@@ -128,6 +134,17 @@ async function mountChat() {
     admin: false,
   })
   const wrapper = mount(ChatHome, { global: { plugins: [pinia, router] } })
+  let mounted = true
+  const unmount = wrapper.unmount.bind(wrapper)
+  const cleanup = () => {
+    if (!mounted) return
+    mounted = false
+    mountedChatCleanup.delete(cleanup)
+    unmount()
+    wrapper.element.remove()
+  }
+  wrapper.unmount = cleanup
+  mountedChatCleanup.add(cleanup)
   await flushPromises()
   return { wrapper, router, pinia, authStore, chatStore }
 }
@@ -1144,6 +1161,117 @@ describe('authentication flow', () => {
     expect(vi.mocked(chatApi.sendTextMessage).mock.calls[1]?.[2]).toBe(clientMessageId)
     expect(wrapper.get('[data-testid="message-composer"]').element).toHaveProperty('value', '')
     expect(wrapper.find('[data-testid="retry-message-send"]').exists()).toBe(false)
+  })
+
+  it('persists an offline text message and replays it once the browser reconnects', async () => {
+    let queuedMessages: Array<{
+      clientMessageId: string
+      sessionId: string
+      contactId: string
+      messageContent: string
+      createdAt: number
+    }> = []
+    const savePending = vi.spyOn(textMessageCache, 'savePendingTextMessage').mockImplementation(async (_accountId, message) => {
+      queuedMessages = [...queuedMessages.filter((item) => item.clientMessageId !== message.clientMessageId), message]
+      return true
+    })
+    vi.spyOn(textMessageCache, 'getPendingTextMessages').mockImplementation(async () => queuedMessages)
+    const deletePending = vi.spyOn(textMessageCache, 'deletePendingTextMessage').mockImplementation(async (_accountId, clientMessageId) => {
+      queuedMessages = queuedMessages.filter((item) => item.clientMessageId !== clientMessageId)
+    })
+    const onlineDescriptor = Object.getOwnPropertyDescriptor(navigator, 'onLine')
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
+    const message = {
+      messageId: 75,
+      sessionId: 'S200',
+      messageType: 2,
+      messageContent: 'Queued while offline',
+      sendUserId: 'U100',
+      sendUserNickName: 'Student',
+      sendTime: 5000,
+      contactId: 'U200',
+    }
+    vi.mocked(chatApi.sendTextMessage).mockResolvedValue(message)
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200', contactId: 'U200', contactName: 'Friend',
+          lastMessage: '', lastReceiveTime: 1000, contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+
+    try {
+      await wrapper.get('[data-testid="message-composer"]').setValue('Queued while offline')
+      await wrapper.get('[data-testid="send-message"]').trigger('click')
+      await flushPromises()
+
+      expect(savePending).toHaveBeenCalledOnce()
+      expect(chatApi.sendTextMessage).not.toHaveBeenCalled()
+      expect(queuedMessages).toHaveLength(1)
+      const queuedClientMessageId = queuedMessages[0]!.clientMessageId
+      expect(wrapper.find('[data-testid="pending-text-queue"]').text()).toContain('Queued while offline')
+      expect(wrapper.get('[data-testid="message-composer"]').element).toHaveProperty('value', '')
+
+      Object.defineProperty(navigator, 'onLine', { configurable: true, value: true })
+      window.dispatchEvent(new Event('online'))
+      await flushPromises()
+
+      expect(chatApi.sendTextMessage).toHaveBeenCalledWith('U200', 'Queued while offline', queuedClientMessageId)
+      expect(deletePending).toHaveBeenCalledWith('U100', queuedClientMessageId)
+      expect(wrapper.find('[data-testid="pending-text-queue"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="message-75"]').exists()).toBe(true)
+    } finally {
+      wrapper.unmount()
+      savePending.mockRestore()
+      vi.mocked(textMessageCache.getPendingTextMessages).mockRestore()
+      deletePending.mockRestore()
+      if (onlineDescriptor) Object.defineProperty(navigator, 'onLine', onlineDescriptor)
+      else Reflect.deleteProperty(navigator, 'onLine')
+    }
+  })
+
+  it('restores and automatically replays persisted text after reopening the chat page', async () => {
+    const pending = {
+      clientMessageId: 'b1b2c3d4-1234-4abc-8def-1234567890ab',
+      sessionId: 'S200',
+      contactId: 'U200',
+      messageContent: 'Restore after reload',
+      createdAt: 1000,
+    }
+    let queuedMessages = [pending]
+    vi.spyOn(textMessageCache, 'getPendingTextMessages').mockImplementation(async () => queuedMessages)
+    const deletePending = vi.spyOn(textMessageCache, 'deletePendingTextMessage').mockImplementation(async (_accountId, clientMessageId) => {
+      queuedMessages = queuedMessages.filter((item) => item.clientMessageId !== clientMessageId)
+    })
+    vi.mocked(chatApi.sendTextMessage).mockResolvedValue({
+      messageId: 76,
+      sessionId: 'S200',
+      messageType: 2,
+      messageContent: pending.messageContent,
+      sendUserId: 'U100',
+      sendUserNickName: 'Student',
+      sendTime: 6000,
+      contactId: 'U200',
+    })
+    const { wrapper } = await mountChat()
+
+    try {
+      await flushPromises()
+
+      expect(chatApi.sendTextMessage).toHaveBeenCalledWith('U200', pending.messageContent, pending.clientMessageId)
+      expect(deletePending).toHaveBeenCalledWith('U100', pending.clientMessageId)
+      expect(wrapper.find('[data-testid="pending-text-queue"]').exists()).toBe(false)
+    } finally {
+      wrapper.unmount()
+      vi.mocked(textMessageCache.getPendingTextMessages).mockRestore()
+      deletePending.mockRestore()
+    }
   })
 
   it('loads older messages with a cursor and preserves chronological order', async () => {
