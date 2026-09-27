@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { nextTick, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { adminApi, type BeautyAccount } from '@/api/admin'
+import { trapDialogTab } from '@/composables/useDialogFocus'
 
 const router = useRouter()
 const filters = reactive({ emailFuzzy: '', userIdFuzzy: '', status: '' as '' | '0' | '1' })
@@ -18,6 +19,8 @@ const dialogOpen = ref(false)
 const saving = ref(false)
 const formError = ref('')
 const form = reactive({ id: null as number | null, email: '', userId: '' })
+const beautyDialog = ref<HTMLElement | null>(null)
+let beautyDialogReturnFocus: HTMLElement | null = null
 const pendingDelete = ref<BeautyAccount | null>(null)
 const deletingId = ref<number | null>(null)
 let requestId = 0
@@ -60,21 +63,50 @@ function changePage(nextPage: number) {
   void loadAccounts()
 }
 
-function openCreate() {
+function rememberDialogOpener(event: MouseEvent) {
+  beautyDialogReturnFocus = event.currentTarget instanceof HTMLElement
+    ? event.currentTarget
+    : document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+}
+
+function focusBeautyDialogInput() {
+  void nextTick(() => beautyDialog.value?.querySelector<HTMLInputElement>('[data-testid="beauty-edit-email"]')?.focus())
+}
+
+function restoreBeautyDialogFocus() {
+  void nextTick(() => {
+    if (beautyDialogReturnFocus?.isConnected) beautyDialogReturnFocus.focus()
+    beautyDialogReturnFocus = null
+  })
+}
+
+function closeBeautyDialog() {
+  if (saving.value) return
+  dialogOpen.value = false
+  restoreBeautyDialogFocus()
+}
+
+function openCreate(event: MouseEvent) {
+  rememberDialogOpener(event)
   form.id = null
   form.email = ''
   form.userId = ''
   formError.value = ''
   dialogOpen.value = true
+  focusBeautyDialogInput()
 }
 
-function openEdit(account: BeautyAccount) {
+function openEdit(account: BeautyAccount, event: MouseEvent) {
   if (account.status !== 0) return
+  rememberDialogOpener(event)
   form.id = account.id
   form.email = account.email
   form.userId = account.userId
   formError.value = ''
   dialogOpen.value = true
+  focusBeautyDialogInput()
 }
 
 function validateForm() {
@@ -102,6 +134,7 @@ async function saveAccount() {
     })
     notice.value = form.id === null ? '靓号已添加' : '靓号已更新'
     dialogOpen.value = false
+    restoreBeautyDialogFocus()
     pageNo.value = form.id === null ? 1 : pageNo.value
     await loadAccounts()
   } catch (error: unknown) {
@@ -192,7 +225,7 @@ async function confirmDelete() {
             <td><span :class="['admin-status-pill', account.status === 0 ? 'is-enabled' : 'is-disabled']">{{ account.status === 0 ? '未使用' : '已使用' }}</span></td>
             <td>
               <div class="beauty-row-actions">
-                <button v-if="account.status === 0" type="button" :data-testid="`edit-beauty-${account.id}`" @click="openEdit(account)">修改</button>
+                <button v-if="account.status === 0" type="button" :data-testid="`edit-beauty-${account.id}`" @click="openEdit(account, $event)">修改</button>
                 <button type="button" :data-testid="`delete-beauty-${account.id}`" @click="requestDelete(account)">删除</button>
               </div>
               <div v-if="pendingDelete?.id === account.id" class="admin-action-confirm beauty-delete-confirm">
@@ -214,14 +247,23 @@ async function confirmDelete() {
       <button type="button" data-testid="beauty-next" :disabled="pageNo >= pageTotal || loading" @click="changePage(pageNo + 1)">下一页</button>
     </nav>
 
-    <div v-if="dialogOpen" class="profile-overlay" data-testid="beauty-dialog-overlay" @click.self="dialogOpen = false">
-      <section class="beauty-dialog" role="dialog" aria-modal="true" aria-labelledby="beauty-dialog-title">
+    <div v-if="dialogOpen" class="profile-overlay" data-testid="beauty-dialog-overlay" @click.self="closeBeautyDialog">
+      <section
+        ref="beautyDialog"
+        class="beauty-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="beauty-dialog-title"
+        tabindex="-1"
+        @keydown.esc.stop.prevent="closeBeautyDialog"
+        @keydown.tab="trapDialogTab($event, beautyDialog)"
+      >
         <header class="profile-dialog-header">
           <div>
             <p class="eyebrow">靓号</p>
             <h2 id="beauty-dialog-title">{{ form.id === null ? '新增靓号' : '修改未使用靓号' }}</h2>
           </div>
-          <button class="icon-button profile-close" type="button" aria-label="关闭靓号表单" :disabled="saving" @click="dialogOpen = false">×</button>
+          <button class="icon-button profile-close" type="button" aria-label="关闭靓号表单" :disabled="saving" @click="closeBeautyDialog">×</button>
         </header>
         <p class="beauty-dialog-hint">注册时邮箱需完全匹配，靓号会自动分配；每个靓号为 11 位数字。</p>
         <form class="beauty-edit-form" data-testid="beauty-edit-form" @submit.prevent="saveAccount">
@@ -231,7 +273,7 @@ async function confirmDelete() {
           <input id="beauty-edit-user-id" v-model.trim="form.userId" data-testid="beauty-edit-user-id" inputmode="numeric" maxlength="11" autocomplete="off" :disabled="saving" />
           <p v-if="formError" class="contact-error" role="alert">{{ formError }}</p>
           <div class="beauty-edit-actions">
-            <button type="button" class="message-search-clear" :disabled="saving" @click="dialogOpen = false">取消</button>
+            <button type="button" class="message-search-clear" :disabled="saving" @click="closeBeautyDialog">取消</button>
             <button type="submit" class="password-submit" data-testid="save-beauty-account" :disabled="saving">{{ saving ? '正在保存…' : '保存靓号' }}</button>
           </div>
         </form>

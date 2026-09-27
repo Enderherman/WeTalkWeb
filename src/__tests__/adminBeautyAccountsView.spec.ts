@@ -110,4 +110,34 @@ describe('admin beauty accounts view', () => {
     expect(adminApi.deleteBeautyAccount).toHaveBeenCalledWith(8)
     expect(wrapper.text()).toContain('已删除')
   })
+
+  it('focuses the form, traps keyboard focus, and restores the opener after closing', async () => {
+    const wrapper = await mountBeautyAccounts()
+    document.body.appendChild(wrapper.element)
+    const opener = wrapper.get('[data-testid="add-beauty-account"]')
+    await opener.trigger('click')
+    await flushPromises()
+
+    const dialog = wrapper.get('.beauty-dialog')
+    const input = wrapper.get('[data-testid="beauty-edit-email"]')
+    expect(document.activeElement).toBe(input.element)
+    const focusable = Array.from(dialog.element.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ))
+    const first = focusable[0]!
+    const last = focusable[focusable.length - 1]!
+
+    first.focus()
+    await dialog.trigger('keydown', { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+    last.focus()
+    await dialog.trigger('keydown', { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+    await dialog.trigger('keydown', { key: 'Escape' })
+    await flushPromises()
+    expect(wrapper.find('.beauty-dialog').exists()).toBe(false)
+    expect(document.activeElement).toBe(opener.element)
+    wrapper.unmount()
+    wrapper.element.remove()
+  })
 })
