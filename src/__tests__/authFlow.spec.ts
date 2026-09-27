@@ -688,7 +688,11 @@ describe('authentication flow', () => {
     resolveSend(sentMessage)
     await flushPromises()
 
-    expect(chatApi.sendTextMessage).toHaveBeenCalledWith('U200', 'Hello from the web')
+    expect(chatApi.sendTextMessage).toHaveBeenCalledWith(
+      'U200',
+      'Hello from the web',
+      expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i),
+    )
     expect(chatStore.initialMessages).toContainEqual(sentMessage)
     expect(wrapper.get('[data-testid="message-101"]').text()).toContain('Hello from the web')
     expect(wrapper.get('[data-testid="message-send-status"]').text()).toBe('已发送')
@@ -1127,6 +1131,7 @@ describe('authentication flow', () => {
     await wrapper.get('[data-testid="message-composer"]').setValue('Please retry this')
     await wrapper.get('[data-testid="send-message"]').trigger('click')
     await flushPromises()
+    const clientMessageId = vi.mocked(chatApi.sendTextMessage).mock.calls[0]?.[2]
 
     expect(wrapper.get('[data-testid="message-composer"]').element).toHaveProperty('value', 'Please retry this')
     expect(wrapper.get('.composer-error').text()).toBe('网络暂时不可用')
@@ -1136,6 +1141,7 @@ describe('authentication flow', () => {
     await wrapper.get('[data-testid="retry-message-send"]').trigger('click')
     await flushPromises()
     expect(chatApi.sendTextMessage).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(chatApi.sendTextMessage).mock.calls[1]?.[2]).toBe(clientMessageId)
     expect(wrapper.get('[data-testid="message-composer"]').element).toHaveProperty('value', '')
     expect(wrapper.find('[data-testid="retry-message-send"]').exists()).toBe(false)
   })

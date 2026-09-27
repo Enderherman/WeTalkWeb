@@ -28,6 +28,20 @@ describe('chat API', () => {
     })
   })
 
+  it('sends a client idempotency key for retry-safe text messages', async () => {
+    const clientMessageId = 'a1b2c3d4-1234-4abc-8def-1234567890ab'
+    vi.mocked(postForm).mockResolvedValue({ messageId: 12 })
+
+    await chatApi.sendTextMessage('U200', 'Hello', clientMessageId)
+
+    expect(postForm).toHaveBeenCalledWith('/chat/sendMessage', {
+      contactId: 'U200',
+      messageContent: 'Hello',
+      messageType: 2,
+      clientMessageId,
+    })
+  })
+
   it('requests cancellation of an AI message using its server message ID', async () => {
     const ended = { messageType: 16, messageId: 12, status: 2 }
     vi.mocked(postForm).mockResolvedValue(ended)

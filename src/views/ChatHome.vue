@@ -35,6 +35,7 @@ const chatNavigation = ref<HTMLElement | null>(null)
 const messageComposer = ref<HTMLTextAreaElement | null>(null)
 const signingOut = ref(false)
 const selectedSessionId = ref('')
+const pendingTextMessage = ref<{ clientMessageId: string; contactId: string; content: string } | null>(null)
 const contactSearchOpen = ref(false)
 const contactApplicationsOpen = ref(false)
 const contactDirectoryOpen = ref(false)
@@ -617,9 +618,16 @@ async function sendTextMessage() {
   sendingMessage.value = true
   messageError.value = ''
   try {
-    const message = await chatApi.sendTextMessage(selectedSession.value.contactId, content)
+    const contactId = selectedSession.value.contactId
+    const existingAttempt = pendingTextMessage.value
+    const clientMessageId = existingAttempt && existingAttempt.contactId === contactId && existingAttempt.content === content
+      ? existingAttempt.clientMessageId
+      : crypto.randomUUID()
+    pendingTextMessage.value = { clientMessageId, contactId, content }
+    const message = await chatApi.sendTextMessage(contactId, content, clientMessageId)
     chatStore.appendMessage(message, true)
     messageDraft.value = ''
+    pendingTextMessage.value = null
   } catch (error: unknown) {
     messageError.value = error instanceof Error ? error.message : '消息发送失败，请稍后重试'
   } finally {

@@ -3,11 +3,16 @@ import type { ServerMessage } from '@/api/realtime'
 import type { ChatHistoryPage, InitialChatMessage } from '@/stores/chat'
 
 export const chatApi = {
-  sendTextMessage: (contactId: string, messageContent: string): Promise<InitialChatMessage> =>
+  sendTextMessage: (
+    contactId: string,
+    messageContent: string,
+    clientMessageId?: string,
+  ): Promise<InitialChatMessage> =>
     postForm<InitialChatMessage>('/chat/sendMessage', {
       contactId,
       messageContent,
       messageType: 2,
+      ...(clientMessageId ? { clientMessageId } : {}),
     }),
   cancelAiMessage: (messageId: number): Promise<ServerMessage> =>
     postForm<ServerMessage>('/chat/cancelAiMessage', { messageId }),

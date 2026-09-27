@@ -138,6 +138,11 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(contract.components.schemas.RegisterRequest.properties.password.minLength).toBe(8)
     expect(contract.components.schemas.SendChatMessageRequest.properties.messageContent.maxLength).toBe(500)
     expect(contract.components.schemas.SendChatMessageRequest.properties.messageType.enum).toEqual([2, 5])
+    expect(contract.components.schemas.SendChatMessageRequest.properties.clientMessageId).toMatchObject({
+      type: 'string',
+      format: 'uuid',
+      maxLength: 36,
+    })
     expect(contract.components.schemas.SendChatMessageRequest.properties.fileType.enum).toEqual([0, 1, 2])
     expect(contract.components.schemas.LoadHistoryRequest.properties.pageSize.maximum).toBe(50)
   })
