@@ -399,7 +399,7 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 
 - 新增多阶段 `Dockerfile`、Nginx 同源 `/api` 与 `/ws` 代理、外部 `wetalk-net` Compose 配置和 `.env.nas.example`；部署步骤、备份和回滚见 `docs/nas-docker-deployment.md`。后端 API/WS 默认只绑定 NAS 本机回环地址，只有网页入口映射到 LAN。静态资源使用长缓存，入口页不缓存，上传上限与后端文件限制相符。
 - 已在 NAS 部署 Web 与后端：Nginx 网页入口使用 `<NAS_LAN_IP>:8081`（默认 8080 已被占用），`/api` 和 `/ws` 走同源代理，后端宿主机端口只绑定回环地址；复用既有 MySQL/Redis 数据卷。数据库先备份后应用迁移 002/003，readiness 与 `/healthz` 返回 UP/ok。
-- Playwright 双账号真实后端验收覆盖注册、Cookie 登录、WebSocket、好友申请、消息发送/幂等重试、历史恢复和 type 17 已读回执；360/390/768/1280 模拟视口无横向溢出，临时数据已清理。244 项单测、类型检查、生产构建与 NAS Docker 构建通过。实体手机/桌面验收、HTTPS/WSS 和备份恢复演练仍待完成。
+- Playwright 双账号真实后端验收覆盖注册、Cookie 登录、WebSocket、好友申请、消息发送/幂等重试、历史恢复、type 17 已读回执，以及 NAS 上附件上传/接收方下载字节校验；临时账号、关系、消息和文件均已清理。360/390/768/1280 模拟视口无横向溢出，244 项单测、类型检查、生产构建与 NAS Docker 构建通过。数据库逻辑备份恢复演练已通过；文件目录备份恢复与应用镜像回滚、实体设备验收、HTTPS/WSS 仍待完成。
 
 ### 本轮修复：桌面聊天区两列布局
 

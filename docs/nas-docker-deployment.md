@@ -87,15 +87,15 @@ WEB_PUBLISHED_PORT=8080
 curl -f "http://${NAS_LAN_IP}:${WEB_PUBLISHED_PORT}/healthz"
 ~~~
 
-本次 NAS 因 `8080` 已被占用，将 `WEB_PUBLISHED_PORT` 设为 `8081`。从局域网浏览器打开 `http://<NAS_LAN_IP>:8081`，实测 Cookie 登录、REST、WebSocket ticket、双账号好友申请与私聊、幂等重试、历史恢复和已读回执。非 root Nginx 的同源 `/api`、`/ws` 代理、实际 Origin、端口映射和浏览器链路均已现场验收；附件实机验收仍待完成。
+本次 NAS 因 `8080` 已被占用，将 `WEB_PUBLISHED_PORT` 设为 `8081`。从局域网浏览器打开 `http://<NAS_LAN_IP>:8081`，实测 Cookie 登录、REST、WebSocket ticket、双账号好友申请与私聊、幂等重试、历史恢复和已读回执。另上传一个临时文本附件，由接收方经同源 API 下载并逐字节核对成功；测试文件已删除。非 root Nginx 的同源 `/api`、`/ws` 代理、实际 Origin、端口映射和浏览器链路均已现场验收。
 
 ## 2026-09-28 实际部署验收
 
 - 后端与网页已部署到 `/volume2/docker/wetalk` 和 `/volume2/docker/wetalk-web`；网页 LAN 端口为 `8081`，后端宿主机端口 `15050/15051` 只绑定 `127.0.0.1`。
 - 复用了原有 `wetalk-mysql`、`wetalk-redis` 容器、`wetalk-net` 网络与数据目录，没有重建或清空基础服务。部署前保存了数据库逻辑备份，以及 `.env`、`secrets/` 和 Compose 文件的受限归档；当时数据库含 9 张表结构、无记录行。
 - 备份后应用 `sql/002-client-message-idempotency.sql` 与 `sql/003-persistent-unread-cursor.sql`，并读回确认字段和索引。测试后清理了临时账号、好友关系、会话和消息，业务表行数恢复为 0。
-- NAS Docker 后端 readiness 返回 `UP`，网页 `/healthz` 返回 `ok`，同源 `/api/actuator/health/readiness` 返回 `UP`。Playwright 双账号真实后端验证注册/登录、Cookie 会话、WebSocket、好友申请、私聊发送、幂等重试、历史恢复和 type 17 已读回执。生产网页在 Chromium 360/390/768/1280 模拟视口无横向溢出或页面错误。
-- 数据库备份已生成但尚未执行恢复演练；HTTPS/WSS、正式域名、实体手机 Safari/Chrome 和实体设备辅助功能检查仍待完成。
+- NAS Docker 后端 readiness 返回 `UP`，网页 `/healthz` 返回 `ok`，同源 `/api/actuator/health/readiness` 返回 `UP`。Playwright 双账号真实后端验证注册/登录、Cookie 会话、WebSocket、好友申请、私聊发送、幂等重试、附件上传/下载、历史恢复和 type 17 已读回执。生产网页在 Chromium 360/390/768/1280 模拟视口无横向溢出或页面错误。
+- 已将数据库逻辑备份恢复到隔离的无网络 MySQL 8.4 临时容器，恢复出 9 张表后应用 002/003 并核对字段和索引；测试容器与随机凭据已清理。数据库恢复演练通过；附件/文件恢复、应用镜像回滚、HTTPS/WSS、正式域名、实体手机 Safari/Chrome 和辅助功能检查仍待完成。
 
 ## 备份与回滚
 
@@ -125,4 +125,4 @@ sudo docker compose -f compose.yaml -f compose.nas.yaml up -d
 sudo docker compose -f compose.nas.yaml up -d
 ~~~
 
-本手册、Docker Compose 配置、NAS 容器部署与 LAN 浏览器验收已通过；数据库备份恢复演练、HTTPS/WSS 和实体设备验收仍待完成。
+本手册、Docker Compose 配置、NAS 容器部署、LAN 浏览器验收和数据库逻辑恢复演练已通过；文件目录恢复、应用镜像回滚、HTTPS/WSS 和实体设备验收仍待完成。
