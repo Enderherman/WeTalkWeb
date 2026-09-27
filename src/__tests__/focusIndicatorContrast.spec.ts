@@ -41,8 +41,8 @@ describe('accessibility color contrast', () => {
 
   it('does not reintroduce the previously low-contrast supporting text colors', () => {
     const lowContrastTextColors = [
-      '#a1a19c', '#a1a19b', '#a0a09b', '#9a9a95', '#999993',
-      '#8b8b85', '#85857f', '#638170', '#777872', '#777772',
+      '#aaa9a4', '#a1a19c', '#a1a19b', '#a0a09b', '#9a9a95', '#999993',
+      '#8b8b85', '#85857f', '#638170', '#777872', '#777772', '#73736e',
     ]
     for (const color of lowContrastTextColors) {
       expect(stylesheet).not.toContain(`color: ${color}`)

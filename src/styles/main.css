@@ -511,7 +511,7 @@ select:focus-visible {
 .auth-footer {
   position: absolute;
   bottom: max(22px, env(safe-area-inset-bottom));
-  color: #aaa9a4;
+  color: var(--wt-neutral-400);
   font-size: 12px;
 }
 
@@ -569,7 +569,7 @@ select:focus-visible {
 }
 
 .new-chat-button:disabled {
-  color: #73736e;
+  color: var(--wt-neutral-400);
   cursor: not-allowed;
 }
 
