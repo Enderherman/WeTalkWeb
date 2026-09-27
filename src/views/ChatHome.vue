@@ -863,7 +863,7 @@ async function signOut() {
       @click="sidebarOpen = false"
     ></button>
 
-    <aside class="chat-sidebar" :class="{ 'is-open': sidebarOpen }">
+    <aside id="chat-navigation" class="chat-sidebar" aria-label="聊天导航" :class="{ 'is-open': sidebarOpen }">
       <div class="sidebar-top">
         <RouterLink class="sidebar-brand" :to="{ name: 'chat' }" aria-label="WeTalk">
           <span class="brand-mark">W</span>
@@ -1028,7 +1028,14 @@ async function signOut() {
         松开鼠标以上传普通文件
       </div>
       <header class="chat-topbar">
-        <button class="icon-button mobile-menu-open" type="button" aria-label="打开导航菜单" @click="sidebarOpen = true">
+        <button
+          class="icon-button mobile-menu-open"
+          type="button"
+          aria-label="打开导航菜单"
+          aria-controls="chat-navigation"
+          :aria-expanded="sidebarOpen"
+          @click="sidebarOpen = true"
+        >
           ☰
         </button>
         <span class="chat-topbar-title">{{ selectedSession?.contactName || 'WeTalk' }}</span>

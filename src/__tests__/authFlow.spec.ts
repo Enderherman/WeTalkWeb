@@ -1263,6 +1263,18 @@ describe('authentication flow', () => {
     expect(wrapper.find('[data-testid="contact-search-overlay"]').exists()).toBe(false)
   })
 
+  it('announces whether the mobile chat navigation is expanded', async () => {
+    const { wrapper } = await mountChat()
+    const trigger = wrapper.get('[aria-label="打开导航菜单"]')
+
+    expect(trigger.attributes('aria-controls')).toBe('chat-navigation')
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    await trigger.trigger('click')
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    await wrapper.get('[aria-label="关闭菜单"]').trigger('click')
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+  })
+
   it('opens the received-application inbox from the chat sidebar', async () => {
     const { wrapper, chatStore } = await mountChat()
     chatStore.receiveMessage({
