@@ -727,6 +727,15 @@ async function previewMedia(message: InitialChatMessage) {
   mediaPreviewErrors.delete(message.messageId)
   mediaPreviewLoadingId.value = message.messageId
   try {
+    const mediaKind = getChatMediaKind(message.fileName || '')
+    const streamUrl = mediaKind === 'video' || mediaKind === 'audio'
+      ? chatApi.streamMediaUrl(message.messageId)
+      : null
+    if (streamUrl) {
+      mediaPreviewUrl.value = streamUrl
+      mediaPreviewMessage.value = message
+      return
+    }
     const blob = await chatApi.downloadFile(message.messageId)
     const mimeType = getChatMediaMimeType(message.fileName || '')
     const previewBlob = mimeType ? new Blob([blob], { type: mimeType }) : blob
@@ -740,9 +749,15 @@ async function previewMedia(message: InitialChatMessage) {
 }
 
 function closeMediaPreview() {
-  if (mediaPreviewUrl.value) URL.revokeObjectURL(mediaPreviewUrl.value)
+  if (mediaPreviewUrl.value.startsWith('blob:')) URL.revokeObjectURL(mediaPreviewUrl.value)
   mediaPreviewUrl.value = ''
   mediaPreviewMessage.value = null
+}
+
+function handleMediaPlaybackError() {
+  if (mediaPreviewMessage.value) {
+    mediaPreviewErrors.set(mediaPreviewMessage.value.messageId, '媒体流无法播放，请检查登录状态或浏览器格式支持')
+  }
 }
 
 function formatFileSize(value?: number) {
@@ -1303,8 +1318,12 @@ async function signOut() {
           controls
           playsinline
           preload="metadata"
+          @error="handleMediaPlaybackError"
         ></video>
-        <audio v-else :src="mediaPreviewUrl" controls preload="metadata"></audio>
+        <audio v-else :src="mediaPreviewUrl" controls preload="metadata" @error="handleMediaPlaybackError"></audio>
+        <p v-if="mediaPreviewErrors.has(mediaPreviewMessage.messageId)" class="file-download-error" role="alert">
+          {{ mediaPreviewErrors.get(mediaPreviewMessage.messageId) }}
+        </p>
       </section>
     </div>
 

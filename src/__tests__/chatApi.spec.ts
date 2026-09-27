@@ -105,6 +105,11 @@ describe('chat API', () => {
     expect(postDownload).toHaveBeenCalledWith('/chat/downloadFile', { fileId: 42, showCover: false })
   })
 
+  it('builds a same-origin URL for Range-enabled media playback', () => {
+    expect(chatApi.streamMediaUrl(605)).toBe('/api/chat/streamMedia?fileId=605')
+    expect(chatApi.streamMediaUrl(0)).toBeNull()
+  })
+
   it('downloads user and group avatars or covers by identifier', async () => {
     const blob = new Blob(['image bytes'], { type: 'image/png' })
     vi.mocked(postDownload).mockResolvedValue(blob)

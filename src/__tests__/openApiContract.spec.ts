@@ -36,6 +36,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/chat/downloadFile',
       '/chat/loadHistory',
       '/chat/sendMessage',
+      '/chat/streamMedia',
       '/chat/uploadFile',
       '/contact/addContact2BlackList',
       '/contact/applyAdd',
@@ -58,7 +59,9 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/userInfoBeauty/saveBeautyAccount',
     ])
 
-    const operationIds = Object.values(contract.paths).map((path: any) => path.post.operationId)
+    const operationIds = Object.values(contract.paths).flatMap((path: any) =>
+      ['get', 'post'].filter((method) => path[method]).map((method) => path[method].operationId),
+    )
     expect(new Set(operationIds).size).toBe(operationIds.length)
     expect(contract.components.responses.BusinessError.description).toContain('429')
     expect(contract.components.responses.BusinessError.headers['X-Request-Id'].schema.format).toBe('uuid')
@@ -113,6 +116,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
     for (const path of protectedPaths) {
       expect(contract.paths[path].post.security).toEqual([{ tokenHeader: [] }, { cookieSession: [] }])
     }
+    expect(contract.paths['/chat/streamMedia'].get.security).toEqual([{ tokenHeader: [] }, { cookieSession: [] }])
     expect(contract.components.securitySchemes.tokenHeader).toMatchObject({
       type: 'apiKey',
       in: 'header',
@@ -169,6 +173,13 @@ describe('WeTalkWeb OpenAPI contract', () => {
         expect(contract.paths[pathName].post.responses['200'].content['application/octet-stream'].schema.format).toBe(
           'binary',
         )
+        continue
+      }
+      if (pathName === '/chat/streamMedia') {
+        expect(contract.paths[pathName].get.responses['200'].content['video/*'].schema.format).toBe('binary')
+        expect(contract.paths[pathName].get.responses['200'].content['audio/*'].schema.format).toBe('binary')
+        expect(contract.paths[pathName].get.responses['206'].content['video/*'].schema.format).toBe('binary')
+        expect(contract.paths[pathName].get.responses['206'].content['audio/*'].schema.format).toBe('binary')
         continue
       }
       let response = contract.paths[pathName].post.responses['200']

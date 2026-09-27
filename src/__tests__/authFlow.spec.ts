@@ -57,6 +57,7 @@ vi.mock('@/api/chat', () => ({
     sendFileMessage: vi.fn(),
     uploadFile: vi.fn(),
     downloadFile: vi.fn(),
+    streamMediaUrl: vi.fn(),
     loadHistory: vi.fn(),
   },
 }))
@@ -188,6 +189,7 @@ beforeEach(() => {
     list: [],
   })
   vi.mocked(appUpdateApi.checkForUpdate).mockResolvedValue(null)
+  vi.mocked(chatApi.streamMediaUrl).mockReturnValue(null)
   vi.mocked(chatApi.sendFileMessage).mockResolvedValue({
     messageId: 601,
     sessionId: 'S200',
@@ -909,6 +911,7 @@ describe('authentication flow', () => {
   })
 
   it('opens an uploaded video in the media preview player', async () => {
+    vi.mocked(chatApi.streamMediaUrl).mockReturnValue('/api/chat/streamMedia?fileId=605')
     vi.mocked(chatApi.downloadFile).mockResolvedValue(new Blob(['video bytes'], { type: 'application/octet-stream' }))
     const originalCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL')
     const originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL')
@@ -950,12 +953,12 @@ describe('authentication flow', () => {
       await wrapper.get('[data-testid="preview-media"]').trigger('click')
       await flushPromises()
 
-      expect(chatApi.downloadFile).toHaveBeenCalledWith(605)
+      expect(chatApi.streamMediaUrl).toHaveBeenCalledWith(605)
+      expect(chatApi.downloadFile).not.toHaveBeenCalledWith(605)
       expect(wrapper.find('[data-testid="media-preview-overlay"] video').exists()).toBe(true)
-      expect(createObjectURL.mock.calls.map(([blob]) => blob.type)).toContain('video/mp4')
+      expect(wrapper.get('[data-testid="media-preview-overlay"] video').attributes('src')).toBe('/api/chat/streamMedia?fileId=605')
 
       await wrapper.get('[aria-label="关闭媒体预览"]').trigger('click')
-      expect(revokeObjectURL).toHaveBeenCalledWith('blob:video-preview')
     } finally {
       wrapper.unmount()
       if (originalCreate) Object.defineProperty(URL, 'createObjectURL', originalCreate)
@@ -965,7 +968,8 @@ describe('authentication flow', () => {
     }
   })
 
-  it('opens a video attachment in the media player with a browser video MIME type', async () => {
+  it('falls back to an authenticated Blob when the media stream cannot use the same origin', async () => {
+    vi.mocked(chatApi.streamMediaUrl).mockReturnValue(null)
     vi.mocked(chatApi.downloadFile).mockResolvedValue(new Blob(['video bytes'], { type: 'application/octet-stream' }))
     const originalCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL')
     const originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL')

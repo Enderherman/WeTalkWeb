@@ -29,6 +29,17 @@ export const chatApi = {
       onUploadProgress: onProgress,
     })
   },
+  streamMediaUrl: (messageId: number): string | null => {
+    if (!Number.isSafeInteger(messageId) || messageId < 1 || typeof window === 'undefined') return null
+    try {
+      const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL || '/api', window.location.origin)
+      if (baseUrl.origin !== window.location.origin) return null
+      const basePath = baseUrl.pathname.replace(/\/+$/, '')
+      return `${basePath}/chat/streamMedia?fileId=${encodeURIComponent(String(messageId))}`
+    } catch {
+      return null
+    }
+  },
   downloadFile: (fileId: string | number, showCover = false): Promise<Blob> =>
     postDownload('/chat/downloadFile', { fileId, showCover }),
   loadHistory: (
