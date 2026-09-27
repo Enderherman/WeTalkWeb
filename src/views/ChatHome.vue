@@ -29,6 +29,10 @@ const chatStore = useChatStore()
 const downloadPreferencesStore = useDownloadPreferencesStore()
 const systemSettingsStore = useSystemSettingsStore()
 const sidebarOpen = ref(false)
+const mobileMenuTrigger = ref<HTMLElement | null>(null)
+const mobileMenuCloseButton = ref<HTMLButtonElement | null>(null)
+const chatNavigation = ref<HTMLElement | null>(null)
+const messageComposer = ref<HTMLTextAreaElement | null>(null)
 const signingOut = ref(false)
 const selectedSessionId = ref('')
 const contactSearchOpen = ref(false)
@@ -389,6 +393,57 @@ async function saveProfile() {
     profileSaveError.value = error instanceof Error ? error.message : '资料保存失败，请稍后重试'
   } finally {
     profileSaving.value = false
+  }
+}
+
+async function openMobileNavigation(event: MouseEvent) {
+  mobileMenuTrigger.value = event.currentTarget as HTMLElement
+  sidebarOpen.value = true
+  await nextTick()
+  mobileMenuCloseButton.value?.focus()
+}
+
+function closeMobileNavigation(restoreFocus = true) {
+  sidebarOpen.value = false
+  const trigger = mobileMenuTrigger.value
+  if (restoreFocus && trigger) {
+    void nextTick().then(() => {
+      if (trigger.isConnected) trigger.focus()
+    })
+  }
+}
+
+function selectChatSession(sessionId: string) {
+  selectedSessionId.value = sessionId
+  if (sidebarOpen.value) {
+    sidebarOpen.value = false
+    void nextTick(() => messageComposer.value?.focus())
+  }
+}
+
+function trapMobileNavigationFocus(event: KeyboardEvent) {
+  const navigation = chatNavigation.value
+  if (!sidebarOpen.value || event.key !== 'Tab' || !navigation) return
+  const focusable = Array.from(navigation.querySelectorAll<HTMLElement>(
+    'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  ))
+  if (focusable.length === 0) {
+    event.preventDefault()
+    navigation.focus()
+    return
+  }
+  const first = focusable[0]!
+  const last = focusable[focusable.length - 1]!
+  if (!navigation.contains(document.activeElement)) {
+    event.preventDefault()
+    const target = event.shiftKey ? last : first
+    target.focus()
+  } else if (event.shiftKey && (document.activeElement === first || document.activeElement === navigation)) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === navigation)) {
+    event.preventDefault()
+    first.focus()
   }
 }
 
@@ -860,16 +915,30 @@ async function signOut() {
       class="sidebar-backdrop"
       type="button"
       aria-label="关闭导航菜单"
-      @click="sidebarOpen = false"
+      @click="closeMobileNavigation()"
     ></button>
 
-    <aside id="chat-navigation" class="chat-sidebar" aria-label="聊天导航" :class="{ 'is-open': sidebarOpen }">
+    <aside
+      id="chat-navigation"
+      ref="chatNavigation"
+      class="chat-sidebar"
+      aria-label="聊天导航"
+      :class="{ 'is-open': sidebarOpen }"
+      @keydown.esc.stop.prevent="closeMobileNavigation()"
+      @keydown.tab="trapMobileNavigationFocus"
+    >
       <div class="sidebar-top">
         <RouterLink class="sidebar-brand" :to="{ name: 'chat' }" aria-label="WeTalk">
           <span class="brand-mark">W</span>
           <span>WeTalk</span>
         </RouterLink>
-        <button class="icon-button mobile-menu-close" type="button" aria-label="关闭菜单" @click="sidebarOpen = false">
+        <button
+          ref="mobileMenuCloseButton"
+          class="icon-button mobile-menu-close"
+          type="button"
+          aria-label="关闭菜单"
+          @click="closeMobileNavigation()"
+        >
           ×
         </button>
       </div>
@@ -920,7 +989,7 @@ async function signOut() {
             :data-testid="`chat-session-${session.sessionId}`"
             :class="{ 'is-active': session.sessionId === selectedSessionId }"
             type="button"
-            @click="selectedSessionId = session.sessionId"
+            @click="selectChatSession(session.sessionId)"
           >
             <AvatarThumbnail
               class="session-avatar"
@@ -1034,7 +1103,7 @@ async function signOut() {
           aria-label="打开导航菜单"
           aria-controls="chat-navigation"
           :aria-expanded="sidebarOpen"
-          @click="sidebarOpen = true"
+          @click="openMobileNavigation($event)"
         >
           ☰
         </button>
@@ -1341,6 +1410,7 @@ async function signOut() {
           maxlength="500"
           placeholder="发送文字消息，Enter 发送，Shift+Enter 换行"
           aria-label="消息内容"
+          ref="messageComposer"
           data-testid="message-composer"
           @keydown.enter.exact.prevent="sendTextMessage"
         ></textarea>

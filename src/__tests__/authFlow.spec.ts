@@ -1265,14 +1265,64 @@ describe('authentication flow', () => {
 
   it('announces whether the mobile chat navigation is expanded', async () => {
     const { wrapper } = await mountChat()
+    document.body.appendChild(wrapper.element)
     const trigger = wrapper.get('[aria-label="打开导航菜单"]')
+    const navigation = wrapper.get('#chat-navigation')
+    const focusable = Array.from(navigation.element.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ))
+    const first = focusable[0]!
+    const last = focusable[focusable.length - 1]!
 
-    expect(trigger.attributes('aria-controls')).toBe('chat-navigation')
-    expect(trigger.attributes('aria-expanded')).toBe('false')
-    await trigger.trigger('click')
-    expect(trigger.attributes('aria-expanded')).toBe('true')
-    await wrapper.get('[aria-label="关闭菜单"]').trigger('click')
-    expect(trigger.attributes('aria-expanded')).toBe('false')
+    try {
+      expect(trigger.attributes('aria-controls')).toBe('chat-navigation')
+      expect(trigger.attributes('aria-expanded')).toBe('false')
+      await trigger.trigger('click')
+      await flushPromises()
+      expect(trigger.attributes('aria-expanded')).toBe('true')
+      expect(document.activeElement).toBe(wrapper.get('[aria-label="关闭菜单"]').element)
+
+      first.focus()
+      await navigation.trigger('keydown', { key: 'Tab', shiftKey: true })
+      expect(document.activeElement).toBe(last)
+      await navigation.trigger('keydown', { key: 'Escape' })
+      await flushPromises()
+      expect(trigger.attributes('aria-expanded')).toBe('false')
+      expect(document.activeElement).toBe(trigger.element)
+    } finally {
+      wrapper.unmount()
+      wrapper.element.remove()
+    }
+  })
+
+  it('closes mobile navigation and focuses the composer after choosing a chat', async () => {
+    const { wrapper, chatStore } = await mountChat()
+    document.body.appendChild(wrapper.element)
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200', contactId: 'U200', contactName: 'Friend',
+          lastMessage: '', lastReceiveTime: 1000, contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+
+    try {
+      await wrapper.get('[aria-label="打开导航菜单"]').trigger('click')
+      await flushPromises()
+      await wrapper.get('[data-testid="chat-session-S200"]').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.get('[aria-label="打开导航菜单"]').attributes('aria-expanded')).toBe('false')
+      expect(document.activeElement).toBe(wrapper.get('[data-testid="message-composer"]').element)
+    } finally {
+      wrapper.unmount()
+      wrapper.element.remove()
+    }
   })
 
   it('opens the received-application inbox from the chat sidebar', async () => {
