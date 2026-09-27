@@ -101,6 +101,8 @@ const webReleaseLink = computed(() => {
 const messageSearchOpen = ref(false)
 const messageSearchQuery = ref('')
 const searchJumpMessageId = ref<number | null>(null)
+const messageSearchInput = ref<HTMLInputElement | null>(null)
+const messageSearchTrigger = ref<HTMLButtonElement | null>(null)
 const fullHistorySearchMatches = ref<InitialChatMessage[]>([])
 const fullHistorySearchPages = ref(new Map<number, ChatHistoryPage>())
 const fullHistorySearchStatus = ref<'idle' | 'searching' | 'complete' | 'cancelled' | 'error'>('idle')
@@ -546,12 +548,21 @@ function openGroupDirectory() {
   groupDirectoryOpen.value = true
 }
 
+function closeMessageSearch() {
+  if (!messageSearchOpen.value) return
+  messageSearchOpen.value = false
+  messageSearchQuery.value = ''
+  searchJumpMessageId.value = null
+  void nextTick(() => messageSearchTrigger.value?.focus())
+}
+
 function toggleMessageSearch() {
-  messageSearchOpen.value = !messageSearchOpen.value
-  if (!messageSearchOpen.value) {
-    messageSearchQuery.value = ''
-    searchJumpMessageId.value = null
+  if (messageSearchOpen.value) {
+    closeMessageSearch()
+    return
   }
+  messageSearchOpen.value = true
+  void nextTick(() => messageSearchInput.value?.focus())
 }
 
 function resetFullHistorySearch() {
@@ -1405,6 +1416,7 @@ async function signOut() {
           v-if="selectedSession"
           class="icon-button message-search-toggle"
           data-testid="toggle-message-search"
+          ref="messageSearchTrigger"
           type="button"
           :aria-label="messageSearchOpen ? '关闭消息搜索' : '搜索本会话消息'"
           :aria-pressed="messageSearchOpen"
@@ -1452,9 +1464,11 @@ async function signOut() {
         class="message-search-panel"
         data-testid="message-search-panel"
         aria-label="搜索本会话消息"
+        @keydown.esc.stop.prevent="closeMessageSearch"
       >
         <div class="message-search-input-row">
           <input
+            ref="messageSearchInput"
             v-model="messageSearchQuery"
             data-testid="message-search-input"
             type="search"

@@ -776,6 +776,39 @@ describe('authentication flow', () => {
     expect(wrapper.get('[data-testid="search-entire-history"]').text()).toBe('继续搜索全部历史')
   })
 
+  it('moves keyboard focus into message search and restores it after Escape', async () => {
+    const { wrapper, chatStore } = await mountChat()
+    document.body.appendChild(wrapper.element)
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200',
+          contactId: 'U200',
+          contactName: 'Friend',
+          lastMessage: '',
+          lastReceiveTime: 1000,
+          contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+
+    const toggle = wrapper.get('[data-testid="toggle-message-search"]')
+    await toggle.trigger('click')
+    await flushPromises()
+    const input = wrapper.get('[data-testid="message-search-input"]')
+    expect(document.activeElement).toBe(input.element)
+
+    await input.trigger('keydown', { key: 'Escape' })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="message-search-panel"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(toggle.element)
+  })
+
   it('sends a selected-session text message and adds the saved message to the view', async () => {
     const sentMessage = {
       messageId: 101,
