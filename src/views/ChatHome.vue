@@ -164,6 +164,9 @@ const mediaPreviewLoadingId = ref<number | null>(null)
 const mediaPreviewErrors = reactive(new Map<number, string>())
 const mediaPreviewDialog = ref<HTMLElement | null>(null)
 const mediaPreviewTrigger = ref<HTMLElement | null>(null)
+const profileDialog = ref<HTMLElement | null>(null)
+const profileTrigger = ref<HTMLButtonElement | null>(null)
+const profileCloseButton = ref<HTMLButtonElement | null>(null)
 const messagePanel = ref<HTMLElement | null>(null)
 const historyLoading = ref(false)
 const olderMessagesLoading = ref(false)
@@ -500,6 +503,7 @@ function openProfile() {
   passwordForm.password = ''
   passwordForm.confirmPassword = ''
   passwordError.value = ''
+  void nextTick(() => profileCloseButton.value?.focus())
 }
 
 function openAbout() {
@@ -679,6 +683,30 @@ function closeProfile() {
   if (changingPassword.value || profileSaving.value) return
   profileEditOpen.value = false
   profileOpen.value = false
+  void nextTick(() => profileTrigger.value?.focus())
+}
+
+function trapProfileFocus(event: KeyboardEvent) {
+  const dialog = profileDialog.value
+  if (!dialog) return
+  const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+    'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  )).filter((element) => element.getAttribute('aria-hidden') !== 'true')
+  if (focusable.length === 0) {
+    event.preventDefault()
+    dialog.focus()
+    return
+  }
+  const first = focusable[0]!
+  const last = focusable[focusable.length - 1]!
+  const activeElement = document.activeElement
+  if (event.shiftKey && (activeElement === first || activeElement === dialog || !dialog.contains(activeElement))) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && (activeElement === last || activeElement === dialog || !dialog.contains(activeElement))) {
+    event.preventDefault()
+    first.focus()
+  }
 }
 
 async function clearLocalTextCache() {
@@ -1326,6 +1354,7 @@ async function signOut() {
         <button
           class="profile-trigger"
           data-testid="open-profile"
+        ref="profileTrigger"
           type="button"
           aria-haspopup="dialog"
           @click="openProfile"
@@ -1866,18 +1895,20 @@ async function signOut() {
     <div v-if="profileOpen" class="profile-overlay" data-testid="profile-overlay" @click.self="closeProfile">
       <section
         class="profile-dialog"
+        ref="profileDialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="profile-title"
         tabindex="-1"
         @keydown.esc.stop.prevent="closeProfile"
+        @keydown.tab="trapProfileFocus"
       >
         <header class="profile-dialog-header">
           <div>
             <p class="eyebrow">账号</p>
             <h2 id="profile-title">个人资料与安全</h2>
           </div>
-          <button class="icon-button profile-close" type="button" aria-label="关闭个人资料" @click="closeProfile">
+          <button ref="profileCloseButton" class="icon-button profile-close" type="button" aria-label="关闭个人资料" @click="closeProfile">
             ×
           </button>
         </header>

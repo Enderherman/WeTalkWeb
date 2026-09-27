@@ -809,6 +809,34 @@ describe('authentication flow', () => {
     expect(document.activeElement).toBe(toggle.element)
   })
 
+  it('traps profile dialog focus and restores the profile trigger after closing', async () => {
+    const { wrapper } = await mountChat()
+    document.body.appendChild(wrapper.element)
+
+    const trigger = wrapper.get('[data-testid="open-profile"]')
+    await trigger.trigger('click')
+    await flushPromises()
+    const dialog = wrapper.get('.profile-dialog')
+    expect(document.activeElement).toBe(wrapper.get('.profile-close').element)
+    const focusable = Array.from(dialog.element.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ))
+    const first = focusable[0]!
+    const last = focusable[focusable.length - 1]!
+
+    first.focus()
+    await dialog.trigger('keydown', { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+    last.focus()
+    await dialog.trigger('keydown', { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+
+    await dialog.trigger('keydown', { key: 'Escape' })
+    await flushPromises()
+    expect(wrapper.find('.profile-dialog').exists()).toBe(false)
+    expect(document.activeElement).toBe(trigger.element)
+  })
+
   it('sends a selected-session text message and adds the saved message to the view', async () => {
     const sentMessage = {
       messageId: 101,
