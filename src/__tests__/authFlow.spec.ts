@@ -837,6 +837,33 @@ describe('authentication flow', () => {
     expect(document.activeElement).toBe(trigger.element)
   })
 
+  it('resizes the mobile chat shell with the visible viewport when the virtual keyboard changes height', async () => {
+    const originalWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth')
+    const originalViewport = Object.getOwnPropertyDescriptor(window, 'visualViewport')
+    const viewport = new EventTarget() as unknown as VisualViewport
+    Object.defineProperty(viewport, 'height', { configurable: true, value: 540 })
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 })
+    Object.defineProperty(window, 'visualViewport', { configurable: true, value: viewport })
+
+    const { wrapper } = await mountChat()
+    try {
+      const shell = wrapper.get('[data-testid="chat-shell"]')
+      expect((shell.element as HTMLElement).style.getPropertyValue('--wt-chat-visual-viewport-height')).toBe('540px')
+
+      Object.defineProperty(viewport, 'height', { configurable: true, value: 240 })
+      viewport.dispatchEvent(new Event('resize'))
+      await flushPromises()
+      expect((shell.element as HTMLElement).style.getPropertyValue('--wt-chat-visual-viewport-height')).toBe('240px')
+    } finally {
+      wrapper.unmount()
+      wrapper.element.remove()
+      if (originalWidth) Object.defineProperty(window, 'innerWidth', originalWidth)
+      else Reflect.deleteProperty(window, 'innerWidth')
+      if (originalViewport) Object.defineProperty(window, 'visualViewport', originalViewport)
+      else Reflect.deleteProperty(window, 'visualViewport')
+    }
+  })
+
   it('sends a selected-session text message and adds the saved message to the view', async () => {
     const sentMessage = {
       messageId: 101,

@@ -169,12 +169,14 @@ const profileDialog = ref<HTMLElement | null>(null)
 const profileTrigger = ref<HTMLButtonElement | null>(null)
 const profileCloseButton = ref<HTMLButtonElement | null>(null)
 const messagePanel = ref<HTMLElement | null>(null)
+const chatShell = ref<HTMLElement | null>(null)
 const historyLoading = ref(false)
 const olderMessagesLoading = ref(false)
 const historyError = ref('')
 const preservingScroll = ref(false)
 let historyRequestId = 0
 let fileDragDepth = 0
+let chatVisualViewport: VisualViewport | null = null
 const connectionLabel = computed(() => {
   switch (chatStore.connectionStatus) {
     case 'connected':
@@ -238,6 +240,10 @@ watch(selectedMessages, async () => {
 
 onMounted(() => {
   window.addEventListener('online', handlePendingMessagesOnline)
+  chatVisualViewport = window.visualViewport
+  window.addEventListener('resize', syncChatViewportHeight)
+  chatVisualViewport?.addEventListener('resize', syncChatViewportHeight)
+  syncChatViewportHeight()
   void loadProfile()
   void systemSettingsStore.load().catch(() => undefined)
   const session = authStore.session
@@ -262,8 +268,22 @@ function dismissWebReleaseNotice() {
   webReleaseNoticeDismissed.value = true
 }
 
+function syncChatViewportHeight() {
+  const shell = chatShell.value
+  if (!shell) return
+  if (window.innerWidth <= 760 && chatVisualViewport) {
+    shell.style.setProperty('--wt-chat-visual-viewport-height', `${Math.max(1, Math.round(chatVisualViewport.height))}px`)
+  } else {
+    shell.style.removeProperty('--wt-chat-visual-viewport-height')
+  }
+}
+
 onBeforeUnmount(() => {
   window.removeEventListener('online', handlePendingMessagesOnline)
+  window.removeEventListener('resize', syncChatViewportHeight)
+  chatVisualViewport?.removeEventListener('resize', syncChatViewportHeight)
+  chatShell.value?.style.removeProperty('--wt-chat-visual-viewport-height')
+  chatVisualViewport = null
   historyRequestId += 1
   resetFullHistorySearch()
   closeMediaPreview(false)
@@ -1218,7 +1238,7 @@ async function signOut() {
 </script>
 
 <template>
-  <main class="chat-shell">
+  <main ref="chatShell" class="chat-shell" data-testid="chat-shell">
     <button
       v-if="sidebarOpen"
       class="sidebar-backdrop"
