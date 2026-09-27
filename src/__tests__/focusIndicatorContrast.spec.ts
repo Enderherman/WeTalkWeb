@@ -26,4 +26,16 @@ describe('keyboard focus indicator contrast', () => {
     expect(contrastRatio(accent!, '#ffffff')).toBeGreaterThanOrEqual(3)
     expect(contrastRatio(accent!, '#f7f7f5')).toBeGreaterThanOrEqual(3)
   })
+
+  it('keeps muted and metadata text tokens above 4.5:1 on white and soft surfaces', () => {
+    const muted = stylesheet.match(/--wt-muted:\s*(#[\da-f]{6})/i)?.[1]
+    const neutral400 = stylesheet.match(/--wt-neutral-400:\s*(#[\da-f]{6})/i)?.[1]
+    expect(muted).toBeDefined()
+    expect(neutral400).toBeDefined()
+
+    for (const textColor of [muted!, neutral400!]) {
+      expect(contrastRatio(textColor, '#ffffff')).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(textColor, '#f7f7f5')).toBeGreaterThanOrEqual(4.5)
+    }
+  })
 })
