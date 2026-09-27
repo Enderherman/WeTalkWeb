@@ -17,7 +17,7 @@
 
 短期仅计划在 NAS Docker 的内网环境测试；正式域名尚未确定，配置暂以 `<WETALK_WEB_HOST>` 占位，NAS 地址、端口和容器网络在部署阶段确认。部署时优先让网页、`/api` 和 `/ws` 共用同源入口。内网 HTTP 测试仅用于隔离的测试环境；若通过 NAS 反向代理启用 HTTPS/WSS，则设置 `WETALK_WEB_AUTH_COOKIE_SECURE=true`。对外发布前必须确定正式域名、HTTPS/WSS、允许的 Origin、备份与回滚配置。
 
-WeTalkWeb 提供 `Dockerfile` 和 `compose.nas.yaml`：Nginx 容器监听 8080，同源代理 `/api` 到 `wetalk:5050`、`/ws` 到 `wetalk:5051`，并加入后端共用的外部 Docker 网络 `wetalk-net`。复制 `.env.nas.example` 为 `.env`，将 `WEB_BIND_IP` 设为刚核实的 NAS 局域网地址；后端 `WETALK_WEB_ALLOWED_ORIGINS` 设为同源 `http://<NAS_LAN_IP>:<WEB_PUBLISHED_PORT>`。内网 HTTP 测试时 `WETALK_WEB_AUTH_COOKIE_SECURE=false`，对外 HTTPS/WSS 部署必须设为 `true`。Compose 启动命令和健康探针见本节下方；当前仅完成本地打包配置，尚未在 NAS 实际部署。
+WeTalkWeb 提供 `Dockerfile` 和 `compose.nas.yaml`：Nginx 容器监听 8080，同源代理 `/api` 到 `wetalk:5050`、`/ws` 到 `wetalk:5051`，并加入后端共用的外部 Docker 网络 `wetalk-net`。后端 `BACKEND_BIND_IP` 和 MySQL/Redis `NAS_BIND_IP` 默认留在 NAS 回环地址，只有网页入口绑定 LAN。复制 `.env.nas.example` 为 `.env`，将 `WEB_BIND_IP` 设为刚核实的 NAS 局域网地址；后端 `WETALK_WEB_ALLOWED_ORIGINS` 设为同源 `http://<NAS_LAN_IP>:<WEB_PUBLISHED_PORT>`。内网 HTTP 测试时 `WETALK_WEB_AUTH_COOKIE_SECURE=false`，对外 HTTPS/WSS 部署必须设为 `true`。Compose 启动命令和健康探针见本节下方；当前仅完成本地打包配置，尚未在 NAS 实际部署。
 
 首次部署需先在 `wetalk-net` 网络中启动已配置的后端/基础服务，再启动网页容器：
 

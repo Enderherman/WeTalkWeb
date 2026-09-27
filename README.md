@@ -397,7 +397,7 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 
 ### NAS Docker 网页容器配置已准备；实际部署待接入
 
-- 新增多阶段 `Dockerfile`、Nginx 同源 `/api` 与 `/ws` 代理、外部 `wetalk-net` Compose 配置和 `.env.nas.example`；静态资源使用长缓存，入口页不缓存，上传上限与后端文件限制相符。
+- 新增多阶段 `Dockerfile`、Nginx 同源 `/api` 与 `/ws` 代理、外部 `wetalk-net` Compose 配置和 `.env.nas.example`；后端 API/WS 默认只绑定 NAS 本机回环地址，只有网页入口映射到 LAN。静态资源使用长缓存，入口页不缓存，上传上限与后端文件限制相符。
 - `docker compose --env-file .env.nas.example -f compose.nas.yaml config --quiet` 已通过；前端生产构建和 244 项单测通过。当前本机 Docker Engine 未运行，NAS 容器与 LAN 登录尚未验收。
 
 ### 本轮修复：桌面聊天区两列布局
