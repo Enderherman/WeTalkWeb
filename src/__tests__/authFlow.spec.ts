@@ -689,6 +689,7 @@ describe('authentication flow', () => {
     expect(wrapper.get('[data-testid="message-send-status"]').text()).toBe('已发送')
     expect(wrapper.get('[data-testid="message-send-status"]').attributes('aria-label')).toBe('服务端已接收并保存')
     expect(wrapper.get('[data-testid="message-composer"]').element).toHaveProperty('value', '')
+    expect(wrapper.get('[data-testid="message-composer"]').attributes('aria-label')).toBe('消息内容')
   })
 
   it('selects and uploads a normal file, then displays its completed status', async () => {

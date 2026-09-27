@@ -1289,6 +1289,7 @@ async function signOut() {
           rows="2"
           maxlength="500"
           placeholder="发送文字消息，Enter 发送，Shift+Enter 换行"
+          aria-label="消息内容"
           data-testid="message-composer"
           @keydown.enter.exact.prevent="sendTextMessage"
         ></textarea>
