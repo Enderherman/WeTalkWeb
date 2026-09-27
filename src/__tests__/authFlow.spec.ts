@@ -316,6 +316,11 @@ describe('authentication flow', () => {
 
     expect(authApi.login).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('请输入有效的邮箱地址')
+    expect(wrapper.get('[data-testid="email"]').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.get('[data-testid="email"]').attributes('aria-describedby')).toBe('email-error')
+    expect(wrapper.get('#email-error').attributes('role')).toBe('alert')
+    expect(wrapper.get('[data-testid="password"]').attributes('aria-describedby')).toBe('password-error')
+    expect(wrapper.get('#password-error').attributes('role')).toBe('alert')
   })
 
   it('clears the local session when the user signs out', async () => {

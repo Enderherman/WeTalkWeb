@@ -146,8 +146,9 @@ function toSession(user: WebAuthSession, emailFallback: string) {
             maxlength="40"
             placeholder="你希望别人怎么称呼你"
             :aria-invalid="Boolean(fieldErrors.nickName)"
+            :aria-describedby="fieldErrors.nickName ? 'nickname-error' : undefined"
           />
-          <small v-if="fieldErrors.nickName" class="field-error">{{ fieldErrors.nickName }}</small>
+          <small v-if="fieldErrors.nickName" id="nickname-error" class="field-error" role="alert">{{ fieldErrors.nickName }}</small>
         </label>
 
         <label class="field">
@@ -160,8 +161,9 @@ function toSession(user: WebAuthSession, emailFallback: string) {
             maxlength="254"
             placeholder="name@example.com"
             :aria-invalid="Boolean(fieldErrors.email)"
+            :aria-describedby="fieldErrors.email ? 'email-error' : undefined"
           />
-          <small v-if="fieldErrors.email" class="field-error">{{ fieldErrors.email }}</small>
+          <small v-if="fieldErrors.email" id="email-error" class="field-error" role="alert">{{ fieldErrors.email }}</small>
         </label>
 
         <label class="field">
@@ -173,8 +175,9 @@ function toSession(user: WebAuthSession, emailFallback: string) {
             :autocomplete="isRegister ? 'new-password' : 'current-password'"
             placeholder="请输入密码"
             :aria-invalid="Boolean(fieldErrors.password)"
+            :aria-describedby="fieldErrors.password ? 'password-error' : undefined"
           />
-          <small v-if="fieldErrors.password" class="field-error">{{ fieldErrors.password }}</small>
+          <small v-if="fieldErrors.password" id="password-error" class="field-error" role="alert">{{ fieldErrors.password }}</small>
         </label>
 
         <label v-if="isRegister" class="field">
@@ -186,8 +189,9 @@ function toSession(user: WebAuthSession, emailFallback: string) {
             autocomplete="new-password"
             placeholder="再次输入密码"
             :aria-invalid="Boolean(fieldErrors.confirmPassword)"
+            :aria-describedby="fieldErrors.confirmPassword ? 'confirm-password-error' : undefined"
           />
-          <small v-if="fieldErrors.confirmPassword" class="field-error">{{ fieldErrors.confirmPassword }}</small>
+          <small v-if="fieldErrors.confirmPassword" id="confirm-password-error" class="field-error" role="alert">{{ fieldErrors.confirmPassword }}</small>
         </label>
 
         <div class="field">
@@ -201,6 +205,7 @@ function toSession(user: WebAuthSession, emailFallback: string) {
               maxlength="12"
               placeholder="输入图片中的结果"
               :aria-invalid="Boolean(fieldErrors.checkCode)"
+              :aria-describedby="fieldErrors.checkCode ? 'captcha-error' : undefined"
             />
             <button
               class="captcha-refresh"
@@ -214,7 +219,7 @@ function toSession(user: WebAuthSession, emailFallback: string) {
               <span v-else>{{ captchaLoading ? '加载中' : '刷新验证码' }}</span>
             </button>
           </div>
-          <small v-if="fieldErrors.checkCode" class="field-error">{{ fieldErrors.checkCode }}</small>
+          <small v-if="fieldErrors.checkCode" id="captcha-error" class="field-error" role="alert">{{ fieldErrors.checkCode }}</small>
         </div>
 
         <button class="submit-button" data-testid="submit" type="submit" :disabled="submitting">
