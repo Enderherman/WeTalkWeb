@@ -393,7 +393,7 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 ### 私聊发送者已读回执
 
 - 接收方标记私聊已读后，发送方实时收到 type 17，并将本人文字消息状态显示为“已读”；群聊不展示个人已读状态。
-- WebSocket INIT 恢复对端持久已读游标，重连后仍显示正确状态。验证：后端 Maven clean verify 96 项、WeTalkWeb 244 项单测、类型检查和生产构建通过；真实后端双账号验证实时回执、重复游标抑制和重连恢复，测试账号与关联数据已清理。
+- WebSocket INIT 恢复对端持久已读游标，重连后仍显示正确状态。后端 Maven 96 项、WeTalkWeb 244 项单测、类型检查和生产构建通过；真实双账号/MySQL/Redis/Netty E2E 验证 type 17、重复游标抑制和重连恢复。Playwright Chromium 两个独立浏览器在 1280×900、768×1024、390×844 真实后端链路验证实时消息、已读和刷新恢复；截图位于 `D:/environment/WeTalkBrowserQA/captures/chromium-1280-dual-account-read-receipt.png`、`chromium-768-dual-account-read-receipt.png`、`chromium-390-dual-account-read-receipt.png`。临时测试数据已清理；真机验收仍待完成。
 
 ### NAS Docker 网页容器配置已准备；实际部署待接入
 
