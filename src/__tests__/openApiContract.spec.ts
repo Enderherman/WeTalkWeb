@@ -12,9 +12,12 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/account/checkCode',
       '/account/getSysSetting',
       '/account/getUserInfo',
+      '/account/listSessions',
       '/account/login',
       '/account/logout',
       '/account/register',
+      '/account/revokeOtherSessions',
+      '/account/revokeSession',
       '/account/saveUserInfo',
       '/account/updatePassword',
       '/account/webLogin',
@@ -76,6 +79,9 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/account/updatePassword',
       '/account/logout',
       '/account/webSocketTicket',
+      '/account/listSessions',
+      '/account/revokeSession',
+      '/account/revokeOtherSessions',
       '/chat/sendMessage',
       '/chat/markRead',
       '/chat/loadHistory',
@@ -280,5 +286,22 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(contract.components.schemas.WebAuthSession.properties).not.toHaveProperty('token')
     expect(contract.paths['/account/webLogin'].post.responses['200'].headers['Set-Cookie'].description).toContain('HttpOnly')
     expect(contract.paths['/account/webSocketTicket'].post.description).toContain('60 seconds')
+  })
+
+  it('documents multi-device sessions without exposing authentication credentials', () => {
+    expect(contract.components.schemas.UserSession.properties).toMatchObject({
+      sessionId: { type: 'string', format: 'uuid' },
+      deviceName: { type: 'string' },
+      createdAt: { type: 'integer', format: 'int64' },
+      lastActiveAt: { type: 'integer', format: 'int64' },
+      current: { type: 'boolean' },
+    })
+    expect(contract.components.schemas.UserSession.properties).not.toHaveProperty('token')
+    expect(contract.components.schemas.UserSession.properties).not.toHaveProperty('cookie')
+    expect(contract.components.schemas.UserSession.properties).not.toHaveProperty('userAgent')
+    expect(contract.paths['/account/revokeOtherSessions'].post.description).toContain('Keeps the calling session active')
+    expect(
+      contract.paths['/account/revokeSession'].post.requestBody.content['application/x-www-form-urlencoded'].schema.required,
+    ).toEqual(['sessionId'])
   })
 })

@@ -49,6 +49,9 @@ vi.mock('@/api/auth', () => ({
     register: vi.fn(),
     login: vi.fn(),
     createWebSocketTicket: vi.fn(),
+    listSessions: vi.fn(),
+    revokeSession: vi.fn(),
+    revokeOtherSessions: vi.fn(),
     getUserInfo: vi.fn(),
     getSystemSettings: vi.fn(),
     saveUserInfo: vi.fn(),
@@ -194,6 +197,9 @@ beforeEach(() => {
     userId: 'U100', email: 'student@example.com', nickName: 'Student', admin: false,
   })
   vi.mocked(authApi.updatePassword).mockResolvedValue(undefined)
+  vi.mocked(authApi.listSessions).mockResolvedValue([])
+  vi.mocked(authApi.revokeSession).mockResolvedValue(undefined)
+  vi.mocked(authApi.revokeOtherSessions).mockResolvedValue({ revokedCount: 0 })
   vi.mocked(contactApi.loadApplications).mockResolvedValue({ totalCount: 0, pageSize: 15, pageNo: 1, pageTotal: 0, list: [] })
   vi.mocked(contactApi.handleApplication).mockResolvedValue(null)
   vi.mocked(contactApi.loadContacts).mockResolvedValue([])
@@ -835,6 +841,66 @@ describe('authentication flow', () => {
     await flushPromises()
     expect(wrapper.find('.profile-dialog').exists()).toBe(false)
     expect(document.activeElement).toBe(trigger.element)
+  })
+
+  it('shows device labels and marks the current browser session', async () => {
+    vi.mocked(authApi.listSessions).mockResolvedValue([
+      { sessionId: 'session-current', deviceName: 'Chrome · Windows', createdAt: 100, lastActiveAt: 300, current: true },
+      { sessionId: 'session-phone', deviceName: 'Safari · iOS', createdAt: 90, lastActiveAt: 150, current: false },
+    ])
+    const { wrapper } = await mountChat()
+
+    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+    await flushPromises()
+
+    expect(authApi.listSessions).toHaveBeenCalledOnce()
+    expect(wrapper.get('[data-testid="session-row-session-current"]').text()).toContain('Chrome · Windows')
+    expect(wrapper.get('[data-testid="session-row-session-current"]').text()).toContain('当前设备')
+    expect(wrapper.get('[data-testid="session-row-session-phone"]').text()).toContain('Safari · iOS')
+    expect(wrapper.find('[data-testid="revoke-session-session-current"]').exists()).toBe(false)
+  })
+
+  it('revokes one other session and keeps the current browser signed in', async () => {
+    vi.mocked(authApi.listSessions).mockResolvedValue([
+      { sessionId: 'session-current', deviceName: 'Chrome · Windows', createdAt: 100, lastActiveAt: 300, current: true },
+      { sessionId: 'session-phone', deviceName: 'Safari · iOS', createdAt: 90, lastActiveAt: 150, current: false },
+    ])
+    const { wrapper, authStore } = await mountChat()
+
+    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="revoke-session-session-phone"]').trigger('click')
+    await wrapper.get('[data-testid="confirm-revoke-session-session-phone"]').trigger('click')
+    await flushPromises()
+
+    expect(authApi.revokeSession).toHaveBeenCalledWith('session-phone')
+    expect(wrapper.find('[data-testid="session-row-session-phone"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="session-row-session-current"]').exists()).toBe(true)
+    expect(authStore.session?.userId).toBe('U100')
+    expect(wrapper.get('[data-testid="session-management"]').text()).toContain('已退出“Safari · iOS”')
+  })
+
+  it('revokes all other sessions but preserves the current browser session', async () => {
+    vi.mocked(authApi.listSessions).mockResolvedValue([
+      { sessionId: 'session-current', deviceName: 'Chrome · Windows', createdAt: 100, lastActiveAt: 300, current: true },
+      { sessionId: 'session-phone', deviceName: 'Safari · iOS', createdAt: 90, lastActiveAt: 150, current: false },
+      { sessionId: 'session-tablet', deviceName: 'Chrome · Android', createdAt: 80, lastActiveAt: 140, current: false },
+    ])
+    vi.mocked(authApi.revokeOtherSessions).mockResolvedValue({ revokedCount: 2 })
+    const { wrapper, authStore } = await mountChat()
+
+    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="revoke-other-sessions"]').trigger('click')
+    await wrapper.get('[data-testid="confirm-revoke-other-sessions"]').trigger('click')
+    await flushPromises()
+
+    expect(authApi.revokeOtherSessions).toHaveBeenCalledOnce()
+    expect(wrapper.find('[data-testid="session-row-session-phone"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="session-row-session-tablet"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="session-row-session-current"]').exists()).toBe(true)
+    expect(authStore.session?.userId).toBe('U100')
+    expect(wrapper.get('[data-testid="session-management"]').text()).toContain('已退出 2 台其他设备')
   })
 
   it('resizes the mobile chat shell with the visible viewport when the virtual keyboard changes height', async () => {

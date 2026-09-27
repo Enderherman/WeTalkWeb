@@ -1980,6 +1980,121 @@ select:focus-visible {
   cursor: wait;
 }
 
+.session-management {
+  display: grid;
+  gap: 11px;
+  margin-top: 21px;
+  padding-top: 19px;
+  border-top: 1px solid var(--wt-neutral-100);
+}
+
+.session-management-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.session-management-header h3 {
+  margin: 0;
+  color: var(--wt-text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.session-management-header p {
+  margin: 5px 0 0;
+  color: var(--wt-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.session-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--wt-line);
+  border-radius: 12px;
+  background: var(--wt-white);
+}
+
+.session-device-info {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.session-device-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.session-device-title strong {
+  color: var(--wt-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.session-current-badge {
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: var(--wt-accent-strong);
+  background: var(--wt-accent-soft);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.session-device-info small {
+  color: var(--wt-muted);
+  font-size: 11px;
+}
+
+.session-row-actions,
+.session-management-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.session-revoke-confirm {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--wt-white);
+  background: var(--wt-danger-strong);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.session-revoke-confirm:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.session-management-actions > span {
+  color: var(--wt-muted);
+  font-size: 11px;
+}
+
 .chat-main {
   position: relative;
   display: flex;
@@ -3500,6 +3615,19 @@ select:focus-visible {
 }
 
 @media (max-width: 760px) {
+  .session-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .session-row-actions {
+    justify-content: flex-start;
+  }
+
+  .session-management-header {
+    align-items: flex-start;
+  }
+
   .web-release-notice {
     margin-right: 12px;
     margin-left: 12px;

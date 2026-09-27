@@ -36,6 +36,30 @@ describe('auth API compatibility', () => {
     expect(postForm).toHaveBeenCalledWith('/account/webSocketTicket', {})
   })
 
+  it('lists browser sessions without asking for or exposing credentials', async () => {
+    const sessions = [{
+      sessionId: 'session-current',
+      deviceName: 'Chrome · Windows',
+      createdAt: 100,
+      lastActiveAt: 200,
+      current: true,
+    }]
+    vi.mocked(postForm).mockResolvedValue(sessions)
+
+    await expect(authApi.listSessions()).resolves.toEqual(sessions)
+    expect(postForm).toHaveBeenCalledWith('/account/listSessions', {})
+    expect(JSON.stringify(sessions)).not.toContain('token')
+  })
+
+  it('revokes one selected session or all other sessions through protected form requests', async () => {
+    vi.mocked(postForm).mockResolvedValueOnce(null).mockResolvedValueOnce({ revokedCount: 2 })
+
+    await expect(authApi.revokeSession('session-other')).resolves.toBeUndefined()
+    await expect(authApi.revokeOtherSessions()).resolves.toEqual({ revokedCount: 2 })
+    expect(postForm).toHaveBeenNthCalledWith(1, '/account/revokeSession', { sessionId: 'session-other' })
+    expect(postForm).toHaveBeenNthCalledWith(2, '/account/revokeOtherSessions', {})
+  })
+
   it('loads the signed-in profile from the protected backend endpoint', async () => {
     const profile = {
       userId: 'U100',

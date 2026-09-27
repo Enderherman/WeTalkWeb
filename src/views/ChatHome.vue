@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { useRouter } from 'vue-router'
 import { appUpdateApi, type AppUpdateNotice } from '@/api/appUpdates'
 import { authApi } from '@/api/auth'
-import type { SaveUserInfoInput, UserProfile } from '@/api/auth'
+import type { SaveUserInfoInput, UserProfile, UserSessionInfo } from '@/api/auth'
 import { chatApi } from '@/api/chat'
 import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
 import ContactApplicationsDialog from '@/components/ContactApplicationsDialog.vue'
@@ -56,6 +56,15 @@ const profileEditOpen = ref(false)
 const profileSaving = ref(false)
 const profileSaveError = ref('')
 const profileSaveNotice = ref('')
+const userSessions = ref<UserSessionInfo[]>([])
+const sessionsLoading = ref(false)
+const sessionsError = ref('')
+const sessionsNotice = ref('')
+const sessionActionId = ref('')
+const confirmSessionToRevoke = ref('')
+const confirmRevokeOtherSessions = ref(false)
+const sessionRefreshButton = ref<HTMLButtonElement | null>(null)
+const hasOtherSessions = computed(() => userSessions.value.some((session) => !session.current))
 const profileAvatarVersion = ref(0)
 const profileAvatarFile = ref<File | null>(null)
 const profileCoverFile = ref<File | null>(null)
@@ -524,7 +533,65 @@ function openProfile() {
   passwordForm.password = ''
   passwordForm.confirmPassword = ''
   passwordError.value = ''
+  userSessions.value = []
+  confirmSessionToRevoke.value = ''
+  confirmRevokeOtherSessions.value = false
   void nextTick(() => profileCloseButton.value?.focus())
+  void loadSessions()
+}
+
+function formatSessionTime(timestamp: number) {
+  const date = new Date(timestamp)
+  return Number.isNaN(date.getTime()) ? '时间未知' : date.toLocaleString()
+}
+
+async function loadSessions() {
+  sessionsLoading.value = true
+  sessionsError.value = ''
+  sessionsNotice.value = ''
+  try {
+    userSessions.value = await authApi.listSessions()
+  } catch (error: unknown) {
+    sessionsError.value = error instanceof Error ? error.message : '设备会话读取失败，请稍后重试'
+  } finally {
+    sessionsLoading.value = false
+  }
+}
+
+async function revokeSession(session: UserSessionInfo) {
+  if (session.current || sessionActionId.value) return
+  sessionActionId.value = session.sessionId
+  sessionsError.value = ''
+  try {
+    await authApi.revokeSession(session.sessionId)
+    userSessions.value = userSessions.value.filter((item) => item.sessionId !== session.sessionId)
+    confirmSessionToRevoke.value = ''
+    sessionsNotice.value = `已退出“${session.deviceName}”`
+    await nextTick()
+    sessionRefreshButton.value?.focus()
+  } catch (error: unknown) {
+    sessionsError.value = error instanceof Error ? error.message : '退出设备失败，请稍后重试'
+  } finally {
+    sessionActionId.value = ''
+  }
+}
+
+async function revokeOtherSessions() {
+  if (sessionActionId.value || !userSessions.value.some((session) => !session.current)) return
+  sessionActionId.value = 'others'
+  sessionsError.value = ''
+  try {
+    const result = await authApi.revokeOtherSessions()
+    userSessions.value = userSessions.value.filter((session) => session.current)
+    confirmRevokeOtherSessions.value = false
+    sessionsNotice.value = `已退出 ${result.revokedCount} 台其他设备`
+    await nextTick()
+    sessionRefreshButton.value?.focus()
+  } catch (error: unknown) {
+    sessionsError.value = error instanceof Error ? error.message : '退出其他设备失败，请稍后重试'
+  } finally {
+    sessionActionId.value = ''
+  }
 }
 
 function closeContactSearchDialog() {
@@ -717,7 +784,7 @@ function refreshChatSession() {
 }
 
 function closeProfile() {
-  if (changingPassword.value || profileSaving.value) return
+  if (changingPassword.value || profileSaving.value || Boolean(sessionActionId.value)) return
   profileEditOpen.value = false
   profileOpen.value = false
   void nextTick(() => profileTrigger.value?.focus())
@@ -2103,6 +2170,86 @@ async function signOut() {
             {{ downloadPreferenceError || downloadPreferencesStore.storageError }}
           </p>
           <p v-if="downloadPreferenceNotice" class="contact-notice" role="status">{{ downloadPreferenceNotice }}</p>
+        </section>
+
+        <section class="session-management" aria-labelledby="session-management-title" data-testid="session-management">
+          <header class="session-management-header">
+            <div>
+              <h3 id="session-management-title">登录中的设备</h3>
+              <p>查看账号当前登录位置；退出设备后，该设备的网页和实时连接都会失效。</p>
+            </div>
+            <button
+              ref="sessionRefreshButton"
+              class="message-search-clear"
+              data-testid="refresh-sessions"
+              type="button"
+              :disabled="sessionsLoading || Boolean(sessionActionId)"
+              @click="loadSessions"
+            >刷新</button>
+          </header>
+          <p v-if="sessionsLoading" class="profile-status" role="status">正在读取登录设备…</p>
+          <p v-if="sessionsError" class="contact-error" role="alert">{{ sessionsError }}</p>
+          <p v-if="sessionsNotice" class="contact-notice" role="status">{{ sessionsNotice }}</p>
+          <p v-if="!sessionsLoading && !sessionsError && userSessions.length === 0" class="profile-status">
+            暂无有效登录设备记录。
+          </p>
+          <ul v-if="userSessions.length" class="session-list" aria-label="当前登录设备">
+            <li
+              v-for="session in userSessions"
+              :key="session.sessionId"
+              class="session-row"
+              :data-testid="`session-row-${session.sessionId}`"
+            >
+              <div class="session-device-info">
+                <div class="session-device-title">
+                  <strong>{{ session.deviceName }}</strong>
+                  <span v-if="session.current" class="session-current-badge">当前设备</span>
+                </div>
+                <small>最近活动：{{ formatSessionTime(session.lastActiveAt) }}</small>
+              </div>
+              <div v-if="!session.current" class="session-row-actions">
+                <button
+                  v-if="confirmSessionToRevoke !== session.sessionId"
+                  class="message-search-clear"
+                  :data-testid="`revoke-session-${session.sessionId}`"
+                  type="button"
+                  :disabled="Boolean(sessionActionId)"
+                  @click="confirmSessionToRevoke = session.sessionId"
+                >退出此设备</button>
+                <template v-else>
+                  <button
+                    class="session-revoke-confirm"
+                    :data-testid="`confirm-revoke-session-${session.sessionId}`"
+                    type="button"
+                    :disabled="Boolean(sessionActionId)"
+                    @click="revokeSession(session)"
+                  >{{ sessionActionId === session.sessionId ? '正在退出…' : '确认退出' }}</button>
+                  <button class="message-search-clear" type="button" @click="confirmSessionToRevoke = ''">取消</button>
+                </template>
+              </div>
+            </li>
+          </ul>
+          <div v-if="hasOtherSessions" class="session-management-actions">
+            <template v-if="confirmRevokeOtherSessions">
+              <span>确认退出所有其他设备？</span>
+              <button
+                class="session-revoke-confirm"
+                data-testid="confirm-revoke-other-sessions"
+                type="button"
+                :disabled="Boolean(sessionActionId)"
+                @click="revokeOtherSessions"
+              >{{ sessionActionId === 'others' ? '正在退出…' : '确认退出其他设备' }}</button>
+              <button class="message-search-clear" type="button" @click="confirmRevokeOtherSessions = false">取消</button>
+            </template>
+            <button
+              v-else
+              class="message-search-clear"
+              data-testid="revoke-other-sessions"
+              type="button"
+              :disabled="Boolean(sessionActionId)"
+              @click="confirmRevokeOtherSessions = true"
+            >退出其他所有设备</button>
+          </div>
         </section>
 
         <form class="password-form" data-testid="password-form" @submit.prevent="changePassword">

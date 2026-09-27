@@ -26,6 +26,18 @@ export interface WebSocketTicket {
   ticket: string
 }
 
+export interface UserSessionInfo {
+  sessionId: string
+  deviceName: string
+  createdAt: number
+  lastActiveAt: number
+  current: boolean
+}
+
+export interface RevokedSessionsResult {
+  revokedCount: number
+}
+
 export interface UserProfile {
   userId: string
   email: string
@@ -80,6 +92,15 @@ export const authApi = {
     postForm<WebAuthSession>('/account/webLogin', { ...input, password: hashLoginPassword(input.password) }),
 
   createWebSocketTicket: (): Promise<WebSocketTicket> => postForm<WebSocketTicket>('/account/webSocketTicket', {}),
+
+  listSessions: (): Promise<UserSessionInfo[]> => postForm<UserSessionInfo[]>('/account/listSessions', {}),
+
+  revokeSession: async (sessionId: string): Promise<void> => {
+    await postForm<null>('/account/revokeSession', { sessionId })
+  },
+
+  revokeOtherSessions: (): Promise<RevokedSessionsResult> =>
+    postForm<RevokedSessionsResult>('/account/revokeOtherSessions', {}),
 
   getUserInfo: (): Promise<UserProfile> => postForm<UserProfile>('/account/getUserInfo', {}),
 

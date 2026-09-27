@@ -50,3 +50,10 @@ Chromium 360×800 还截图检查了通用服务错误页、空会话和服务�
 视频首帧封面由浏览器本地解码并导出 PNG；浏览器不支持该编码、画布不可用或 8 秒内无法取帧时，视频仍可无封面上传，聊天卡片显示播放图标回退。服务端按当前图片大小设置校验封面。
 
 群头像和账号资料头像要求 PNG，单个文件不超过 10 MiB。聊天图片上限和普通聊天附件上限是 Web 客户端校验值；生产服务还需由后端执行同等或更严格的限制。
+
+
+### 真实后端会话管理浏览器回归（2026-09-27）
+
+本地 Chromium 桌面、手机视口通过 Vite 代理访问真实 Spring Boot、MySQL 和 Redis。创建三个独立会话后，网页显示设备标签和当前会话标志；分别执行单设备撤销与退出其他设备，当前浏览器保持在线，被撤销 Cookie 返回 901、目标 WebSocket 断开。MySQL 临时账号、关联记录及 Redis session/限流键已清理。
+
+会话列表截图：D:/environment/WeTalkBrowserQA/captures/chromium-1280-session-list.png、D:/environment/WeTalkBrowserQA/captures/chromium-390-session-list.png。这些是浏览器视口模拟，不替代真实 Android/iOS 设备验收。
