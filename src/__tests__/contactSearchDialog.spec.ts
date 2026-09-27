@@ -145,4 +145,36 @@ describe('contact search dialog', () => {
 
     expect(wrapper.get('[data-testid="contact-not-found"]').text()).toContain('没有找到')
   })
+
+  it('focuses the search field, traps keyboard focus, and restores the opener', async () => {
+    const opener = document.createElement('button')
+    document.body.appendChild(opener)
+    opener.focus()
+    const wrapper = mountDialog()
+    document.body.appendChild(wrapper.element)
+    await flushPromises()
+
+    const input = wrapper.get('[data-testid="contact-id-search"]')
+    expect(document.activeElement).toBe(input.element)
+    const dialog = wrapper.get('.contact-dialog')
+    const focusable = Array.from(dialog.element.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ))
+    const first = focusable[0]!
+    const last = focusable[focusable.length - 1]!
+
+    first.focus()
+    await dialog.trigger('keydown', { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+    last.focus()
+    await dialog.trigger('keydown', { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+
+    await wrapper.get('[aria-label="关闭联系人搜索"]').trigger('click')
+    expect(wrapper.emitted('close')).toHaveLength(1)
+    wrapper.unmount()
+    expect(document.activeElement).toBe(opener)
+    wrapper.element.remove()
+    opener.remove()
+  })
 })
