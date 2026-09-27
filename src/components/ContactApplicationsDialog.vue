@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { contactApi, type ContactApplication } from '@/api/contacts'
+import { useDialogFocus } from '@/composables/useDialogFocus'
 
 const emit = defineEmits<{
   close: []
@@ -15,6 +16,7 @@ const loading = ref(true)
 const pageError = ref('')
 const actionError = ref('')
 const notice = ref('')
+const { dialog, trapFocus } = useDialogFocus('.profile-close')
 const handlingId = ref<number | null>(null)
 
 onMounted(() => void loadPage(1))
@@ -68,10 +70,13 @@ function formatApplyTime(timestamp: number) {
   <div class="profile-overlay" data-testid="contact-applications-overlay" @click.self="emit('close')">
     <section
       class="profile-dialog applications-dialog"
+      ref="dialog"
       role="dialog"
       aria-modal="true"
       aria-labelledby="contact-applications-title"
+      tabindex="-1"
       @keydown.esc.stop.prevent="emit('close')"
+      @keydown.tab="trapFocus"
     >
       <header class="profile-dialog-header">
         <div>

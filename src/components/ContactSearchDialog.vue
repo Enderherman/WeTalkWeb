@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { contactApi, type ContactSearchResult } from '@/api/contacts'
 import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
+import { useDialogFocus } from '@/composables/useDialogFocus'
 
 const props = defineProps<{
   currentUserId: string
@@ -23,42 +24,7 @@ const requestSent = ref(false)
 const searchError = ref('')
 const applyError = ref('')
 const notice = ref('')
-const dialog = ref<HTMLElement | null>(null)
-const searchInput = ref<HTMLInputElement | null>(null)
-const returnFocusTarget = typeof document !== 'undefined' && document.activeElement instanceof HTMLElement
-  ? document.activeElement
-  : null
-
-onMounted(() => {
-  void nextTick(() => searchInput.value?.focus())
-})
-
-onBeforeUnmount(() => {
-  if (returnFocusTarget?.isConnected) returnFocusTarget.focus()
-})
-
-function trapDialogFocus(event: KeyboardEvent) {
-  const root = dialog.value
-  if (!root) return
-  const focusable = Array.from(root.querySelectorAll<HTMLElement>(
-    'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-  )).filter((element) => element.getAttribute('aria-hidden') !== 'true')
-  if (focusable.length === 0) {
-    event.preventDefault()
-    root.focus()
-    return
-  }
-  const first = focusable[0]!
-  const last = focusable[focusable.length - 1]!
-  const activeElement = document.activeElement
-  if (event.shiftKey && (activeElement === first || activeElement === root || !root.contains(activeElement))) {
-    event.preventDefault()
-    last.focus()
-  } else if (!event.shiftKey && (activeElement === last || activeElement === root || !root.contains(activeElement))) {
-    event.preventDefault()
-    first.focus()
-  }
-}
+const { dialog, trapFocus } = useDialogFocus('#contact-id-search')
 
 const canApply = computed(() => {
   const contact = result.value
@@ -147,8 +113,9 @@ async function sendRequest() {
       role="dialog"
       aria-modal="true"
       aria-labelledby="contact-search-title"
+      tabindex="-1"
       @keydown.esc.stop.prevent="emit('close')"
-      @keydown.tab="trapDialogFocus"
+      @keydown.tab="trapFocus"
     >
       <header class="profile-dialog-header">
         <div>
@@ -165,7 +132,6 @@ async function sendRequest() {
         <div class="contact-search-row">
           <input
             id="contact-id-search"
-            ref="searchInput"
             v-model="query"
             data-testid="contact-id-search"
             autocomplete="off"

@@ -21,6 +21,7 @@ import { getChatFileType, getChatMediaKind, getChatMediaMimeType, validateChatFi
 import { validatePassword } from '@/utils/authValidation'
 import { validateProfileImageUpload } from '@/utils/imageValidation'
 import { formatMessageTimeDivider, shouldShowMessageTime } from '@/utils/messageTime'
+import { trapDialogTab } from '@/composables/useDialogFocus'
 import { webClientVersion } from '@/config/version'
 
 const router = useRouter()
@@ -687,26 +688,7 @@ function closeProfile() {
 }
 
 function trapProfileFocus(event: KeyboardEvent) {
-  const dialog = profileDialog.value
-  if (!dialog) return
-  const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
-    'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-  )).filter((element) => element.getAttribute('aria-hidden') !== 'true')
-  if (focusable.length === 0) {
-    event.preventDefault()
-    dialog.focus()
-    return
-  }
-  const first = focusable[0]!
-  const last = focusable[focusable.length - 1]!
-  const activeElement = document.activeElement
-  if (event.shiftKey && (activeElement === first || activeElement === dialog || !dialog.contains(activeElement))) {
-    event.preventDefault()
-    last.focus()
-  } else if (!event.shiftKey && (activeElement === last || activeElement === dialog || !dialog.contains(activeElement))) {
-    event.preventDefault()
-    first.focus()
-  }
+  trapDialogTab(event, profileDialog.value)
 }
 
 async function clearLocalTextCache() {

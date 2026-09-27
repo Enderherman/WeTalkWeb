@@ -276,4 +276,35 @@ describe('group directory dialog', () => {
     expect(groupApi.dissolveGroup).toHaveBeenCalledWith('G300')
     expect(wrapper.emitted('groupChanged')).toHaveLength(1)
   })
+
+  it('keeps keyboard focus inside the group dialog and restores its opener', async () => {
+    const opener = document.createElement('button')
+    document.body.appendChild(opener)
+    opener.focus()
+    const wrapper = mount(GroupDirectoryDialog, { props: { currentUserId: 'U100' } })
+    document.body.appendChild(wrapper.element)
+    await flushPromises()
+
+    const dialog = wrapper.get('.group-directory-dialog')
+    const closeButton = wrapper.get('[aria-label="关闭群聊列表"]')
+    expect(document.activeElement).toBe(closeButton.element)
+    const focusable = Array.from(dialog.element.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ))
+    const first = focusable[0]!
+    const last = focusable[focusable.length - 1]!
+
+    first.focus()
+    await dialog.trigger('keydown', { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+    last.focus()
+    await dialog.trigger('keydown', { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+    await closeButton.trigger('click')
+    expect(wrapper.emitted('close')).toHaveLength(1)
+    wrapper.unmount()
+    expect(document.activeElement).toBe(opener)
+    wrapper.element.remove()
+    opener.remove()
+  })
 })

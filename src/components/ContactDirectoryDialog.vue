@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { contactApi, type ContactProfile, type UserContactEntry } from '@/api/contacts'
 import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
+import { useDialogFocus } from '@/composables/useDialogFocus'
 
 const emit = defineEmits<{
   close: []
@@ -20,6 +21,7 @@ const loadError = ref('')
 const profileError = ref('')
 const actionError = ref('')
 const notice = ref('')
+const { dialog, trapFocus } = useDialogFocus('.profile-close')
 const pendingAction = ref<{ contactId: string; action: ContactAction } | null>(null)
 let profileRequestId = 0
 
@@ -106,10 +108,13 @@ function sexLabel(sex?: number | null) {
   <div class="profile-overlay" data-testid="contact-directory-overlay" @click.self="emit('close')">
     <section
       class="profile-dialog contacts-directory-dialog"
+      ref="dialog"
       role="dialog"
       aria-modal="true"
       aria-labelledby="contact-directory-title"
+      tabindex="-1"
       @keydown.esc.stop.prevent="emit('close')"
+      @keydown.tab="trapFocus"
     >
       <header class="profile-dialog-header">
         <div>

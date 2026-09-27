@@ -3,10 +3,12 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { contactApi, type UserContactEntry } from '@/api/contacts'
 import { groupApi, type GroupInfoWithMembers } from '@/api/groups'
 import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
+import { useDialogFocus } from '@/composables/useDialogFocus'
 import { useSystemSettingsStore } from '@/stores/systemSettings'
 
 const props = defineProps<{ currentUserId?: string; refreshKey?: number }>()
 const systemSettingsStore = useSystemSettingsStore()
+const { dialog, trapFocus } = useDialogFocus('.profile-close')
 
 const emit = defineEmits<{
   close: []
@@ -394,10 +396,13 @@ function formatGroupTime(value?: string | null) {
   <div class="profile-overlay" data-testid="group-directory-overlay" @click.self="emit('close')">
     <section
       class="profile-dialog group-directory-dialog"
+      ref="dialog"
       role="dialog"
       aria-modal="true"
       aria-labelledby="group-directory-title"
+      tabindex="-1"
       @keydown.esc.stop.prevent="emit('close')"
+      @keydown.tab="trapFocus"
     >
       <header class="profile-dialog-header">
         <div>
