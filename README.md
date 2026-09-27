@@ -384,7 +384,7 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 - 手机窄屏聊天区监听 `VisualViewport.resize`，按虚拟键盘弹出后实际可见高度调整容器；760px 以下移除桌面端 520px 最小高度，无该 API 时回退到 CSS `100dvh`。
 - 组件测试模拟键盘打开/收起时的可视区高度变化，CSS 测试检查窄屏最小高度规则；全量 235 项单测、类型检查和生产构建通过。iOS/Android 真机验收仍待完成。
 
-### 登录设备数量限制已实现；NAS Docker 内网测试仍待部署
+### 登录设备数量限制和 NAS 内网联调已完成（2026-09-28）
 
 - 同一账号最多同时保留一台电脑客户端和一个浏览器；同类设备新登录会替换旧会话。个人资料与安全页显示设备类别、设备标签、最近活动和当前会话，可撤销其他会话；响应不含 token/Cookie/raw User-Agent。
 - 验收：后端 Maven clean verify 94 项、WeTalkWeb 243 项单测、类型检查和生产构建通过。真实后端/MySQL/Redis 完成桌面与浏览器交替重登及并发桌面登录，旧 token/Cookie 返回 901、对应 WebSocket 断开、另一类别会话保留且最多各一条；测试账号、会话及 Redis 限流键已清理。
@@ -395,10 +395,11 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 - 接收方标记私聊已读后，发送方实时收到 type 17，并将本人文字消息状态显示为“已读”；群聊不展示个人已读状态。
 - WebSocket INIT 恢复对端持久已读游标，重连后仍显示正确状态。后端 Maven 96 项、WeTalkWeb 244 项单测、类型检查和生产构建通过；真实双账号/MySQL/Redis/Netty E2E 验证 type 17、重复游标抑制和重连恢复。Playwright Chromium 两个独立浏览器在 1280×900、768×1024、390×844 真实后端链路验证实时消息、已读和刷新恢复；截图位于 `D:/environment/WeTalkBrowserQA/captures/chromium-1280-dual-account-read-receipt.png`、`chromium-768-dual-account-read-receipt.png`、`chromium-390-dual-account-read-receipt.png`。临时测试数据已清理；真机验收仍待完成。
 
-### NAS Docker 网页容器配置已准备；实际部署待接入
+### NAS Docker 网页容器已部署并完成 LAN 实测
 
 - 新增多阶段 `Dockerfile`、Nginx 同源 `/api` 与 `/ws` 代理、外部 `wetalk-net` Compose 配置和 `.env.nas.example`；部署步骤、备份和回滚见 `docs/nas-docker-deployment.md`。后端 API/WS 默认只绑定 NAS 本机回环地址，只有网页入口映射到 LAN。静态资源使用长缓存，入口页不缓存，上传上限与后端文件限制相符。
-- `docker compose --env-file .env.nas.example -f compose.nas.yaml config --quiet` 已通过；前端生产构建和 244 项单测通过。当前本机 Docker Engine 未运行，NAS 容器与 LAN 登录尚未验收。
+- 已在 NAS 部署 Web 与后端：Nginx 网页入口使用 `<NAS_LAN_IP>:8081`（默认 8080 已被占用），`/api` 和 `/ws` 走同源代理，后端宿主机端口只绑定回环地址；复用既有 MySQL/Redis 数据卷。数据库先备份后应用迁移 002/003，readiness 与 `/healthz` 返回 UP/ok。
+- Playwright 双账号真实后端验收覆盖注册、Cookie 登录、WebSocket、好友申请、消息发送/幂等重试、历史恢复和 type 17 已读回执；360/390/768/1280 模拟视口无横向溢出，临时数据已清理。244 项单测、类型检查、生产构建与 NAS Docker 构建通过。实体手机/桌面验收、HTTPS/WSS 和备份恢复演练仍待完成。
 
 ### 本轮修复：桌面聊天区两列布局
 

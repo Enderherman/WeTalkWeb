@@ -72,7 +72,7 @@ curl -f http://127.0.0.1:5050/api/actuator/health/readiness
 
 ## 准备网页
 
-把 `WeTalkWeb` 仓库放在 `/volume2/docker/wetalk-web`。复制 `.env.nas.example` 为 `.env`，把 `WEB_BIND_IP` 改成预先确认的 NAS 局域网 IP，测试端口设为 `8080`。后端的 `WETALK_WEB_ALLOWED_ORIGINS` 必须与最终网页 Origin 完全一致。
+把 `WeTalkWeb` 仓库放在 `/volume2/docker/wetalk-web`。复制 `.env.nas.example` 为 `.env`，把 `WEB_BIND_IP` 改成预先确认的 NAS 局域网 IP，默认测试端口为 `8080`；若已占用，改用空闲端口（本次使用 `8081`）并同步设置后端 Origin。后端的 `WETALK_WEB_ALLOWED_ORIGINS` 必须与最终网页 Origin 完全一致。
 
 前后端 Compose 都连接外部网络 `wetalk-net`。启动网页容器：
 
@@ -87,7 +87,15 @@ WEB_PUBLISHED_PORT=8080
 curl -f "http://${NAS_LAN_IP}:${WEB_PUBLISHED_PORT}/healthz"
 ~~~
 
-从局域网浏览器打开 `http://<NAS_LAN_IP>:8080`，验收登录 Cookie、REST、WebSocket ticket、双账号消息收发、已读回执、刷新/重连和附件上传下载。当前构建配置使用非 root Nginx，并把 `/api`、`/ws` 转发到后端；实际镜像构建、NAS Origin、端口映射和浏览器链路需要在 NAS 上现场验收。
+本次 NAS 因 `8080` 已被占用，将 `WEB_PUBLISHED_PORT` 设为 `8081`。从局域网浏览器打开 `http://<NAS_LAN_IP>:8081`，实测 Cookie 登录、REST、WebSocket ticket、双账号好友申请与私聊、幂等重试、历史恢复和已读回执。非 root Nginx 的同源 `/api`、`/ws` 代理、实际 Origin、端口映射和浏览器链路均已现场验收；附件实机验收仍待完成。
+
+## 2026-09-28 实际部署验收
+
+- 后端与网页已部署到 `/volume2/docker/wetalk` 和 `/volume2/docker/wetalk-web`；网页 LAN 端口为 `8081`，后端宿主机端口 `15050/15051` 只绑定 `127.0.0.1`。
+- 复用了原有 `wetalk-mysql`、`wetalk-redis` 容器、`wetalk-net` 网络与数据目录，没有重建或清空基础服务。部署前保存了数据库逻辑备份，以及 `.env`、`secrets/` 和 Compose 文件的受限归档；当时数据库含 9 张表结构、无记录行。
+- 备份后应用 `sql/002-client-message-idempotency.sql` 与 `sql/003-persistent-unread-cursor.sql`，并读回确认字段和索引。测试后清理了临时账号、好友关系、会话和消息，业务表行数恢复为 0。
+- NAS Docker 后端 readiness 返回 `UP`，网页 `/healthz` 返回 `ok`，同源 `/api/actuator/health/readiness` 返回 `UP`。Playwright 双账号真实后端验证注册/登录、Cookie 会话、WebSocket、好友申请、私聊发送、幂等重试、历史恢复和 type 17 已读回执。生产网页在 Chromium 360/390/768/1280 模拟视口无横向溢出或页面错误。
+- 数据库备份已生成但尚未执行恢复演练；HTTPS/WSS、正式域名、实体手机 Safari/Chrome 和实体设备辅助功能检查仍待完成。
 
 ## 备份与回滚
 
@@ -117,4 +125,4 @@ sudo docker compose -f compose.yaml -f compose.nas.yaml up -d
 sudo docker compose -f compose.nas.yaml up -d
 ~~~
 
-本手册、Docker Compose 配置和本机前端生产构建均已检查；NAS 容器部署、备份恢复和实际 LAN 浏览器验收仍待执行。
+本手册、Docker Compose 配置、NAS 容器部署与 LAN 浏览器验收已通过；数据库备份恢复演练、HTTPS/WSS 和实体设备验收仍待完成。
