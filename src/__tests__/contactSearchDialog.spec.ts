@@ -26,9 +26,9 @@ beforeEach(() => {
   vi.mocked(chatApi.downloadFile).mockRejectedValue(new Error('Avatar unavailable in unit tests'))
 })
 
-function mountDialog() {
+function mountDialog(extraProps: { returnFocusTarget?: HTMLElement | null } = {}) {
   return mount(ContactSearchDialog, {
-    props: { currentUserId: 'U100', displayName: 'Student' },
+    props: { currentUserId: 'U100', displayName: 'Student', ...extraProps },
   })
 }
 
@@ -176,5 +176,23 @@ describe('contact search dialog', () => {
     expect(document.activeElement).toBe(opener)
     wrapper.element.remove()
     opener.remove()
+  })
+
+  it('restores the explicitly supplied trigger when pointer activation did not focus it', async () => {
+    const opener = document.createElement('button')
+    const unrelated = document.createElement('input')
+    document.body.append(opener, unrelated)
+    unrelated.focus()
+    const wrapper = mountDialog({ returnFocusTarget: opener })
+    document.body.appendChild(wrapper.element)
+    await flushPromises()
+
+    await wrapper.get('[aria-label="关闭联系人搜索"]').trigger('click')
+    wrapper.unmount()
+
+    expect(document.activeElement).toBe(opener)
+    wrapper.element.remove()
+    opener.remove()
+    unrelated.remove()
   })
 })

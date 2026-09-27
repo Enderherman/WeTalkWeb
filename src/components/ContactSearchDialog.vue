@@ -7,6 +7,7 @@ import { useDialogFocus } from '@/composables/useDialogFocus'
 const props = defineProps<{
   currentUserId: string
   displayName: string
+  returnFocusTarget?: HTMLElement | null
 }>()
 
 const emit = defineEmits<{
@@ -24,7 +25,7 @@ const requestSent = ref(false)
 const searchError = ref('')
 const applyError = ref('')
 const notice = ref('')
-const { dialog, trapFocus } = useDialogFocus('#contact-id-search')
+const { dialog, trapFocus } = useDialogFocus('#contact-id-search', props.returnFocusTarget)
 
 const canApply = computed(() => {
   const contact = result.value

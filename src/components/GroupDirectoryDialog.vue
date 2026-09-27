@@ -6,9 +6,9 @@ import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
 import { useDialogFocus } from '@/composables/useDialogFocus'
 import { useSystemSettingsStore } from '@/stores/systemSettings'
 
-const props = defineProps<{ currentUserId?: string; refreshKey?: number }>()
+const props = defineProps<{ currentUserId?: string; refreshKey?: number; returnFocusTarget?: HTMLElement | null }>()
 const systemSettingsStore = useSystemSettingsStore()
-const { dialog, trapFocus } = useDialogFocus('.profile-close')
+const { dialog, trapFocus } = useDialogFocus('.profile-close', props.returnFocusTarget)
 
 const emit = defineEmits<{
   close: []

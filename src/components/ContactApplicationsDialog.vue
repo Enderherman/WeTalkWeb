@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { contactApi, type ContactApplication } from '@/api/contacts'
 import { useDialogFocus } from '@/composables/useDialogFocus'
 
+const props = defineProps<{ returnFocusTarget?: HTMLElement | null }>()
 const emit = defineEmits<{
   close: []
   applicationHandled: []
@@ -16,7 +17,7 @@ const loading = ref(true)
 const pageError = ref('')
 const actionError = ref('')
 const notice = ref('')
-const { dialog, trapFocus } = useDialogFocus('.profile-close')
+const { dialog, trapFocus } = useDialogFocus('.profile-close', props.returnFocusTarget)
 const handlingId = ref<number | null>(null)
 
 onMounted(() => void loadPage(1))

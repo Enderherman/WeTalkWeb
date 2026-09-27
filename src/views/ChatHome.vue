@@ -104,6 +104,7 @@ const messageSearchQuery = ref('')
 const searchJumpMessageId = ref<number | null>(null)
 const messageSearchInput = ref<HTMLInputElement | null>(null)
 const messageSearchTrigger = ref<HTMLButtonElement | null>(null)
+const sidebarDialogReturnFocusTarget = ref<HTMLElement | null>(null)
 const fullHistorySearchMatches = ref<InitialChatMessage[]>([])
 const fullHistorySearchPages = ref(new Map<number, ChatHistoryPage>())
 const fullHistorySearchStatus = ref<'idle' | 'searching' | 'complete' | 'cancelled' | 'error'>('idle')
@@ -517,7 +518,6 @@ function trapMobileNavigationFocus(event: KeyboardEvent) {
 
 function openProfile() {
   profileOpen.value = true
-  sidebarOpen.value = false
   profileEditOpen.value = false
   profileSaveError.value = ''
   profileSaveNotice.value = ''
@@ -525,6 +525,22 @@ function openProfile() {
   passwordForm.confirmPassword = ''
   passwordError.value = ''
   void nextTick(() => profileCloseButton.value?.focus())
+}
+
+function closeContactSearchDialog() {
+  contactSearchOpen.value = false
+}
+
+function closeContactApplicationsDialog() {
+  contactApplicationsOpen.value = false
+}
+
+function closeContactDirectoryDialog() {
+  contactDirectoryOpen.value = false
+}
+
+function closeGroupDirectoryDialog() {
+  groupDirectoryOpen.value = false
 }
 
 function openAbout() {
@@ -553,23 +569,23 @@ function openAdminBeautyAccounts() {
   void router.push({ name: 'admin-beauty-accounts' })
 }
 
-function openContactSearch() {
-  sidebarOpen.value = false
+function openContactSearch(event: MouseEvent) {
+  sidebarDialogReturnFocusTarget.value = event.currentTarget instanceof HTMLElement ? event.currentTarget : null
   contactSearchOpen.value = true
 }
 
-function openContactApplications() {
-  sidebarOpen.value = false
+function openContactApplications(event: MouseEvent) {
+  sidebarDialogReturnFocusTarget.value = event.currentTarget instanceof HTMLElement ? event.currentTarget : null
   contactApplicationsOpen.value = true
 }
 
-function openContactDirectory() {
-  sidebarOpen.value = false
+function openContactDirectory(event: MouseEvent) {
+  sidebarDialogReturnFocusTarget.value = event.currentTarget instanceof HTMLElement ? event.currentTarget : null
   contactDirectoryOpen.value = true
 }
 
-function openGroupDirectory() {
-  sidebarOpen.value = false
+function openGroupDirectory(event: MouseEvent) {
+  sidebarDialogReturnFocusTarget.value = event.currentTarget instanceof HTMLElement ? event.currentTarget : null
   groupDirectoryOpen.value = true
 }
 
@@ -1869,7 +1885,8 @@ async function signOut() {
 
     <ContactDirectoryDialog
       v-if="contactDirectoryOpen"
-      @close="contactDirectoryOpen = false"
+      :return-focus-target="sidebarDialogReturnFocusTarget"
+      @close="closeContactDirectoryDialog"
       @contacts-changed="refreshChatSession"
     />
 
@@ -1877,12 +1894,14 @@ async function signOut() {
       v-if="groupDirectoryOpen"
       :current-user-id="authStore.session?.userId || ''"
       :refresh-key="groupDirectoryRefreshKey"
-      @close="groupDirectoryOpen = false"
+      :return-focus-target="sidebarDialogReturnFocusTarget"
+      @close="closeGroupDirectoryDialog"
     />
 
     <ContactApplicationsDialog
       v-if="contactApplicationsOpen"
-      @close="contactApplicationsOpen = false"
+      :return-focus-target="sidebarDialogReturnFocusTarget"
+      @close="closeContactApplicationsDialog"
       @application-handled="refreshChatSession"
     />
 
@@ -1890,7 +1909,8 @@ async function signOut() {
       v-if="contactSearchOpen"
       :current-user-id="authStore.session?.userId || ''"
       :display-name="displayName"
-      @close="contactSearchOpen = false"
+      :return-focus-target="sidebarDialogReturnFocusTarget"
+      @close="closeContactSearchDialog"
       @contact-added="refreshChatSession"
     />
 

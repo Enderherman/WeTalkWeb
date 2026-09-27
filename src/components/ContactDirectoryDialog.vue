@@ -4,6 +4,7 @@ import { contactApi, type ContactProfile, type UserContactEntry } from '@/api/co
 import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
 import { useDialogFocus } from '@/composables/useDialogFocus'
 
+const props = defineProps<{ returnFocusTarget?: HTMLElement | null }>()
 const emit = defineEmits<{
   close: []
   contactsChanged: []
@@ -21,7 +22,7 @@ const loadError = ref('')
 const profileError = ref('')
 const actionError = ref('')
 const notice = ref('')
-const { dialog, trapFocus } = useDialogFocus('.profile-close')
+const { dialog, trapFocus } = useDialogFocus('.profile-close', props.returnFocusTarget)
 const pendingAction = ref<{ contactId: string; action: ContactAction } | null>(null)
 let profileRequestId = 0
 

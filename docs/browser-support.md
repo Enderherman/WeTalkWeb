@@ -13,6 +13,12 @@
 
 使用稳定版和前一版作为滚动目标，每次发布记录测试日期、浏览器版本、系统和设备。表中未承诺旧版 Internet Explorer 或原生桌面功能。
 
+### 自动化模拟视口记录（2026-09-27）
+
+Playwright 1.63 使用本地 mock API/WebSocket 对登录、注册和一对一聊天页面做了截图与基础键盘路径检查。Chromium 153.0.8010.12 覆盖 360×800、390×844、768×1024 和 1280×900 CSS 像素视口；Playwright WebKit 26.6 覆盖 390×844。5 组测试的 `document.scrollWidth` 均等于 `innerWidth`，页面异常数均为 0。
+
+测试还验证了消息搜索输入框的焦点进入/返回、桌面资料弹窗的焦点往返，以及移动联系人弹窗关闭后侧栏保持展开并将焦点返回可见的打开按钮。API 和 WebSocket 响应由测试桩提供，因此这项检查只记录浏览器渲染和交互表现，不代替真实后端联调。截图保存在 `D:/environment/WeTalkBrowserQA/captures`。Chromium 移动设备仿真和 Playwright WebKit 不能代替真实 Android Chrome/iOS Safari；真机矩阵仍待完成。
+
 ## 浏览器能力要求
 
 - JavaScript、WebSocket 和 Blob 对象 URL 用于页面、实时消息和媒体预览。

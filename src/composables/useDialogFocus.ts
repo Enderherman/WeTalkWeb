@@ -29,13 +29,15 @@ export function trapDialogTab(event: KeyboardEvent, dialog: HTMLElement | null) 
   }
 }
 
-export function useDialogFocus(initialFocusSelector?: string) {
+export function useDialogFocus(initialFocusSelector?: string, explicitReturnFocusTarget?: HTMLElement | null) {
   const dialog = ref<HTMLElement | null>(null)
-  const returnFocusTarget = typeof document !== 'undefined' &&
-    document.activeElement instanceof HTMLElement &&
-    document.activeElement !== document.body
-    ? document.activeElement
-    : null
+  const returnFocusTarget = explicitReturnFocusTarget?.isConnected
+    ? explicitReturnFocusTarget
+    : typeof document !== 'undefined' &&
+        document.activeElement instanceof HTMLElement &&
+        document.activeElement !== document.body
+      ? document.activeElement
+      : null
 
   onMounted(() => {
     void nextTick(() => {

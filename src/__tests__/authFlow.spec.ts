@@ -864,6 +864,72 @@ describe('authentication flow', () => {
     }
   })
 
+  it('keeps mobile navigation open so closing the profile dialog restores visible focus', async () => {
+    const originalWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth')
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 })
+    const { wrapper } = await mountChat()
+    document.body.appendChild(wrapper.element)
+    try {
+      const navigationToggle = wrapper.get('[aria-label="打开导航菜单"]')
+      await navigationToggle.trigger('click')
+      await flushPromises()
+      const opener = wrapper.get('[data-testid="open-profile"]')
+      ;(opener.element as HTMLElement).focus()
+      await opener.trigger('click')
+      await flushPromises()
+
+      await wrapper.get('.profile-dialog').trigger('keydown', { key: 'Escape' })
+      await flushPromises()
+
+      expect(navigationToggle.attributes('aria-expanded')).toBe('true')
+      expect(document.activeElement).toBe(opener.element)
+    } finally {
+      wrapper.unmount()
+      wrapper.element.remove()
+      if (originalWidth) Object.defineProperty(window, 'innerWidth', originalWidth)
+      else Reflect.deleteProperty(window, 'innerWidth')
+    }
+  })
+
+  it('keeps mobile navigation open so closing contact search restores visible focus', async () => {
+    const originalWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth')
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 })
+    const { wrapper, chatStore } = await mountChat()
+    document.body.appendChild(wrapper.element)
+    try {
+      chatStore.receiveMessage({
+        messageType: 0,
+        extentData: {
+          chatSessionList: [{
+            sessionId: 'S200', contactId: 'U200', contactName: 'Friend',
+            lastMessage: '', lastReceiveTime: 1000, contactType: 0,
+          }],
+          chatMessageList: [],
+          applyCount: 0,
+        },
+      })
+      await flushPromises()
+      const navigationToggle = wrapper.get('[aria-label="打开导航菜单"]')
+      await navigationToggle.trigger('click')
+      await flushPromises()
+      const opener = wrapper.get('[data-testid="open-contact-search"]')
+      ;(opener.element as HTMLElement).focus()
+      await opener.trigger('click')
+      await flushPromises()
+
+      await wrapper.get('.contact-dialog').trigger('keydown', { key: 'Escape' })
+      await flushPromises()
+
+      expect(navigationToggle.attributes('aria-expanded')).toBe('true')
+      expect(document.activeElement).toBe(opener.element)
+    } finally {
+      wrapper.unmount()
+      wrapper.element.remove()
+      if (originalWidth) Object.defineProperty(window, 'innerWidth', originalWidth)
+      else Reflect.deleteProperty(window, 'innerWidth')
+    }
+  })
+
   it('sends a selected-session text message and adds the saved message to the view', async () => {
     const sentMessage = {
       messageId: 101,
