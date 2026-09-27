@@ -2497,6 +2497,19 @@ textarea:focus-visible {
   font-weight: 700;
 }
 
+.media-message-thumbnail {
+  display: grid;
+  width: 96px;
+  height: 54px;
+  flex: 0 0 96px;
+  place-items: center;
+  border: 1px solid var(--wt-line);
+  border-radius: 9px;
+  background: var(--wt-soft);
+  color: var(--wt-muted);
+  font-size: 18px;
+}
+
 .file-message-copy {
   display: flex;
   min-width: 0;

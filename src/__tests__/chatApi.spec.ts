@@ -97,6 +97,32 @@ describe('chat API', () => {
     expect(options?.onUploadProgress).toBe(onProgress)
   })
 
+  it('includes an optional video cover in the multipart upload', async () => {
+    const video = new File(['video bytes'], 'clip.mp4', { type: 'video/mp4' })
+    const cover = new File(['png cover'], 'clip-cover.png', { type: 'image/png' })
+    vi.mocked(postMultipart).mockResolvedValue('上传成功')
+
+    await chatApi.uploadFile(45, video, undefined, cover)
+
+    const [, body] = vi.mocked(postMultipart).mock.calls[0]!
+    expect(body.get('messageId')).toBe('45')
+    expect(body.get('file')).toBe(video)
+    expect(body.get('cover')).toBe(cover)
+  })
+
+  it('includes an optional generated cover when uploading a video', async () => {
+    const video = new File(['video'], 'clip.mp4', { type: 'video/mp4' })
+    const cover = new File(['png'], 'clip-cover.png', { type: 'image/png' })
+    vi.mocked(postMultipart).mockResolvedValue('上传成功')
+
+    await chatApi.uploadFile(45, video, undefined, cover)
+
+    const [, body] = vi.mocked(postMultipart).mock.calls[0]!
+    expect(body.get('messageId')).toBe('45')
+    expect(body.get('file')).toBe(video)
+    expect(body.get('cover')).toBe(cover)
+  })
+
   it('downloads a message attachment as a browser Blob', async () => {
     const blob = new Blob(['file bytes'], { type: 'application/octet-stream' })
     vi.mocked(postDownload).mockResolvedValue(blob)

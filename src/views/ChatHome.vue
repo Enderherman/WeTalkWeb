@@ -16,6 +16,7 @@ import { useDownloadPreferencesStore } from '@/stores/downloadPreferences'
 import { useSystemSettingsStore } from '@/stores/systemSettings'
 import type { DownloadLocationMode } from '@/storage/downloadPreferences'
 import { textMessageCache } from '@/storage/textMessageCache'
+import { createVideoCover } from '@/utils/videoThumbnail'
 import { getChatFileType, getChatMediaKind, getChatMediaMimeType, validateChatFile } from '@/utils/fileValidation'
 import { validatePassword } from '@/utils/authValidation'
 import { validateProfileImageUpload } from '@/utils/imageValidation'
@@ -117,7 +118,7 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const fileUploadError = ref('')
 const fileUploading = ref(false)
 const fileDragActive = ref(false)
-const pendingUploadFiles = reactive(new Map<number, File>())
+const pendingUploadFiles = reactive(new Map<number, { file: File; cover: File | null }>())
 const downloadingFiles = reactive(new Set<number>())
 const fileDownloadErrors = reactive(new Map<number, string>())
 const mediaPreviewMessage = ref<InitialChatMessage | null>(null)
@@ -655,8 +656,15 @@ async function sendFileAttachment(contactId: string, file: File, fileType: 0 | 1
   try {
     message = await chatApi.sendFileMessage(contactId, file, fileType)
     chatStore.appendMessage(message, true)
-    pendingUploadFiles.set(message.messageId, file)
-    await uploadFileForMessage(message.messageId, file)
+    const imageLimitMb = Number(systemSettingsStore.settings.maxImageSize)
+    const coverLimitBytes = Number.isSafeInteger(imageLimitMb) && imageLimitMb > 0
+      ? imageLimitMb * 1024 * 1024
+      : 0
+    const cover = fileType === 1 && getChatMediaKind(file.name) === 'video'
+      ? await createVideoCover(file, coverLimitBytes)
+      : null
+    pendingUploadFiles.set(message.messageId, { file, cover })
+    await uploadFileForMessage(message.messageId, file, cover)
   } catch (error: unknown) {
     if (message) {
       chatStore.markFileUploadFailed(message.messageId, '上传失败，请重试')
@@ -668,19 +676,21 @@ async function sendFileAttachment(contactId: string, file: File, fileType: 0 | 1
   }
 }
 
-async function uploadFileForMessage(messageId: number, file: File) {
-  await chatApi.uploadFile(messageId, file, (progress) => chatStore.setFileUploadProgress(messageId, progress))
+async function uploadFileForMessage(messageId: number, file: File, cover: File | null = null) {
+  const onProgress = (progress: number) => chatStore.setFileUploadProgress(messageId, progress)
+  if (cover) await chatApi.uploadFile(messageId, file, onProgress, cover)
+  else await chatApi.uploadFile(messageId, file, onProgress)
   chatStore.markFileUploadComplete(messageId)
   pendingUploadFiles.delete(messageId)
 }
 
 async function retryFileUpload(messageId: number) {
-  const file = pendingUploadFiles.get(messageId)
-  if (!file || fileUploading.value) return
+  const pending = pendingUploadFiles.get(messageId)
+  if (!pending || fileUploading.value) return
   fileUploading.value = true
   fileUploadError.value = ''
   try {
-    await uploadFileForMessage(messageId, file)
+    await uploadFileForMessage(messageId, pending.file, pending.cover)
   } catch {
     chatStore.markFileUploadFailed(messageId, '上传失败，请重试')
   } finally {
@@ -1138,7 +1148,15 @@ async function signOut() {
                 </strong>
                 <div v-if="message.messageType === 5" class="file-message-card" data-testid="file-attachment">
                   <div class="file-message-main">
-                    <span class="file-message-mark" aria-hidden="true">FILE</span>
+                    <AvatarThumbnail
+                      v-if="message.fileType === 1 && message.status === 1 && getChatMediaKind(message.fileName || '') === 'video'"
+                      class="media-message-thumbnail"
+                      :file-id="message.messageId"
+                      :show-cover="true"
+                      fallback="▶"
+                      :test-id="`media-thumbnail-${message.messageId}`"
+                    />
+                    <span v-else class="file-message-mark" aria-hidden="true">FILE</span>
                     <span class="file-message-copy">
                       <strong>{{ message.fileName || '附件' }}</strong>
                       <small>{{ formatFileSize(message.fileSize) }}</small>

@@ -20,10 +20,16 @@ export const chatApi = {
       fileName: file.name,
       fileType,
     }),
-  uploadFile: (messageId: number, file: File, onProgress?: (percent: number) => void): Promise<string> => {
+  uploadFile: (
+    messageId: number,
+    file: File,
+    onProgress?: (percent: number) => void,
+    cover?: File | null,
+  ): Promise<string> => {
     const body = new FormData()
     body.set('messageId', String(messageId))
     body.set('file', file)
+    if (cover) body.set('cover', cover)
     return postMultipart<string>('/chat/uploadFile', body, {
       timeoutMs: 0,
       onUploadProgress: onProgress,

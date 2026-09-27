@@ -6,6 +6,7 @@ import { chatApi } from '@/api/chat'
 import { appUpdateApi } from '@/api/appUpdates'
 import { authApi } from '@/api/auth'
 import { contactApi } from '@/api/contacts'
+import { createVideoCover } from '@/utils/videoThumbnail'
 import type { WebAuthSession } from '@/api/auth'
 import App from '@/App.vue'
 import { createRealtimeClient } from '@/api/realtime'
@@ -64,6 +65,10 @@ vi.mock('@/api/chat', () => ({
 
 vi.mock('@/api/appUpdates', () => ({
   appUpdateApi: { checkForUpdate: vi.fn() },
+}))
+
+vi.mock('@/utils/videoThumbnail', () => ({
+  createVideoCover: vi.fn(),
 }))
 
 vi.mock('@/api/contacts', () => ({
@@ -189,6 +194,7 @@ beforeEach(() => {
     list: [],
   })
   vi.mocked(appUpdateApi.checkForUpdate).mockResolvedValue(null)
+  vi.mocked(createVideoCover).mockResolvedValue(null)
   vi.mocked(chatApi.streamMediaUrl).mockReturnValue(null)
   vi.mocked(chatApi.sendFileMessage).mockResolvedValue({
     messageId: 601,
@@ -718,6 +724,50 @@ describe('authentication flow', () => {
     expect(wrapper.get('[data-testid="file-attachment"]').text()).toContain('notes.txt')
     expect(wrapper.get('.file-message-status').text()).toContain('已上传 · 5 B')
     expect(chatStore.initialMessages[0]?.status).toBe(1)
+    wrapper.unmount()
+  })
+
+  it('generates and uploads a PNG cover for a video, then requests its preview thumbnail', async () => {
+    const video = new File(['video bytes'], 'clip.mp4', { type: 'video/mp4' })
+    const cover = new File(['png cover'], 'clip-cover.png', { type: 'image/png' })
+    vi.mocked(createVideoCover).mockResolvedValue(cover)
+    vi.mocked(chatApi.sendFileMessage).mockResolvedValue({
+      messageId: 606,
+      sessionId: 'S200',
+      messageType: 5,
+      messageContent: '[媒体]',
+      sendUserId: 'U100',
+      sendUserNickName: 'Old Name',
+      sendTime: 2000,
+      contactId: 'U200',
+      fileName: video.name,
+      fileSize: video.size,
+      fileType: 1,
+      status: 0,
+    })
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200', contactId: 'U200', contactName: 'Friend',
+          lastMessage: '', lastReceiveTime: 1000, contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+
+    const input = wrapper.get('[data-testid="file-input"]')
+    Object.defineProperty(input.element, 'files', { configurable: true, value: [video] })
+    await input.trigger('change')
+    await flushPromises()
+
+    expect(createVideoCover).toHaveBeenCalledWith(video, 200 * 1024 * 1024)
+    expect(chatApi.uploadFile).toHaveBeenCalledWith(606, video, expect.any(Function), cover)
+    expect(chatApi.downloadFile).toHaveBeenCalledWith(606, true)
+    expect(wrapper.find('[data-testid="media-thumbnail-606"]').exists()).toBe(true)
     wrapper.unmount()
   })
 
