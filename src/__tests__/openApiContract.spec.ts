@@ -302,6 +302,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(contract.components.schemas.UserSession.properties).not.toHaveProperty('userAgent')
     expect(contract.paths['/account/login'].post.description).toContain('replaces the previous desktop-client session')
     expect(contract.paths['/account/webLogin'].post.description).toContain('replaces the previous browser session')
+    expect(contract.paths['/chat/markRead'].post.description).toContain('WebSocket message type 17')
     expect(contract.paths['/account/revokeOtherSessions'].post.description).toContain('Keeps the calling session active')
     expect(
       contract.paths['/account/revokeSession'].post.requestBody.content['application/x-www-form-urlencoded'].schema.required,

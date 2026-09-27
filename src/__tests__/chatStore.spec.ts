@@ -49,6 +49,55 @@ describe('chat initialization state', () => {
     expect(chatStore.applyCount).toBe(2)
   })
 
+  it('restores peer read cursors from INIT and only advances them on direct-message receipts', () => {
+    setActivePinia(createPinia())
+    const chatStore = useChatStore()
+    const session = {
+      sessionId: 'S100',
+      contactId: 'U200',
+      contactName: 'Friend',
+      lastMessage: '',
+      lastReceiveTime: 1000,
+      contactType: 0,
+      peerReadMessageId: 12,
+    }
+    chatStore.accountId = 'U100'
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [session],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    expect(chatStore.sessionList[0]?.peerReadMessageId).toBe(12)
+
+    chatStore.receiveMessage({
+      messageType: 17,
+      sessionId: 'S100',
+      contactId: 'U200',
+      sendUserId: 'U200',
+      messageId: 18,
+    })
+    chatStore.receiveMessage({
+      messageType: 17,
+      sessionId: 'S100',
+      contactId: 'U200',
+      sendUserId: 'U200',
+      messageId: 16,
+    })
+    expect(chatStore.sessionList[0]?.peerReadMessageId).toBe(18)
+
+    chatStore.receiveMessage({
+      messageType: 17,
+      sessionId: 'S100',
+      contactId: 'U200',
+      sendUserId: 'U300',
+      messageId: 30,
+    })
+    expect(chatStore.sessionList[0]?.peerReadMessageId).toBe(18)
+  })
+
   it('adds a live text message once and updates its session summary', () => {
     setActivePinia(createPinia())
     const chatStore = useChatStore()

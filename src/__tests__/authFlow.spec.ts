@@ -1049,6 +1049,16 @@ describe('authentication flow', () => {
     expect(wrapper.get('[data-testid="message-101"]').text()).toContain('Hello from the web')
     expect(wrapper.get('[data-testid="message-send-status"]').text()).toBe('已发送')
     expect(wrapper.get('[data-testid="message-send-status"]').attributes('aria-label')).toBe('服务端已接收并保存')
+    chatStore.receiveMessage({
+      messageType: 17,
+      sessionId: 'S200',
+      contactId: 'U200',
+      sendUserId: 'U200',
+      messageId: 101,
+    })
+    await flushPromises()
+    expect(wrapper.get('[data-testid="message-send-status"]').text()).toBe('已读')
+    expect(wrapper.get('[data-testid="message-send-status"]').attributes('aria-label')).toBe('已读')
     expect(wrapper.get('[data-testid="message-composer"]').element).toHaveProperty('value', '')
     expect(wrapper.get('[data-testid="message-composer"]').attributes('aria-label')).toBe('消息内容')
   })

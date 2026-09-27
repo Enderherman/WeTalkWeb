@@ -53,6 +53,23 @@ JSON 消息使用后端 MessageSendDTO。字段随消息类型而变化，常见
 | 12 | 群主移出成员 | 更新人数并展示系统消息；当事件目标是当前账号时禁用输入 |
 | 13 | 好友添加通知发送给本人 | 仍需补齐专门的实时状态处理 |
 | 14–16 | AI 初始化、累计流式片段和结束 | 合并为同一条助手消息；恢复时合并服务器历史与本机已收到的文本 |
+| 17 | 私聊已读回执，`messageId` 是对端已读到的最大消息 ID | 更新该私聊对端游标和发送状态 |
+
+### 类型 17：私聊已读回执
+
+接收方的 `POST /api/chat/markRead` 游标向前推进时，后端将回执发给私聊对端。`sendUserId` 和 `contactId` 是已读方，`messageId` 是其已读到的最大服务端消息 ID。相同或较旧的游标不会重复发送；群聊不发送个人已读回执。
+
+```json
+{
+  "messageType": 17,
+  "messageId": 1052,
+  "sessionId": "direct-session-example",
+  "sendUserId": "U200",
+  "contactId": "U200",
+  "sendTime": 1790000001000
+}
+```
+
 
 ### AI 类型 14–16
 
@@ -65,7 +82,7 @@ JSON 消息使用后端 MessageSendDTO。字段随消息类型而变化，常见
 
 ### 类型 0：初始化
 
-extentData 包含会话列表、最近消息和未处理申请数。每个会话的 `noReadCount` 由后端按用户的 `last_read_message_id` 游标计算；打开会话后，网页通过 `POST /api/chat/markRead` 推进游标。最近消息受后端离线时间窗口限制；完整历史由分页 REST 接口读取。
+extentData 包含会话列表、最近消息和未处理申请数。每个一对一会话的 `peerReadMessageId` 表示对端持久已读游标，群聊不设置该值。`noReadCount` 由后端按本人 `last_read_message_id` 计算；打开会话后，网页通过 `POST /api/chat/markRead` 推进游标。最近消息受后端离线时间窗口限制；完整历史由分页 REST 接口读取。
 
 ~~~json
 {

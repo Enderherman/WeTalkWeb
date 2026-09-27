@@ -1787,10 +1787,10 @@ async function signOut() {
                   <span
                     v-if="message.messageType === 2 && message.sendUserId === authStore.session?.userId"
                     class="message-send-status"
-                    aria-label="服务端已接收并保存"
+                    :aria-label="selectedSession?.contactType === 0 && (selectedSession.peerReadMessageId || 0) >= message.messageId ? '已读' : '服务端已接收并保存'"
                     data-testid="message-send-status"
                   >
-                    已发送
+                    {{ selectedSession?.contactType === 0 && (selectedSession.peerReadMessageId || 0) >= message.messageId ? '已读' : '已发送' }}
                   </span>
                 </div>
               </div>

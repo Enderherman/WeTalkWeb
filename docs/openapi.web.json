@@ -1574,7 +1574,7 @@
         "tags": ["Chat"],
         "operationId": "markChatRead",
         "summary": "Persist the current user's read cursor for a conversation",
-        "description": "Advances the authenticated user's per-conversation cursor monotonically to an existing message in that conversation. The session list reports messages after this cursor as unread; opening a conversation marks its latest visible server message read.",
+        "description": "Advances the authenticated user's per-conversation cursor monotonically to an existing message in that conversation. The session list reports messages after this cursor as unread; opening a conversation marks its latest visible server message read. For direct messages, an advancing cursor emits WebSocket message type 17 to the other participant; group conversations do not send individual read receipts.",
         "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,

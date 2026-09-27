@@ -11,6 +11,7 @@ export interface ChatSessionSummary {
   lastReceiveTime: number
   contactType: number
   noReadCount?: number
+  peerReadMessageId?: number
   memberCount?: number | null
   groupClosed?: boolean
   groupAccessRevoked?: boolean
@@ -175,6 +176,7 @@ export const useChatStore = defineStore('chat', {
               groupAccessRevoked: session.groupAccessRevoked,
               memberCount: session.memberCount,
               noReadCount: session.noReadCount,
+              peerReadMessageId: session.peerReadMessageId,
             },
           ]),
         )
@@ -186,6 +188,10 @@ export const useChatStore = defineStore('chat', {
             groupAccessRevoked: previous?.groupAccessRevoked,
             memberCount: session.memberCount ?? previous?.memberCount,
             noReadCount: Math.max(0, Number(session.noReadCount ?? previous?.noReadCount) || 0),
+            peerReadMessageId: Math.max(
+              Number(session.peerReadMessageId) || 0,
+              Number(previous?.peerReadMessageId) || 0,
+            ),
           }
         })
         this.initialMessages = [...merged.values()].sort(compareMessagesByServerOrder)
@@ -225,6 +231,11 @@ export const useChatStore = defineStore('chat', {
         return
       }
 
+      if (message.messageType === 17) {
+        this.receiveReadReceipt(message)
+        return
+      }
+
       if (message.messageType === 14 || message.messageType === 15 || message.messageType === 16) {
         this.receiveAiMessage(message)
         return
@@ -244,6 +255,19 @@ export const useChatStore = defineStore('chat', {
         this.disconnect()
         if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
       }
+    },
+    receiveReadReceipt(message: ServerMessage) {
+      const sessionId = typeof message.sessionId === 'string' ? message.sessionId : ''
+      const readerId = typeof message.sendUserId === 'string' ? message.sendUserId : ''
+      const contactId = typeof message.contactId === 'string' ? message.contactId : ''
+      const messageId = Number(message.messageId)
+      if (!sessionId || !readerId || contactId !== readerId || readerId === this.accountId
+          || !Number.isSafeInteger(messageId) || messageId < 1) return
+
+      const session = this.sessionList.find((item) => item.sessionId === sessionId)
+      if (!session || session.contactType !== 0 || session.contactId !== readerId) return
+      session.peerReadMessageId = Math.max(Number(session.peerReadMessageId) || 0, messageId)
+      this.sessionList = [...this.sessionList]
     },
     receiveGroupEvent(message: ServerMessage) {
       const groupId = typeof message.contactId === 'string' ? message.contactId : ''
