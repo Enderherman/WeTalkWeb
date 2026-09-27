@@ -845,8 +845,8 @@ describe('authentication flow', () => {
 
   it('shows device labels and marks the current browser session', async () => {
     vi.mocked(authApi.listSessions).mockResolvedValue([
-      { sessionId: 'session-current', deviceName: 'Chrome · Windows', createdAt: 100, lastActiveAt: 300, current: true },
-      { sessionId: 'session-phone', deviceName: 'Safari · iOS', createdAt: 90, lastActiveAt: 150, current: false },
+      { sessionId: 'session-current', deviceName: 'Chrome · Windows', deviceType: 'browser', createdAt: 100, lastActiveAt: 300, current: true },
+      { sessionId: 'session-phone', deviceName: 'WeTalkApp · Windows', deviceType: 'desktop', createdAt: 90, lastActiveAt: 150, current: false },
     ])
     const { wrapper } = await mountChat()
 
@@ -854,9 +854,12 @@ describe('authentication flow', () => {
     await flushPromises()
 
     expect(authApi.listSessions).toHaveBeenCalledOnce()
+    expect(wrapper.get('[data-testid="session-policy-note"]').text()).toContain('一台 WeTalk 客户端和一个浏览器')
     expect(wrapper.get('[data-testid="session-row-session-current"]').text()).toContain('Chrome · Windows')
+    expect(wrapper.get('[data-testid="session-row-session-current"]').text()).toContain('浏览器会话')
     expect(wrapper.get('[data-testid="session-row-session-current"]').text()).toContain('当前设备')
-    expect(wrapper.get('[data-testid="session-row-session-phone"]').text()).toContain('Safari · iOS')
+    expect(wrapper.get('[data-testid="session-row-session-phone"]').text()).toContain('WeTalkApp · Windows')
+    expect(wrapper.get('[data-testid="session-row-session-phone"]').text()).toContain('电脑客户端会话')
     expect(wrapper.find('[data-testid="revoke-session-session-current"]').exists()).toBe(false)
   })
 

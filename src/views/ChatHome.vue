@@ -2187,6 +2187,7 @@ async function signOut() {
               @click="loadSessions"
             >刷新</button>
           </header>
+          <p class="profile-status" data-testid="session-policy-note">账号可同时保持一台 WeTalk 客户端和一个浏览器登录。同类型设备再次登录时，旧会话会立即退出。</p>
           <p v-if="sessionsLoading" class="profile-status" role="status">正在读取登录设备…</p>
           <p v-if="sessionsError" class="contact-error" role="alert">{{ sessionsError }}</p>
           <p v-if="sessionsNotice" class="contact-notice" role="status">{{ sessionsNotice }}</p>
@@ -2203,6 +2204,9 @@ async function signOut() {
               <div class="session-device-info">
                 <div class="session-device-title">
                   <strong>{{ session.deviceName }}</strong>
+                  <small v-if="session.deviceType" class="session-device-type">
+                    {{ session.deviceType === 'browser' ? '浏览器会话' : '电脑客户端会话' }}
+                  </small>
                   <span v-if="session.current" class="session-current-badge">当前设备</span>
                 </div>
                 <small>最近活动：{{ formatSessionTime(session.lastActiveAt) }}</small>

@@ -3,7 +3,7 @@
   "info": {
     "title": "WeTalk Web API Contract",
     "version": "0.1.0",
-    "description": "This contract covers 52 current backend REST endpoints used by WeTalkApp and WeTalkWeb. WebSocket frames and production deployment settings are documented separately.\n\nRequests use application/x-www-form-urlencoded and the same-origin /api prefix unless an operation specifies multipart/form-data or a binary response. Business errors are normally returned in the BaseResponse body, often with HTTP 200; clients must inspect code. Desktop and browser login retain the legacy MD5 password digest. Browser login uses /account/webLogin, returns no token in JSON, and sets an HttpOnly SameSite Strict cookie; Secure is enabled with WETALK_WEB_AUTH_COOKIE_SECURE=true. WebSocket connections use a single-use ticket with a 60-second lifetime, while Electron keeps the legacy token query. Accounts may hold multiple independent sessions; session responses omit tokens, cookies, and raw user-agent values. This legacy password protocol must be replaced before public production use. Backend 0.0.2 marks the password field write-only, and its serialization test verifies the password is omitted from JSON. Admin role and password-free list behavior were verified against the local backend."
+    "description": "This contract covers 52 current backend REST endpoints used by WeTalkApp and WeTalkWeb. WebSocket frames and production deployment settings are documented separately.\n\nRequests use application/x-www-form-urlencoded and the same-origin /api prefix unless an operation specifies multipart/form-data or a binary response. Business errors are normally returned in the BaseResponse body, often with HTTP 200; clients must inspect code. Desktop and browser login retain the legacy MD5 password digest. Browser login uses /account/webLogin, returns no token in JSON, and sets an HttpOnly SameSite Strict cookie; Secure is enabled with WETALK_WEB_AUTH_COOKIE_SECURE=true. WebSocket connections use a single-use ticket with a 60-second lifetime, while Electron keeps the legacy token query. Each account may keep one desktop-client session and one browser session; a new login replaces an earlier session of the same type. Session responses omit tokens, cookies, and raw user-agent values. This legacy password protocol must be replaced before public production use. Backend 0.0.2 marks the password field write-only, and its serialization test verifies the password is omitted from JSON. Admin role and password-free list behavior were verified against the local backend."
   },
   "servers": [
     {
@@ -98,7 +98,7 @@
         "tags": ["Account"],
         "operationId": "loginAccount",
         "summary": "Log in",
-        "description": "For compatibility with WeTalkApp, the login password field contains the 32-character lowercase MD5 digest of the password, not the raw password. This is a legacy protocol; it is not a production-grade password transport design.",
+        "description": "For compatibility with WeTalkApp, the login password field contains the 32-character lowercase MD5 digest of the password, not the raw password. This is a legacy protocol; it is not a production-grade password transport design. A successful desktop-client login replaces the previous desktop-client session.",
         "requestBody": {
           "required": true,
           "content": {
@@ -141,7 +141,7 @@
         "tags": ["Account"],
         "operationId": "webLoginAccount",
         "summary": "Log in to the browser client",
-        "description": "Uses the same MD5 compatibility digest and captcha as desktop login, sets an HttpOnly SameSite Strict session cookie, and omits the token from JSON. Set WETALK_WEB_AUTH_COOKIE_SECURE=true behind HTTPS.",
+        "description": "Uses the same MD5 compatibility digest and captcha as desktop login, sets an HttpOnly SameSite Strict session cookie, and omits the token from JSON. Set WETALK_WEB_AUTH_COOKIE_SECURE=true behind HTTPS. A successful browser login replaces the previous browser session.",
         "requestBody": {
           "required": true,
           "content": { "application/x-www-form-urlencoded": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } }
@@ -1849,6 +1849,7 @@
         "properties": {
           "sessionId": { "type": "string", "format": "uuid" },
           "deviceName": { "type": "string", "description": "Coarse browser/client and operating-system label; raw user-agent is not exposed." },
+          "deviceType": { "type": "string", "enum": ["desktop", "browser"], "nullable": true, "description": "Login category; one session per category is allowed." },
           "createdAt": { "type": "integer", "format": "int64", "description": "Unix time in milliseconds." },
           "lastActiveAt": { "type": "integer", "format": "int64", "description": "Unix time in milliseconds." },
           "current": { "type": "boolean" }

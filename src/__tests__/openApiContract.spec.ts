@@ -292,6 +292,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(contract.components.schemas.UserSession.properties).toMatchObject({
       sessionId: { type: 'string', format: 'uuid' },
       deviceName: { type: 'string' },
+      deviceType: { type: 'string', enum: ['desktop', 'browser'], nullable: true },
       createdAt: { type: 'integer', format: 'int64' },
       lastActiveAt: { type: 'integer', format: 'int64' },
       current: { type: 'boolean' },
@@ -299,6 +300,8 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(contract.components.schemas.UserSession.properties).not.toHaveProperty('token')
     expect(contract.components.schemas.UserSession.properties).not.toHaveProperty('cookie')
     expect(contract.components.schemas.UserSession.properties).not.toHaveProperty('userAgent')
+    expect(contract.paths['/account/login'].post.description).toContain('replaces the previous desktop-client session')
+    expect(contract.paths['/account/webLogin'].post.description).toContain('replaces the previous browser session')
     expect(contract.paths['/account/revokeOtherSessions'].post.description).toContain('Keeps the calling session active')
     expect(
       contract.paths['/account/revokeSession'].post.requestBody.content['application/x-www-form-urlencoded'].schema.required,

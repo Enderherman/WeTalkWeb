@@ -384,10 +384,10 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 - 手机窄屏聊天区监听 `VisualViewport.resize`，按虚拟键盘弹出后实际可见高度调整容器；760px 以下移除桌面端 520px 最小高度，无该 API 时回退到 CSS `100dvh`。
 - 组件测试模拟键盘打开/收起时的可视区高度变化，CSS 测试检查窄屏最小高度规则；全量 235 项单测、类型检查和生产构建通过。iOS/Android 真机验收仍待完成。
 
-### 多端会话管理已实现；NAS Docker 内网测试仍待部署
+### 登录设备数量限制已实现；NAS Docker 内网测试仍待部署
 
-- 后端以 Redis 保存同一账号的多个独立会话；网页在个人资料与安全页显示设备/浏览器、最近活动和当前会话，支持撤销指定的其他会话或退出其他设备。响应不含 token/Cookie/raw User-Agent；退出只撤销指定 session，改密和管理员强制下线仍撤销全部会话。
-- 会话管理验收：Maven clean verify 92 项、WeTalkWeb 243 项单测/类型检查/生产构建通过。真实后端/MySQL/Redis 验证三台设备并行登录、当前设备标记、单设备撤销、退出其他设备、旧 Cookie 901 和目标 WebSocket 断开；真实 Chromium 桌面/移动界面通过 Vite 代理执行撤销操作，截图保存在 D:/environment/WeTalkBrowserQA/captures/chromium-1280-session-list.png 与 chromium-390-session-list.png。临时账号、关联记录及 Redis 会话/限流键已清理。
+- 同一账号最多同时保留一台电脑客户端和一个浏览器；同类设备新登录会替换旧会话。个人资料与安全页显示设备类别、设备标签、最近活动和当前会话，可撤销其他会话；响应不含 token/Cookie/raw User-Agent。
+- 验收：后端 Maven clean verify 94 项、WeTalkWeb 243 项单测、类型检查和生产构建通过。真实后端/MySQL/Redis 完成桌面与浏览器交替重登及并发桌面登录，旧 token/Cookie 返回 901、对应 WebSocket 断开、另一类别会话保留且最多各一条；测试账号、会话及 Redis 限流键已清理。
 - 邮箱验证和找回密码暂不纳入本轮范围。
 
 ### 本轮修复：桌面聊天区两列布局

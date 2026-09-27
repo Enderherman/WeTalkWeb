@@ -29,6 +29,7 @@ export interface WebSocketTicket {
 export interface UserSessionInfo {
   sessionId: string
   deviceName: string
+  deviceType?: 'desktop' | 'browser' | null
   createdAt: number
   lastActiveAt: number
   current: boolean
