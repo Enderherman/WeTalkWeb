@@ -1508,6 +1508,39 @@
           "default": { "$ref": "#/components/responses/BusinessError" }
         }
       }
+    },
+    "/chat/markRead": {
+      "post": {
+        "tags": ["Chat"],
+        "operationId": "markChatRead",
+        "summary": "Persist the current user's read cursor for a conversation",
+        "description": "Advances the authenticated user's per-conversation cursor monotonically to an existing message in that conversation. The session list reports messages after this cursor as unread; opening a conversation marks its latest visible server message read.",
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": { "$ref": "#/components/schemas/MarkReadRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Read cursor advanced.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/BaseResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
     }
   },
   "components": {
@@ -2293,6 +2326,14 @@
           "contactId": { "type": "string", "description": "Other participant's user ID for a direct chat." },
           "beforeMessageId": { "type": "integer", "minimum": 1, "description": "Exclusive cursor; omit to load the newest page." },
           "pageSize": { "type": "integer", "minimum": 1, "maximum": 50, "default": 30 }
+        }
+      },
+      "MarkReadRequest": {
+        "type": "object",
+        "required": ["contactId", "messageId"],
+        "properties": {
+          "contactId": { "type": "string", "description": "Conversation peer ID or group ID." },
+          "messageId": { "type": "integer", "minimum": 1, "description": "Highest server message ID the user has read in this conversation." }
         }
       },
       "ChatMessage": {

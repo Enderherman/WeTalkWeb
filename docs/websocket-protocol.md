@@ -65,7 +65,7 @@ JSON 消息使用后端 MessageSendDTO。字段随消息类型而变化，常见
 
 ### 类型 0：初始化
 
-extentData 包含会话列表、最近消息和未处理申请数。最近消息受后端离线时间窗口限制；完整历史由分页 REST 接口读取。
+extentData 包含会话列表、最近消息和未处理申请数。每个会话的 `noReadCount` 由后端按用户的 `last_read_message_id` 游标计算；打开会话后，网页通过 `POST /api/chat/markRead` 推进游标。最近消息受后端离线时间窗口限制；完整历史由分页 REST 接口读取。
 
 ~~~json
 {
@@ -80,7 +80,8 @@ extentData 包含会话列表、最近消息和未处理申请数。最近消息
         "contactName": "项目讨论组",
         "lastMessage": "用户乙加入了群组",
         "lastReceiveTime": 1790000000000,
-        "memberCount": 2
+        "memberCount": 2,
+        "noReadCount": 2
       }
     ],
     "chatMessageList": [

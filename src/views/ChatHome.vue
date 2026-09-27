@@ -39,6 +39,9 @@ const pendingTextMessage = ref<PendingTextMessage | null>(null)
 const pendingTextMessages = ref<PendingTextMessage[]>([])
 const replayingPendingMessages = ref(false)
 const pendingQueueError = ref('')
+const pendingReadCursors = new Map<string, { contactId: string; messageId: number }>()
+const lastReadCursorBySession = new Map<string, number>()
+let flushingReadCursors = false
 const contactSearchOpen = ref(false)
 const contactApplicationsOpen = ref(false)
 const contactDirectoryOpen = ref(false)
@@ -78,6 +81,12 @@ const displayName = computed(() => profile.value?.nickName || authStore.session?
 const avatarInitial = computed(() => displayName.value.slice(0, 1).toUpperCase())
 const selectedSession = computed(
   () => chatStore.sessionList.find((session) => session.sessionId === selectedSessionId.value) || null,
+)
+const activeSessionLatestMessageId = computed(() =>
+  chatStore.initialMessages.reduce(
+    (latest, message) => message.sessionId === selectedSessionId.value ? Math.max(latest, message.messageId) : latest,
+    0,
+  ),
 )
 const webReleaseLink = computed(() => {
   const rawLink = webReleaseNotice.value?.outerLink?.trim()
@@ -172,6 +181,12 @@ watch(selectedSessionId, (sessionId) => {
   messageSearchQuery.value = ''
   searchJumpMessageId.value = null
   void loadLatestHistory(sessionId)
+})
+
+watch(activeSessionLatestMessageId, (messageId) => {
+  if (selectedSessionId.value && messageId > 0) {
+    markConversationRead(selectedSessionId.value, messageId)
+  }
 })
 
 watch(messageSearchQuery, () => {
@@ -619,6 +634,7 @@ function browserIsOnline() {
 
 function handlePendingMessagesOnline() {
   pendingQueueError.value = ''
+  void flushPendingReadCursors()
   void replayPendingTextMessages()
 }
 
@@ -681,6 +697,40 @@ function pendingContactName(message: PendingTextMessage) {
 function retryPendingMessages() {
   pendingQueueError.value = ''
   void replayPendingTextMessages()
+}
+
+function markConversationRead(sessionId: string, messageId: number) {
+  const session = chatStore.sessionList.find((item) => item.sessionId === sessionId)
+  if (!session || messageId < 1) return
+  const pending = pendingReadCursors.get(sessionId)
+  const lastRead = Math.max(lastReadCursorBySession.get(sessionId) || 0, pending?.messageId || 0)
+  if (messageId <= lastRead) return
+  pendingReadCursors.set(sessionId, { contactId: session.contactId, messageId })
+  if (browserIsOnline()) void flushPendingReadCursors()
+}
+
+async function flushPendingReadCursors() {
+  if (flushingReadCursors || !browserIsOnline() || !authStore.session?.userId) return
+  flushingReadCursors = true
+  try {
+    while (pendingReadCursors.size > 0 && browserIsOnline() && authStore.session?.userId) {
+      const next = pendingReadCursors.entries().next().value as
+        | [string, { contactId: string; messageId: number }]
+        | undefined
+      if (!next) break
+      const [sessionId, cursor] = next
+      try {
+        await chatApi.markRead(cursor.contactId, cursor.messageId)
+        lastReadCursorBySession.set(sessionId, Math.max(lastReadCursorBySession.get(sessionId) || 0, cursor.messageId))
+        const current = pendingReadCursors.get(sessionId)
+        if (current && current.messageId <= cursor.messageId) pendingReadCursors.delete(sessionId)
+      } catch {
+        break
+      }
+    }
+  } finally {
+    flushingReadCursors = false
+  }
 }
 
 async function sendTextMessage() {

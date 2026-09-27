@@ -35,6 +35,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/chat/cancelAiMessage',
       '/chat/downloadFile',
       '/chat/loadHistory',
+      '/chat/markRead',
       '/chat/sendMessage',
       '/chat/streamMedia',
       '/chat/uploadFile',
@@ -76,6 +77,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/account/logout',
       '/account/webSocketTicket',
       '/chat/sendMessage',
+      '/chat/markRead',
       '/chat/loadHistory',
       '/contact/search',
       '/contact/applyAdd',
@@ -143,6 +145,8 @@ describe('WeTalkWeb OpenAPI contract', () => {
       format: 'uuid',
       maxLength: 36,
     })
+    expect(contract.components.schemas.MarkReadRequest.required).toEqual(['contactId', 'messageId'])
+    expect(contract.components.schemas.MarkReadRequest.properties.messageId.minimum).toBe(1)
     expect(contract.components.schemas.SendChatMessageRequest.properties.fileType.enum).toEqual([0, 1, 2])
     expect(contract.components.schemas.LoadHistoryRequest.properties.pageSize.maximum).toBe(50)
   })

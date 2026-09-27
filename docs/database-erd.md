@@ -138,7 +138,7 @@ erDiagram
 | user_contact_apply | apply_id；申请人、接收人和联系人组合唯一 |
 | user_info_beauty | id；email 和 user_id 唯一 |
 | chat_session | session_id |
-| chat_session_user | user_id + contact_id |
+| chat_session_user | user_id + contact_id; `last_read_message_id` tracks each member's read cursor |
 | chat_message | message_id；session_id、发送人、联系人和发送时间有索引 |
 | app_update | id |
 

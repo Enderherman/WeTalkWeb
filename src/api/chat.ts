@@ -59,4 +59,6 @@ export const chatApi = {
     pageSize = 30,
   ): Promise<ChatHistoryPage> =>
     postForm<ChatHistoryPage>('/chat/loadHistory', { contactId, beforeMessageId, pageSize }),
+  markRead: (contactId: string, messageId: number): Promise<unknown> =>
+    postForm('/chat/markRead', { contactId, messageId }),
 }

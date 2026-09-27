@@ -173,4 +173,11 @@ describe('chat API', () => {
       pageSize: 30,
     })
   })
+
+  it('persists a read cursor for the current conversation', async () => {
+    vi.mocked(postForm).mockResolvedValue(null)
+
+    await expect(chatApi.markRead('U200', 51)).resolves.toBeNull()
+    expect(postForm).toHaveBeenCalledWith('/chat/markRead', { contactId: 'U200', messageId: 51 })
+  })
 })

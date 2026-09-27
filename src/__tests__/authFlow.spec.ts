@@ -60,6 +60,7 @@ vi.mock('@/api/auth', () => ({
 vi.mock('@/api/chat', () => ({
   chatApi: {
     sendTextMessage: vi.fn(),
+    markRead: vi.fn(),
     cancelAiMessage: vi.fn(),
     sendFileMessage: vi.fn(),
     uploadFile: vi.fn(),
@@ -1161,6 +1162,29 @@ describe('authentication flow', () => {
     expect(vi.mocked(chatApi.sendTextMessage).mock.calls[1]?.[2]).toBe(clientMessageId)
     expect(wrapper.get('[data-testid="message-composer"]').element).toHaveProperty('value', '')
     expect(wrapper.find('[data-testid="retry-message-send"]').exists()).toBe(false)
+  })
+
+  it('persists the latest visible message as read when a conversation opens', async () => {
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200', contactId: 'U200', contactName: 'Friend',
+          lastMessage: 'Read cursor target', lastReceiveTime: 1000, contactType: 0, noReadCount: 2,
+        }],
+        chatMessageList: [{
+          messageId: 90, sessionId: 'S200', messageType: 2, messageContent: 'Read cursor target',
+          sendUserId: 'U200', sendUserNickName: 'Friend', sendTime: 1000, contactId: 'U100',
+        }],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+
+    expect(chatApi.markRead).toHaveBeenCalledWith('U200', 90)
+    expect(wrapper.find('[data-testid="chat-session-S200"] [aria-label="2 条未读消息"]').exists()).toBe(false)
+    wrapper.unmount()
   })
 
   it('persists an offline text message and replays it once the browser reconnects', async () => {
