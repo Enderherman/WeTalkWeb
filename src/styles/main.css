@@ -517,6 +517,7 @@ select:focus-visible {
 
 .chat-shell {
   display: grid;
+  grid-template-columns: 272px minmax(0, 1fr);
   width: 100%;
   height: 100vh;
   height: var(--wt-chat-visual-viewport-height, 100dvh);

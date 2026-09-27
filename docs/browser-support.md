@@ -21,6 +21,8 @@
 
 Playwright 1.63 使用本地 mock API/WebSocket 对登录、注册和一对一聊天页面做了截图与基础键盘路径检查。Chromium 153.0.8010.12 覆盖 360×800、390×844、768×1024 和 1280×900 CSS 像素视口；Playwright WebKit 26.6 覆盖 390×844。5 组测试的 `document.scrollWidth` 均等于 `innerWidth`，页面异常数均为 0。
 
+这次回归还验证桌面聊天布局：768px 和 1280px 视口下，侧栏宽 272px 且填满视口高度，主聊天区从 x=272 开始；360px、390px 手机和 WebKit 390px 继续使用单列布局。该检查发现并修复了桌面网格未声明两列的问题。
+
 Chromium 360×800 还截图检查了通用服务错误页、空会话和服务端历史加载状态；服务错误页不显示测试桩返回的内部诊断文字。登录验证码、个人资料、会话消息和实时帧均使用可复现的视觉测试数据。
 
 测试还验证了消息搜索输入框的焦点进入/返回、桌面资料弹窗的焦点往返，以及移动联系人弹窗关闭后侧栏保持展开并将焦点返回可见的打开按钮。API 和 WebSocket 响应由测试桩提供，因此这项检查只记录浏览器渲染和交互表现，不代替真实后端联调。截图保存在 `D:/environment/WeTalkBrowserQA/captures`。Chromium 移动设备仿真和 Playwright WebKit 不能代替真实 Android Chrome/iOS Safari；真机矩阵仍待完成。
