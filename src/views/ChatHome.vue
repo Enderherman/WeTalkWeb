@@ -125,6 +125,8 @@ const mediaPreviewMessage = ref<InitialChatMessage | null>(null)
 const mediaPreviewUrl = ref('')
 const mediaPreviewLoadingId = ref<number | null>(null)
 const mediaPreviewErrors = reactive(new Map<number, string>())
+const mediaPreviewDialog = ref<HTMLElement | null>(null)
+const mediaPreviewTrigger = ref<HTMLElement | null>(null)
 const messagePanel = ref<HTMLElement | null>(null)
 const historyLoading = ref(false)
 const olderMessagesLoading = ref(false)
@@ -212,7 +214,7 @@ function dismissWebReleaseNotice() {
 
 onBeforeUnmount(() => {
   historyRequestId += 1
-  closeMediaPreview()
+  closeMediaPreview(false)
   chatStore.disconnect()
 })
 
@@ -731,9 +733,10 @@ async function downloadAttachment(message: InitialChatMessage) {
   }
 }
 
-async function previewMedia(message: InitialChatMessage) {
+async function previewMedia(message: InitialChatMessage, event: MouseEvent) {
   if ((message.fileType !== 0 && message.fileType !== 1) || message.status !== 1 || mediaPreviewLoadingId.value !== null) return
-  closeMediaPreview()
+  closeMediaPreview(false)
+  mediaPreviewTrigger.value = event.currentTarget as HTMLElement
   mediaPreviewErrors.delete(message.messageId)
   mediaPreviewLoadingId.value = message.messageId
   try {
@@ -744,6 +747,7 @@ async function previewMedia(message: InitialChatMessage) {
     if (streamUrl) {
       mediaPreviewUrl.value = streamUrl
       mediaPreviewMessage.value = message
+      await focusMediaPreviewCloseButton()
       return
     }
     const blob = await chatApi.downloadFile(message.messageId)
@@ -751,6 +755,7 @@ async function previewMedia(message: InitialChatMessage) {
     const previewBlob = mimeType ? new Blob([blob], { type: mimeType }) : blob
     mediaPreviewUrl.value = URL.createObjectURL(previewBlob)
     mediaPreviewMessage.value = message
+    await focusMediaPreviewCloseButton()
   } catch {
     mediaPreviewErrors.set(message.messageId, '媒体预览失败，请稍后重试')
   } finally {
@@ -758,10 +763,49 @@ async function previewMedia(message: InitialChatMessage) {
   }
 }
 
-function closeMediaPreview() {
+async function focusMediaPreviewCloseButton() {
+  await nextTick()
+  mediaPreviewDialog.value?.querySelector<HTMLElement>('button:not([disabled])')?.focus()
+}
+
+function trapMediaPreviewFocus(event: KeyboardEvent) {
+  const dialog = mediaPreviewDialog.value
+  if (event.key !== 'Tab' || !dialog) return
+  const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), video[controls], audio[controls], [tabindex]:not([tabindex="-1"])',
+  ))
+  if (focusable.length === 0) {
+    event.preventDefault()
+    dialog.focus()
+    return
+  }
+
+  const first = focusable[0]!
+  const last = focusable[focusable.length - 1]!
+  if (!dialog.contains(document.activeElement)) {
+    event.preventDefault()
+    const target = event.shiftKey ? last : first
+    target.focus()
+  } else if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialog)) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
+function closeMediaPreview(restoreFocus = true) {
+  const trigger = mediaPreviewTrigger.value
+  mediaPreviewTrigger.value = null
   if (mediaPreviewUrl.value.startsWith('blob:')) URL.revokeObjectURL(mediaPreviewUrl.value)
   mediaPreviewUrl.value = ''
   mediaPreviewMessage.value = null
+  if (restoreFocus && trigger) {
+    void nextTick().then(() => {
+      if (trigger.isConnected) trigger.focus()
+    })
+  }
 }
 
 function handleMediaPlaybackError() {
@@ -1170,7 +1214,7 @@ async function signOut() {
                       data-testid="preview-media"
                       type="button"
                       :disabled="message.status !== 1 || mediaPreviewLoadingId !== null"
-                      @click="previewMedia(message)"
+                      @click="previewMedia(message, $event)"
                     >{{ mediaPreviewLoadingId === message.messageId ? '加载中…' : message.fileType === 0 ? '预览图片' : '播放' }}</button>
                     <button
                       class="file-download-button"
@@ -1312,19 +1356,22 @@ async function signOut() {
       v-if="mediaPreviewMessage && mediaPreviewUrl"
       class="media-preview-overlay"
       data-testid="media-preview-overlay"
-      @click.self="closeMediaPreview"
+      @click.self="closeMediaPreview()"
     >
       <section
         class="media-preview-dialog"
+        ref="mediaPreviewDialog"
+        data-testid="media-preview-dialog"
         role="dialog"
         aria-modal="true"
         aria-label="媒体预览"
         tabindex="-1"
-        @keydown.esc.stop.prevent="closeMediaPreview"
+        @keydown.esc.stop.prevent="closeMediaPreview()"
+        @keydown.tab="trapMediaPreviewFocus"
       >
         <header>
           <strong>{{ mediaPreviewMessage.fileName || '媒体文件' }}</strong>
-          <button class="icon-button" type="button" aria-label="关闭媒体预览" @click="closeMediaPreview">×</button>
+          <button class="icon-button" type="button" aria-label="关闭媒体预览" @click="closeMediaPreview()">×</button>
         </header>
         <img
           v-if="getChatMediaKind(mediaPreviewMessage.fileName || '') === 'image'"

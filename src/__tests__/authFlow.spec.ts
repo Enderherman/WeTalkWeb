@@ -911,6 +911,7 @@ describe('authentication flow', () => {
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
 
     const { wrapper, chatStore } = await mountChat()
+    document.body.appendChild(wrapper.element)
     chatStore.receiveMessage({
       messageType: 0,
       extentData: {
@@ -941,6 +942,7 @@ describe('authentication flow', () => {
     })
     await flushPromises()
     try {
+      const previewButton = wrapper.get('[data-testid="preview-media"]').element
       await wrapper.get('[data-testid="preview-media"]').trigger('click')
       await flushPromises()
 
@@ -948,12 +950,22 @@ describe('authentication flow', () => {
       expect(createObjectURL).toHaveBeenCalledWith(blob)
       expect(wrapper.get('[data-testid="media-preview-overlay"] img').attributes('src')).toBe('blob:image-preview')
       expect(wrapper.get('[data-testid="media-preview-overlay"] img').attributes('alt')).toBe('photo.png')
+      const dialog = wrapper.get('[data-testid="media-preview-dialog"]')
+      const closeButton = wrapper.get('[aria-label="关闭媒体预览"]')
+      expect(document.activeElement).toBe(closeButton.element)
 
-      await wrapper.get('[aria-label="关闭媒体预览"]').trigger('click')
+      await dialog.trigger('keydown', { key: 'Tab' })
+      expect(document.activeElement).toBe(closeButton.element)
+      await dialog.trigger('keydown', { key: 'Tab', shiftKey: true })
+      expect(document.activeElement).toBe(closeButton.element)
+      await dialog.trigger('keydown', { key: 'Escape' })
+      await flushPromises()
       expect(wrapper.find('[data-testid="media-preview-overlay"]').exists()).toBe(false)
+      expect(document.activeElement).toBe(previewButton)
       expect(revokeObjectURL).toHaveBeenCalledWith('blob:image-preview')
     } finally {
       wrapper.unmount()
+      wrapper.element.remove()
       if (originalCreate) Object.defineProperty(URL, 'createObjectURL', originalCreate)
       else Reflect.deleteProperty(URL, 'createObjectURL')
       if (originalRevoke) Object.defineProperty(URL, 'revokeObjectURL', originalRevoke)
