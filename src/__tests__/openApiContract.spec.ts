@@ -61,6 +61,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
     const operationIds = Object.values(contract.paths).map((path: any) => path.post.operationId)
     expect(new Set(operationIds).size).toBe(operationIds.length)
     expect(contract.components.responses.BusinessError.description).toContain('429')
+    expect(contract.components.responses.BusinessError.headers['X-Request-Id'].schema.format).toBe('uuid')
   })
 
   it('marks protected operations with the backend token header', () => {

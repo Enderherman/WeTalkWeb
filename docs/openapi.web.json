@@ -1488,6 +1488,12 @@
     "responses": {
       "BusinessError": {
         "description": "Business or transport error. The backend commonly returns application errors with HTTP 200 and a non-200 body code. Common body codes include 429, 500, 600, 601, 901, 902, and 903.",
+        "headers": {
+          "X-Request-Id": {
+            "description": "Server-generated correlation ID for the sanitized error log entry.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        },
         "content": {
           "application/json": {
             "schema": { "$ref": "#/components/schemas/BusinessErrorResponse" },
