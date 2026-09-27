@@ -174,6 +174,19 @@ describe('chat API', () => {
     })
   })
 
+  it('passes an abort signal to paginated history requests', async () => {
+    const page = { pageNo: 1, pageSize: 50, pageTotal: 1, totalCount: 0, list: [] }
+    const controller = new AbortController()
+    vi.mocked(postForm).mockResolvedValue(page)
+
+    await expect(chatApi.loadHistory('U200', null, 50, controller.signal)).resolves.toEqual(page)
+    expect(postForm).toHaveBeenCalledWith(
+      '/chat/loadHistory',
+      { contactId: 'U200', beforeMessageId: null, pageSize: 50 },
+      { signal: controller.signal },
+    )
+  })
+
   it('persists a read cursor for the current conversation', async () => {
     vi.mocked(postForm).mockResolvedValue(null)
 

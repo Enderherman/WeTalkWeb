@@ -665,6 +665,117 @@ describe('authentication flow', () => {
     expect(wrapper.find('[data-testid="message-1"]').exists()).toBe(false)
   })
 
+  it('searches every server history page and loads a remote result when selected', async () => {
+    const { wrapper, chatStore } = await mountChat()
+    const latestMessage = {
+      messageId: 4,
+      sessionId: 'S200',
+      messageType: 2,
+      messageContent: 'Latest message',
+      sendUserId: 'U200',
+      sendUserNickName: 'Friend',
+      sendTime: 4000,
+      contactId: 'U100',
+    }
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200',
+          contactId: 'U200',
+          contactName: 'Friend',
+          lastMessage: latestMessage.messageContent,
+          lastReceiveTime: latestMessage.sendTime,
+          contactType: 0,
+        }],
+        chatMessageList: [latestMessage],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+
+    const olderMatch = {
+      ...latestMessage,
+      messageId: 1,
+      messageContent: 'Needle in an older message',
+      sendTime: 1000,
+    }
+    const nextPage = {
+      pageNo: 1,
+      pageSize: 50,
+      pageTotal: 1,
+      totalCount: 2,
+      list: [olderMatch, { ...latestMessage, messageId: 2, messageContent: 'Another old message', sendTime: 2000 }],
+    }
+    vi.mocked(chatApi.loadHistory).mockClear()
+    vi.mocked(chatApi.loadHistory)
+      .mockResolvedValueOnce({
+        pageNo: 1,
+        pageSize: 50,
+        pageTotal: 2,
+        totalCount: 4,
+        list: [
+          { ...latestMessage, messageId: 3, messageContent: 'Recent message', sendTime: 3000 },
+          latestMessage,
+        ],
+      })
+      .mockResolvedValueOnce(nextPage)
+
+    await wrapper.get('[data-testid="toggle-message-search"]').trigger('click')
+    await wrapper.get('[data-testid="message-search-input"]').setValue('needle')
+    await wrapper.get('[data-testid="search-entire-history"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="search-history-status"]').text()).toContain('已搜索完整个会话历史')
+    expect(wrapper.get('[data-testid="message-search-result-1"]').text()).toContain('Needle in an older message')
+    const searchCalls = vi.mocked(chatApi.loadHistory).mock.calls
+    expect(searchCalls).toHaveLength(2)
+    expect(searchCalls[0]?.slice(0, 3)).toEqual(['U200', null, 50])
+    expect(searchCalls[0]?.[3]).toBeInstanceOf(AbortSignal)
+    expect(searchCalls[1]?.slice(0, 3)).toEqual(['U200', 3, 50])
+
+    await wrapper.get('[data-testid="message-search-result-1"]').trigger('click')
+    await flushPromises()
+    expect(chatStore.initialMessages.some((message) => message.messageId === 1)).toBe(true)
+    expect(wrapper.find('[data-testid="message-1"]').exists()).toBe(true)
+  })
+
+  it('can cancel a full-history search without processing its late response', async () => {
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200',
+          contactId: 'U200',
+          contactName: 'Friend',
+          lastMessage: '',
+          lastReceiveTime: 1000,
+          contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+
+    let resolveSearchPage!: (page: Awaited<ReturnType<typeof chatApi.loadHistory>>) => void
+    vi.mocked(chatApi.loadHistory).mockClear().mockImplementation(
+      () => new Promise((resolve) => { resolveSearchPage = resolve }),
+    )
+    await wrapper.get('[data-testid="toggle-message-search"]').trigger('click')
+    await wrapper.get('[data-testid="message-search-input"]').setValue('needle')
+    await wrapper.get('[data-testid="search-entire-history"]').trigger('click')
+    expect(wrapper.find('[data-testid="cancel-history-search"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="cancel-history-search"]').trigger('click')
+    resolveSearchPage({ pageNo: 1, pageSize: 50, pageTotal: 2, totalCount: 100, list: [] })
+    await flushPromises()
+
+    expect(chatApi.loadHistory).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-testid="cancel-history-search"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="search-entire-history"]').text()).toBe('继续搜索全部历史')
+  })
+
   it('sends a selected-session text message and adds the saved message to the view', async () => {
     const sentMessage = {
       messageId: 101,

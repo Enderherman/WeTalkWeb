@@ -57,8 +57,13 @@ export const chatApi = {
     contactId: string,
     beforeMessageId: number | null = null,
     pageSize = 30,
-  ): Promise<ChatHistoryPage> =>
-    postForm<ChatHistoryPage>('/chat/loadHistory', { contactId, beforeMessageId, pageSize }),
+    signal?: AbortSignal,
+  ): Promise<ChatHistoryPage> => {
+    const values = { contactId, beforeMessageId, pageSize }
+    return signal
+      ? postForm<ChatHistoryPage>('/chat/loadHistory', values, { signal })
+      : postForm<ChatHistoryPage>('/chat/loadHistory', values)
+  },
   markRead: (contactId: string, messageId: number): Promise<unknown> =>
     postForm('/chat/markRead', { contactId, messageId }),
 }

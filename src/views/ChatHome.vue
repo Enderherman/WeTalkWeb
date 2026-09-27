@@ -11,7 +11,7 @@ import ContactDirectoryDialog from '@/components/ContactDirectoryDialog.vue'
 import ContactSearchDialog from '@/components/ContactSearchDialog.vue'
 import GroupDirectoryDialog from '@/components/GroupDirectoryDialog.vue'
 import { useAuthStore } from '@/stores/auth'
-import { compareMessagesByServerOrder, useChatStore, type InitialChatMessage } from '@/stores/chat'
+import { compareMessagesByServerOrder, useChatStore, type ChatHistoryPage, type InitialChatMessage } from '@/stores/chat'
 import { useDownloadPreferencesStore } from '@/stores/downloadPreferences'
 import { useSystemSettingsStore } from '@/stores/systemSettings'
 import type { DownloadLocationMode } from '@/storage/downloadPreferences'
@@ -101,6 +101,15 @@ const webReleaseLink = computed(() => {
 const messageSearchOpen = ref(false)
 const messageSearchQuery = ref('')
 const searchJumpMessageId = ref<number | null>(null)
+const fullHistorySearchMatches = ref<InitialChatMessage[]>([])
+const fullHistorySearchPages = ref(new Map<number, ChatHistoryPage>())
+const fullHistorySearchStatus = ref<'idle' | 'searching' | 'complete' | 'cancelled' | 'error'>('idle')
+const fullHistorySearchScanned = ref(0)
+const fullHistorySearchTotal = ref<number | null>(null)
+const fullHistorySearchBeforeMessageId = ref<number | null>(null)
+const fullHistorySearchError = ref('')
+let fullHistorySearchRequestId = 0
+let fullHistorySearchAbortController: AbortController | null = null
 const conversationMessages = computed(() =>
   chatStore.initialMessages
     .filter((message) => message.sessionId === selectedSessionId.value && [2, 3, 5, 8, 9, 11, 12, 14].includes(message.messageType))
@@ -114,13 +123,22 @@ const selectedMessages = computed(() => {
   }
   return messages.slice(-80)
 })
+function matchesMessageSearch(message: InitialChatMessage, query: string) {
+  return [message.messageContent, message.fileName, message.sendUserNickName]
+    .some((value) => typeof value === 'string' && value.toLocaleLowerCase().includes(query))
+}
 const messageSearchResults = computed(() => {
   const query = messageSearchQuery.value.trim().toLocaleLowerCase()
   if (!query) return []
-  return chatStore.initialMessages
-    .filter((message) => message.sessionId === selectedSessionId.value && [2, 5, 14].includes(message.messageType))
-    .filter((message) => [message.messageContent, message.fileName, message.sendUserNickName]
-      .some((value) => typeof value === 'string' && value.toLocaleLowerCase().includes(query)))
+  const candidates = new Map<number, InitialChatMessage>()
+  for (const message of [...chatStore.initialMessages, ...fullHistorySearchMatches.value]) {
+    if (
+      message.sessionId === selectedSessionId.value &&
+      [2, 5, 14].includes(message.messageType) &&
+      matchesMessageSearch(message, query)
+    ) candidates.set(message.messageId, message)
+  }
+  return [...candidates.values()]
     .sort((a, b) => compareMessagesByServerOrder(b, a))
     .slice(0, 50)
 })
@@ -190,8 +208,9 @@ watch(activeSessionLatestMessageId, (messageId) => {
 })
 
 watch(messageSearchQuery, () => {
+  resetFullHistorySearch()
   searchJumpMessageId.value = null
-})
+}, { flush: 'sync' })
 
 watch(
   () => chatStore.groupEventVersion,
@@ -240,6 +259,7 @@ function dismissWebReleaseNotice() {
 onBeforeUnmount(() => {
   window.removeEventListener('online', handlePendingMessagesOnline)
   historyRequestId += 1
+  resetFullHistorySearch()
   closeMediaPreview(false)
   chatStore.disconnect()
 })
@@ -534,8 +554,105 @@ function toggleMessageSearch() {
   }
 }
 
-function jumpToSearchResult(messageId: number) {
+function resetFullHistorySearch() {
+  fullHistorySearchRequestId += 1
+  fullHistorySearchAbortController?.abort()
+  fullHistorySearchAbortController = null
+  fullHistorySearchMatches.value = []
+  fullHistorySearchPages.value = new Map()
+  fullHistorySearchStatus.value = 'idle'
+  fullHistorySearchScanned.value = 0
+  fullHistorySearchTotal.value = null
+  fullHistorySearchBeforeMessageId.value = null
+  fullHistorySearchError.value = ''
+}
+
+function cancelFullHistorySearch() {
+  if (fullHistorySearchStatus.value !== 'searching') return
+  fullHistorySearchRequestId += 1
+  fullHistorySearchAbortController?.abort()
+  fullHistorySearchAbortController = null
+  fullHistorySearchStatus.value = 'cancelled'
+}
+
+async function searchEntireHistory() {
+  const session = selectedSession.value
+  const query = messageSearchQuery.value.trim().toLocaleLowerCase()
+  if (!session || !query || fullHistorySearchStatus.value === 'searching' || fullHistorySearchStatus.value === 'complete') return
+
+  const sessionId = session.sessionId
+  const requestId = ++fullHistorySearchRequestId
+  const abortController = new AbortController()
+  fullHistorySearchAbortController = abortController
+  fullHistorySearchStatus.value = 'searching'
+  fullHistorySearchError.value = ''
+  let beforeMessageId = fullHistorySearchBeforeMessageId.value
+
+  try {
+    while (requestId === fullHistorySearchRequestId && selectedSessionId.value === sessionId) {
+      const page = await chatApi.loadHistory(session.contactId, beforeMessageId, 50, abortController.signal)
+      if (requestId !== fullHistorySearchRequestId || selectedSessionId.value !== sessionId) return
+
+      const pageMessages = Array.isArray(page.list) ? page.list : []
+      if (fullHistorySearchTotal.value === null) fullHistorySearchTotal.value = page.totalCount
+      fullHistorySearchScanned.value += pageMessages.length
+
+      const matchingMessages = pageMessages.filter((message) => matchesMessageSearch(message, query))
+      const combined = new Map<number, InitialChatMessage>(
+        fullHistorySearchMatches.value.map((message) => [message.messageId, message]),
+      )
+      for (const message of matchingMessages) combined.set(message.messageId, message)
+      const topMatches = [...combined.values()]
+        .sort((a, b) => compareMessagesByServerOrder(b, a))
+        .slice(0, 50)
+      fullHistorySearchMatches.value = topMatches
+
+      const pageWithMessages = { ...page, list: pageMessages }
+      const pagesByMessageId = new Map(fullHistorySearchPages.value)
+      for (const message of matchingMessages) pagesByMessageId.set(message.messageId, pageWithMessages)
+      const topIds = new Set(topMatches.map((message) => message.messageId))
+      for (const messageId of pagesByMessageId.keys()) {
+        if (!topIds.has(messageId)) pagesByMessageId.delete(messageId)
+      }
+      fullHistorySearchPages.value = pagesByMessageId
+
+      const oldestMessageId = pageMessages.reduce((oldest, message) => {
+        const messageId = Number(message.messageId)
+        return Number.isSafeInteger(messageId) && messageId > 0 ? Math.min(oldest, messageId) : oldest
+      }, Number.POSITIVE_INFINITY)
+      const hasMore = page.pageNo < page.pageTotal && Number.isFinite(oldestMessageId) &&
+        (beforeMessageId === null || oldestMessageId < beforeMessageId)
+      if (!hasMore) {
+        fullHistorySearchBeforeMessageId.value = null
+        fullHistorySearchStatus.value = 'complete'
+        return
+      }
+
+      beforeMessageId = oldestMessageId
+      fullHistorySearchBeforeMessageId.value = oldestMessageId
+    }
+  } catch (error: unknown) {
+    if (requestId === fullHistorySearchRequestId) {
+      fullHistorySearchStatus.value = 'error'
+      fullHistorySearchError.value = error instanceof Error ? error.message : '搜索历史消息失败，请重试'
+    }
+  } finally {
+    if (requestId === fullHistorySearchRequestId) fullHistorySearchAbortController = null
+  }
+}
+
+async function jumpToSearchResult(messageId: number) {
+  const session = selectedSession.value
+  if (!session) return
+  if (!chatStore.initialMessages.some((message) => message.messageId === messageId)) {
+    const page = fullHistorySearchPages.value.get(messageId)
+    if (!page) return
+    chatStore.setHistoryPage(session.sessionId, page, true)
+  }
   searchJumpMessageId.value = messageId
+  await nextTick()
+  const target = messagePanel.value?.querySelector(`[data-testid="message-${messageId}"]`)
+  target?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
 }
 
 function returnToLatestMessages() {
@@ -1342,8 +1459,8 @@ async function signOut() {
             data-testid="message-search-input"
             type="search"
             autocomplete="off"
-            placeholder="搜索已加载的消息或文件名"
-            aria-label="搜索已加载的消息或文件名"
+            placeholder="搜索本会话消息、文件名或发送人"
+            aria-label="搜索本会话消息、文件名或发送人"
           />
           <button
             v-if="messageSearchQuery"
@@ -1360,11 +1477,21 @@ async function signOut() {
             @click="returnToLatestMessages"
           >最新消息</button>
         </div>
-        <p class="message-search-hint" role="status">
-          {{ messageSearchQuery.trim() ? `显示 ${messageSearchResults.length} 条匹配记录（最多 50 条）` : '搜索当前已加载的文字消息和文件名' }}
+        <p class="message-search-hint" role="status" data-testid="search-history-status">
+          <template v-if="fullHistorySearchStatus === 'searching'">
+            正在搜索全部历史：已检查 {{ fullHistorySearchScanned }} / {{ fullHistorySearchTotal ?? '…' }} 条，找到 {{ messageSearchResults.length }} 条匹配记录。
+          </template>
+          <template v-else-if="fullHistorySearchStatus === 'complete'">
+            已搜索完整个会话历史，显示 {{ messageSearchResults.length }} 条匹配记录（最多 50 条）。
+          </template>
+          <template v-else-if="messageSearchQuery.trim()">
+            当前已加载消息中有 {{ messageSearchResults.length }} 条匹配记录（最多 50 条）；可以继续搜索全部历史。
+          </template>
+          <template v-else>搜索当前已加载的消息，或搜索完整个会话的服务端历史。</template>
         </p>
-        <p v-if="messageSearchQuery.trim() && messageSearchResults.length === 0" class="message-search-empty">
-          当前已加载记录中没有匹配项；可以加载更早消息后继续搜索。
+        <p v-if="fullHistorySearchError" class="message-search-error" role="alert">{{ fullHistorySearchError }}</p>
+        <p v-if="messageSearchQuery.trim() && messageSearchResults.length === 0 && fullHistorySearchStatus !== 'searching'" class="message-search-empty">
+          当前已加载记录中没有匹配项；可以搜索全部历史消息。
         </p>
         <div v-if="messageSearchResults.length > 0" class="message-search-results" data-testid="message-search-results">
           <button
@@ -1383,13 +1510,27 @@ async function signOut() {
           </button>
         </div>
         <button
+          v-if="messageSearchQuery.trim() && fullHistorySearchStatus !== 'searching' && fullHistorySearchStatus !== 'complete'"
+          class="message-search-older"
+          data-testid="search-entire-history"
+          type="button"
+          @click="searchEntireHistory"
+        >{{ fullHistorySearchStatus === 'cancelled' || fullHistorySearchStatus === 'error' ? '继续搜索全部历史' : '搜索全部历史' }}</button>
+        <button
+          v-if="messageSearchQuery.trim() && fullHistorySearchStatus === 'searching'"
+          class="message-search-older"
+          data-testid="cancel-history-search"
+          type="button"
+          @click="cancelFullHistorySearch"
+        >停止搜索</button>
+        <button
           v-if="currentHistory?.hasMore"
           class="message-search-older"
           data-testid="search-older-messages"
           type="button"
           :disabled="olderMessagesLoading"
           @click="loadOlderMessages"
-        >{{ olderMessagesLoading ? '正在加载…' : '加载更早消息并继续搜索' }}</button>
+        >{{ olderMessagesLoading ? '正在加载…' : '将更早消息载入聊天' }}</button>
       </section>
 
       <div v-if="selectedSession" ref="messagePanel" class="conversation-panel" data-testid="message-panel">

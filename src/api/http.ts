@@ -55,6 +55,7 @@ client.interceptors.request.use((config) => {
 export async function postForm<T>(
   path: string,
   values: Record<string, string | number | boolean | null | undefined>,
+  options: { signal?: AbortSignal } = {},
 ): Promise<T> {
   const body = new URLSearchParams()
   for (const [key, value] of Object.entries(values)) {
@@ -64,6 +65,7 @@ export async function postForm<T>(
   try {
     const response = await client.post<BaseResponse<T>>(path, body, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      ...(options.signal ? { signal: options.signal } : {}),
     })
     return unwrapResponse(response.data)
   } catch (error: unknown) {
