@@ -80,6 +80,33 @@ describe('chat initialization state', () => {
     expect(chatStore.sessionList[0]?.lastReceiveTime).toBe(2000)
   })
 
+  it('orders messages from different devices by server message ID when timestamps race', () => {
+    setActivePinia(createPinia())
+    const chatStore = useChatStore()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S100', contactId: 'U200', contactName: 'Friend',
+          lastMessage: '', lastReceiveTime: 1000, contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+
+    chatStore.receiveMessage({
+      messageId: 20, sessionId: 'S100', messageType: 2, messageContent: 'Committed second',
+      sendUserId: 'U200', sendUserNickName: 'Friend', sendTime: 1000, contactId: 'U100',
+    })
+    chatStore.receiveMessage({
+      messageId: 19, sessionId: 'S100', messageType: 2, messageContent: 'Committed first',
+      sendUserId: 'U100', sendUserNickName: 'Student', sendTime: 1001, contactId: 'U200',
+    })
+
+    expect(chatStore.initialMessages.map((message) => message.messageId)).toEqual([19, 20])
+  })
+
   it('counts incoming messages only for inactive sessions and clears counts when a session opens', () => {
     setActivePinia(createPinia())
     const chatStore = useChatStore()

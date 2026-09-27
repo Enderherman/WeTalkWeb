@@ -11,7 +11,7 @@ import ContactDirectoryDialog from '@/components/ContactDirectoryDialog.vue'
 import ContactSearchDialog from '@/components/ContactSearchDialog.vue'
 import GroupDirectoryDialog from '@/components/GroupDirectoryDialog.vue'
 import { useAuthStore } from '@/stores/auth'
-import { useChatStore, type InitialChatMessage } from '@/stores/chat'
+import { compareMessagesByServerOrder, useChatStore, type InitialChatMessage } from '@/stores/chat'
 import { useDownloadPreferencesStore } from '@/stores/downloadPreferences'
 import { useSystemSettingsStore } from '@/stores/systemSettings'
 import type { DownloadLocationMode } from '@/storage/downloadPreferences'
@@ -95,7 +95,7 @@ const searchJumpMessageId = ref<number | null>(null)
 const conversationMessages = computed(() =>
   chatStore.initialMessages
     .filter((message) => message.sessionId === selectedSessionId.value && [2, 3, 5, 8, 9, 11, 12, 14].includes(message.messageType))
-    .sort((a, b) => a.sendTime - b.sendTime)
+    .sort(compareMessagesByServerOrder)
 )
 const selectedMessages = computed(() => {
   const messages = conversationMessages.value
@@ -112,7 +112,7 @@ const messageSearchResults = computed(() => {
     .filter((message) => message.sessionId === selectedSessionId.value && [2, 5, 14].includes(message.messageType))
     .filter((message) => [message.messageContent, message.fileName, message.sendUserNickName]
       .some((value) => typeof value === 'string' && value.toLocaleLowerCase().includes(query)))
-    .sort((a, b) => b.sendTime - a.sendTime)
+    .sort((a, b) => compareMessagesByServerOrder(b, a))
     .slice(0, 50)
 })
 const currentHistory = computed(() => chatStore.historyBySession[selectedSessionId.value] || null)

@@ -36,7 +36,7 @@ describe('text-only IndexedDB cache', () => {
       textMessage(2, 'S1', 2000),
       textMessage(3, 'S1', 3000),
       textMessage(4, 'S2', 4000),
-      textMessage(5, 'S1', 5000),
+      textMessage(5, 'S1', 1500),
     ])
     await cache.saveTextMessages('U200', [textMessage(6, 'S1', 6000)])
 
@@ -88,6 +88,41 @@ describe('text-only IndexedDB cache', () => {
 
     expect(await reopened.getPendingTextMessages('U100')).toEqual([])
     expect((await reopened.getPendingTextMessages('U200'))[0]?.messageContent).toBe('Private')
+  })
+
+  it('upgrades the existing version-2 cache and preserves its message and pending stores', async () => {
+    const databaseName = `we-talk-test-v2-${Math.random().toString(16).slice(2)}`
+    const oldDatabase = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open(databaseName, 2)
+      request.onupgradeneeded = () => {
+        const db = request.result
+        const messages = db.createObjectStore('messages', { keyPath: ['accountId', 'sessionId', 'messageId'] })
+        messages.createIndex('byAccount', 'accountId', { unique: false })
+        messages.createIndex('byAccountSessionTime', ['accountId', 'sessionId', 'sendTime'], { unique: false })
+        const pending = db.createObjectStore('pending_messages', { keyPath: ['accountId', 'clientMessageId'] })
+        pending.createIndex('byAccount', 'accountId', { unique: false })
+      }
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    const transaction = oldDatabase.transaction(['messages', 'pending_messages'], 'readwrite')
+    transaction.objectStore('messages').put({
+      accountId: 'U100', ...textMessage(25, 'S1', 2500),
+    })
+    transaction.objectStore('pending_messages').put({
+      accountId: 'U100', clientMessageId: 'old-cache-key', sessionId: 'S1',
+      contactId: 'U200', messageContent: 'Pending before upgrade', createdAt: 2600,
+    })
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+      transaction.onabort = () => reject(transaction.error)
+    })
+    oldDatabase.close()
+
+    const upgraded = createCache(databaseName)
+    expect((await upgraded.getLatestTextMessages('U100', 'S1'))[0]?.messageId).toBe(25)
+    expect((await upgraded.getPendingTextMessages('U100'))[0]?.clientMessageId).toBe('old-cache-key')
   })
 
   it('caches completed AI text but skips empty placeholders and stream frames', async () => {

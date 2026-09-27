@@ -1,9 +1,10 @@
 import type { InitialChatMessage } from '@/stores/chat'
 
 const databaseName = 'wetalk-web-text-cache'
-const databaseVersion = 2
+const databaseVersion = 3
 const messageStoreName = 'messages'
 const pendingMessageStoreName = 'pending_messages'
+const messageOrderIndexName = 'byAccountSessionMessageId'
 
 interface CachedTextMessage extends InitialChatMessage {
   accountId: string
@@ -45,12 +46,19 @@ export class TextMessageCache {
       const request = this.factory!.open(this.name, databaseVersion)
       request.onupgradeneeded = () => {
         const db = request.result
-        if (!db.objectStoreNames.contains(messageStoreName)) {
-          const store = db.createObjectStore(messageStoreName, {
+        const messageStore = db.objectStoreNames.contains(messageStoreName)
+          ? request.transaction!.objectStore(messageStoreName)
+          : db.createObjectStore(messageStoreName, {
             keyPath: ['accountId', 'sessionId', 'messageId'],
           })
-          store.createIndex('byAccount', 'accountId', { unique: false })
-          store.createIndex('byAccountSessionTime', ['accountId', 'sessionId', 'sendTime'], { unique: false })
+        if (!messageStore.indexNames.contains('byAccount')) {
+          messageStore.createIndex('byAccount', 'accountId', { unique: false })
+        }
+        if (!messageStore.indexNames.contains('byAccountSessionTime')) {
+          messageStore.createIndex('byAccountSessionTime', ['accountId', 'sessionId', 'sendTime'], { unique: false })
+        }
+        if (!messageStore.indexNames.contains(messageOrderIndexName)) {
+          messageStore.createIndex(messageOrderIndexName, ['accountId', 'sessionId', 'messageId'], { unique: false })
         }
         if (!db.objectStoreNames.contains(pendingMessageStoreName)) {
           const store = db.createObjectStore(pendingMessageStoreName, {
@@ -75,7 +83,7 @@ export class TextMessageCache {
     if (!db) return []
 
     const transaction = db.transaction(messageStoreName, 'readonly')
-    const index = transaction.objectStore(messageStoreName).index('byAccountSessionTime')
+    const index = transaction.objectStore(messageStoreName).index(messageOrderIndexName)
     const range = IDBKeyRange.bound([accountId, sessionId, 0], [accountId, sessionId, Number.MAX_SAFE_INTEGER])
     const rows: CachedTextMessage[] = []
 

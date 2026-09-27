@@ -85,6 +85,16 @@ function normalizeHistoryMessage(message: InitialChatMessage): InitialChatMessag
   }
 }
 
+export function compareMessagesByServerOrder(
+  left: Pick<InitialChatMessage, 'messageId' | 'sendTime'>,
+  right: Pick<InitialChatMessage, 'messageId' | 'sendTime'>,
+) {
+  const leftId = Number(left.messageId) || 0
+  const rightId = Number(right.messageId) || 0
+  if (leftId > 0 && rightId > 0 && leftId !== rightId) return leftId - rightId
+  return (Number(left.sendTime) || 0) - (Number(right.sendTime) || 0) || leftId - rightId
+}
+
 export const useChatStore = defineStore('chat', {
   state: () => ({
     connectionStatus: 'idle' as RealtimeStatus,
@@ -178,7 +188,7 @@ export const useChatStore = defineStore('chat', {
             noReadCount: Math.max(0, Number(session.noReadCount ?? previous?.noReadCount) || 0),
           }
         })
-        this.initialMessages = [...merged.values()].sort((a, b) => a.sendTime - b.sendTime)
+        this.initialMessages = [...merged.values()].sort(compareMessagesByServerOrder)
         const pendingAiIds = new Set<number>()
         for (const item of this.initialMessages) {
           if (item.messageType === 14 && (item.aiStatus === 'waiting' || item.aiStatus === 'streaming')) {
@@ -314,7 +324,7 @@ export const useChatStore = defineStore('chat', {
         if (Number.isFinite(messageId)) {
           const eventMessage = message as unknown as InitialChatMessage
           if (!this.initialMessages.some((item) => item.messageId === eventMessage.messageId)) {
-            this.initialMessages = [...this.initialMessages, eventMessage].sort((a, b) => a.sendTime - b.sendTime)
+            this.initialMessages = [...this.initialMessages, eventMessage].sort(compareMessagesByServerOrder)
           }
           session.lastMessage = typeof message.messageContent === 'string' ? message.messageContent : session.lastMessage
           session.lastReceiveTime = Number(message.sendTime) || session.lastReceiveTime
@@ -363,7 +373,7 @@ export const useChatStore = defineStore('chat', {
       if (previous) {
         this.initialMessages = this.initialMessages.map((item) => item.messageId === messageId ? aiMessage : item)
       } else {
-        this.initialMessages = [...this.initialMessages, aiMessage].sort((a, b) => a.sendTime - b.sendTime)
+        this.initialMessages = [...this.initialMessages, aiMessage].sort(compareMessagesByServerOrder)
       }
 
       const session = this.sessionList.find((item) => item.sessionId === sessionId)
@@ -404,7 +414,7 @@ export const useChatStore = defineStore('chat', {
     },
     appendMessage(message: InitialChatMessage, sentByCurrentUser: boolean) {
       if (this.initialMessages.some((item) => item.messageId === message.messageId)) return
-      this.initialMessages = [...this.initialMessages, message].sort((a, b) => a.sendTime - b.sendTime)
+      this.initialMessages = [...this.initialMessages, message].sort(compareMessagesByServerOrder)
       if (this.accountId) {
         void textMessageCache.saveTextMessages(this.accountId, [message]).catch(() => undefined)
       }
@@ -451,8 +461,8 @@ export const useChatStore = defineStore('chat', {
           merged.set(messageId, { ...message, aiStatus: 'interrupted' })
         }
       }
-      const sessionMessages = [...merged.values()].sort((a, b) => a.sendTime - b.sendTime)
-      this.initialMessages = [...otherSessions, ...sessionMessages].sort((a, b) => a.sendTime - b.sendTime)
+      const sessionMessages = [...merged.values()].sort(compareMessagesByServerOrder)
+      this.initialMessages = [...otherSessions, ...sessionMessages].sort(compareMessagesByServerOrder)
     },
     setHistoryPage(sessionId: string, page: ChatHistoryPage, appendOlder = false) {
       const existing = this.initialMessages.filter((item) => item.sessionId === sessionId)
@@ -471,9 +481,9 @@ export const useChatStore = defineStore('chat', {
         : existing.filter((item) => item.messageId > newestPageId)
       const merged = new Map<number, InitialChatMessage>()
       for (const item of [...pageMessages, ...keepLiveMessages]) merged.set(item.messageId, item)
-      const sessionMessages = [...merged.values()].sort((a, b) => a.sendTime - b.sendTime)
+      const sessionMessages = [...merged.values()].sort(compareMessagesByServerOrder)
       const previous = this.historyBySession[sessionId]
-      this.initialMessages = [...otherSessions, ...sessionMessages].sort((a, b) => a.sendTime - b.sendTime)
+      this.initialMessages = [...otherSessions, ...sessionMessages].sort(compareMessagesByServerOrder)
       for (const item of sessionMessages) {
         if (item.messageType === 14 && (item.aiStatus === 'waiting' || item.aiStatus === 'streaming')) {
           scheduleAiResponseTimeout(item.messageId, () => this.markAiResponseInterrupted(item.messageId))
