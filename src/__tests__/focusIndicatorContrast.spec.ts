@@ -17,7 +17,7 @@ function contrastRatio(first: string, second: string): number {
   return (Math.max(firstLuminance, secondLuminance) + 0.05) / (Math.min(firstLuminance, secondLuminance) + 0.05)
 }
 
-describe('keyboard focus indicator contrast', () => {
+describe('accessibility color contrast', () => {
   it('uses a solid accent outline with at least 3:1 contrast on the web surfaces', () => {
     const accent = stylesheet.match(/--wt-accent:\s*(#[\da-f]{6})/i)?.[1]
     expect(accent).toBeDefined()
@@ -36,6 +36,16 @@ describe('keyboard focus indicator contrast', () => {
     for (const textColor of [muted!, neutral400!]) {
       expect(contrastRatio(textColor, '#ffffff')).toBeGreaterThanOrEqual(4.5)
       expect(contrastRatio(textColor, '#f7f7f5')).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('does not reintroduce the previously low-contrast supporting text colors', () => {
+    const lowContrastTextColors = [
+      '#a1a19c', '#a1a19b', '#a0a09b', '#9a9a95', '#999993',
+      '#8b8b85', '#85857f', '#638170', '#777872', '#777772',
+    ]
+    for (const color of lowContrastTextColors) {
+      expect(stylesheet).not.toContain(`color: ${color}`)
     }
   })
 })
