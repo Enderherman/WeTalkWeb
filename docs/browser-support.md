@@ -27,6 +27,8 @@ Chromium 360×800 还截图检查了通用服务错误页、空会话和服务�
 
 测试还验证了消息搜索输入框的焦点进入/返回、桌面资料弹窗的焦点往返，以及移动联系人弹窗关闭后侧栏保持展开并将焦点返回可见的打开按钮。API 和 WebSocket 响应由测试桩提供，因此这项检查只记录浏览器渲染和交互表现，不代替真实后端联调。截图保存在 `D:/environment/WeTalkBrowserQA/captures`。Chromium 移动设备仿真和 Playwright WebKit 不能代替真实 Android Chrome/iOS Safari；真机矩阵仍待完成。
 
+已目视检查桌面登录、移动登录/注册和桌面/移动聊天截图。统一色彩以白色和浅灰中性色为主、绿色作强调色；焦点环及辅助文字对比度由 CSS 单元测试自动检查。
+
 ## 浏览器能力要求
 
 - JavaScript、WebSocket 和 Blob 对象 URL 用于页面、实时消息和媒体预览。

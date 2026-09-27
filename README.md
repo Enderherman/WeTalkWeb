@@ -396,6 +396,12 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 - 新增 CSS 合同测试。Playwright Chromium 768×1024 与 1280×900 实测侧栏宽 272px、从 x=0 延伸到视口底部，主聊天区从 x=272 开始；360/390 手机和 WebKit 390 仍无横向溢出。全量 237 项测试、类型检查、生产构建和五组模拟视口回归通过；API/WebSocket 使用测试桩。
 - 更新后的桌面截图保存在 `D:/environment/WeTalkBrowserQA/captures/chromium-1280-chat.png`。
 
+### 本轮验收：统一设计 tokens 的桌面与移动表现
+
+- 目视检查了桌面登录页、移动登录/注册页和桌面/移动聊天页截图；页面保持白色与浅灰中性色为主、绿色作为强调色，表单、按钮、侧栏和聊天区的视觉层级一致。
+- CSS 自动化检查验证焦点环在白色/浅色背景对比度达到 3:1，说明文字 token 达到 4.5:1，并防止旧的低对比度文字色回归。当前 237 项单测、类型检查、生产构建和五组模拟视口检查通过。该记录不代替真实 Android/iOS 设备验收。
+- 截图位于 `D:/environment/WeTalkBrowserQA/captures`，包括 `chromium-1280-login.png`、`chromium-390-login.png`、`chromium-390-register.png`、`chromium-1280-chat.png` 和 `chromium-390-chat.png`。
+
 ### 本轮验收：Playwright 模拟视口
 
 - 用 Chromium 在 360×800、390×844、768×1024、1280×900 CSS 像素视口，以及 WebKit 在 390×844 视口下截取并检查登录、注册、聊天页。
