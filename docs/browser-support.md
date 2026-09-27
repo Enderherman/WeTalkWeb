@@ -13,6 +13,10 @@
 
 使用稳定版和前一版作为滚动目标，每次发布记录测试日期、浏览器版本、系统和设备。表中未承诺旧版 Internet Explorer 或原生桌面功能。
 
+## 短期部署目标
+
+短期仅计划在 NAS Docker 的内网环境测试；正式域名尚未确定，配置暂以 `<WETALK_WEB_HOST>` 占位，NAS 地址、端口和容器网络在部署阶段确认。部署时优先让网页、`/api` 和 `/ws` 共用同源入口。内网 HTTP 测试仅用于隔离的测试环境；若通过 NAS 反向代理启用 HTTPS/WSS，则设置 `WETALK_WEB_AUTH_COOKIE_SECURE=true`。对外发布前必须确定正式域名、HTTPS/WSS、允许的 Origin、备份与回滚配置。
+
 ### 自动化模拟视口记录（2026-09-27）
 
 Playwright 1.63 使用本地 mock API/WebSocket 对登录、注册和一对一聊天页面做了截图与基础键盘路径检查。Chromium 153.0.8010.12 覆盖 360×800、390×844、768×1024 和 1280×900 CSS 像素视口；Playwright WebKit 26.6 覆盖 390×844。5 组测试的 `document.scrollWidth` 均等于 `innerWidth`，页面异常数均为 0。

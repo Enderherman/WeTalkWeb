@@ -1762,6 +1762,18 @@ describe('authentication flow', () => {
     expect(contactApi.loadApplications).toHaveBeenCalledWith(1)
   })
 
+  it('includes the pending application count in the screen-reader name', async () => {
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: { chatSessionList: [], chatMessageList: [], applyCount: 12 },
+    })
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="open-contact-applications"]').attributes('aria-label'))
+      .toBe('好友申请，12 条待处理')
+  })
+
   it('opens the friend directory from the chat sidebar', async () => {
     const { wrapper } = await mountChat()
     await wrapper.get('[data-testid="open-contact-directory"]').trigger('click')

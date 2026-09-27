@@ -1359,6 +1359,7 @@ async function signOut() {
           data-testid="open-contact-applications"
           type="button"
           aria-haspopup="dialog"
+          :aria-label="chatStore.applyCount > 0 ? '好友申请，' + chatStore.applyCount + ' 条待处理' : '好友申请'"
           @click="openContactApplications"
         >
           <span>好友申请</span>
