@@ -17,6 +17,22 @@
 
 短期仅计划在 NAS Docker 的内网环境测试；正式域名尚未确定，配置暂以 `<WETALK_WEB_HOST>` 占位，NAS 地址、端口和容器网络在部署阶段确认。部署时优先让网页、`/api` 和 `/ws` 共用同源入口。内网 HTTP 测试仅用于隔离的测试环境；若通过 NAS 反向代理启用 HTTPS/WSS，则设置 `WETALK_WEB_AUTH_COOKIE_SECURE=true`。对外发布前必须确定正式域名、HTTPS/WSS、允许的 Origin、备份与回滚配置。
 
+WeTalkWeb 提供 `Dockerfile` 和 `compose.nas.yaml`：Nginx 容器监听 8080，同源代理 `/api` 到 `wetalk:5050`、`/ws` 到 `wetalk:5051`，并加入后端共用的外部 Docker 网络 `wetalk-net`。复制 `.env.nas.example` 为 `.env`，将 `WEB_BIND_IP` 设为刚核实的 NAS 局域网地址；后端 `WETALK_WEB_ALLOWED_ORIGINS` 设为同源 `http://<NAS_LAN_IP>:<WEB_PUBLISHED_PORT>`。内网 HTTP 测试时 `WETALK_WEB_AUTH_COOKIE_SECURE=false`，对外 HTTPS/WSS 部署必须设为 `true`。Compose 启动命令和健康探针见本节下方；当前仅完成本地打包配置，尚未在 NAS 实际部署。
+
+首次部署需先在 `wetalk-net` 网络中启动已配置的后端/基础服务，再启动网页容器：
+
+~~~shell
+cp .env.nas.example .env
+# 将 WEB_BIND_IP 改为现场确认的 NAS 局域网地址
+docker compose -f compose.nas.yaml config --quiet
+docker compose -f compose.nas.yaml up -d --build
+docker compose -f compose.nas.yaml ps
+docker compose -f compose.nas.yaml logs --tail=100 wetalk-web
+curl -f http://127.0.0.1:8080/healthz
+~~~
+
+NAS 的 `wetalk-web` 端口映射需与后端允许的 Origin 一致。再从局域网浏览器打开 `http://<NAS_LAN_IP>:<WEB_PUBLISHED_PORT>`，验证登录 Cookie、REST API、WebSocket ticket、消息收发、刷新及附件上传/下载。
+
 ### 自动化模拟视口记录（2026-09-27）
 
 Playwright 1.63 使用本地 mock API/WebSocket 对登录、注册和一对一聊天页面做了截图与基础键盘路径检查。Chromium 153.0.8010.12 覆盖 360×800、390×844、768×1024 和 1280×900 CSS 像素视口；Playwright WebKit 26.6 覆盖 390×844。5 组测试的 `document.scrollWidth` 均等于 `innerWidth`，页面异常数均为 0。

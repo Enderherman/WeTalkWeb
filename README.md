@@ -395,6 +395,11 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 - 接收方标记私聊已读后，发送方实时收到 type 17，并将本人文字消息状态显示为“已读”；群聊不展示个人已读状态。
 - WebSocket INIT 恢复对端持久已读游标，重连后仍显示正确状态。验证：后端 Maven clean verify 96 项、WeTalkWeb 244 项单测、类型检查和生产构建通过；真实后端双账号验证实时回执、重复游标抑制和重连恢复，测试账号与关联数据已清理。
 
+### NAS Docker 网页容器配置已准备；实际部署待接入
+
+- 新增多阶段 `Dockerfile`、Nginx 同源 `/api` 与 `/ws` 代理、外部 `wetalk-net` Compose 配置和 `.env.nas.example`；静态资源使用长缓存，入口页不缓存，上传上限与后端文件限制相符。
+- `docker compose --env-file .env.nas.example -f compose.nas.yaml config --quiet` 已通过；前端生产构建和 244 项单测通过。当前本机 Docker Engine 未运行，NAS 容器与 LAN 登录尚未验收。
+
 ### 本轮修复：桌面聊天区两列布局
 
 - 桌面聊天壳补齐 272px 侧栏和弹性主聊天区两列；手机断点仍使用单列布局，导航侧栏按需覆盖显示。

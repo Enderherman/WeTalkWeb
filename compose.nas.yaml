@@ -1,0 +1,18 @@
+services:
+  wetalk-web:
+    image: ${WETALK_WEB_IMAGE:-wetalk-web:0.1.0}
+    build:
+      context: .
+      args:
+        VITE_API_BASE_URL: /api
+    container_name: wetalk-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_BIND_IP:-127.0.0.1}:${WEB_PUBLISHED_PORT:-8080}:8080"
+    networks:
+      - wetalk
+
+networks:
+  wetalk:
+    external: true
+    name: wetalk-net
