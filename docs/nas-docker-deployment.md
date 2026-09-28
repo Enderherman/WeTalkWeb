@@ -96,14 +96,20 @@ curl -f "http://${NAS_LAN_IP}:${WEB_PUBLISHED_PORT}/healthz"
 - 备份后应用 `sql/002-client-message-idempotency.sql` 与 `sql/003-persistent-unread-cursor.sql`，并读回确认字段和索引。测试后清理了临时账号、好友关系、会话和消息，业务表行数恢复为 0。
 - NAS Docker 后端 readiness 返回 `UP`，网页 `/healthz` 返回 `ok`，同源 `/api/actuator/health/readiness` 返回 `UP`。Playwright 双账号真实后端验证注册/登录、Cookie 会话、WebSocket、好友申请、私聊发送、幂等重试、附件上传/下载、历史恢复和 type 17 已读回执。生产网页在 Chromium 360/390/768/1280、WebKit 登录/注册 390/768/1280 模拟视口无横向溢出或页面错误；WebKit 模拟不等同于 iOS Safari 实机验收。
 - WebKit 登录/注册模拟还验证了邮箱、密码、验证码到提交按钮的 Tab 顺序和模式切换链接焦点；真实 iOS Safari 键盘/触控仍待用户设备验收。
-- 已将数据库逻辑备份恢复到隔离的无网络 MySQL 8.4 临时容器，恢复出 9 张表后应用 002/003 并核对字段和索引；测试容器与随机凭据已清理。数据库恢复演练通过。附件目录归档/恢复演练也已通过；目录原有 0 个文件，本次写入一次性探针、归档到受限临时目录、恢复到隔离目录并核对 SHA-256 一致，随后清理探针和临时归档。非空真实附件恢复、后端镜像回滚、HTTPS/WSS、正式域名、实体手机 Safari/Chrome 和辅助功能检查仍待完成。
+- 已将数据库逻辑备份恢复到隔离的无网络 MySQL 8.4 临时容器，恢复出 9 张表后应用 002/003 并核对字段和索引；测试容器与随机凭据已清理。数据库恢复演练通过。附件目录归档/恢复演练也已通过；目录原有 0 个文件，本次写入一次性探针、归档到受限临时目录、恢复到隔离目录并核对 SHA-256 一致，随后清理探针和临时归档。非空真实附件恢复、HTTPS/WSS、正式域名、实体手机 Safari/Chrome 和辅助功能检查仍待完成。
 
 ### Nginx 安全响应头修复部署（2026-09-28）
 
 - 部署已推送源码 `f0e97282e21b08f03accbd0dadfee840de722abd`，只重建 `wetalk-web`；后端、MySQL、Redis 容器没有重启或变更。
 - NAS 源码归档：`/volume2/docker/wetalk-web/wetalk-web-0.1.0-nas-2026-09-28-r4-source.zip`；SHA-256：`da3d97a969552c2bd91ef1d523bdd6f116f3ca0465d9271125d5055cbad99e7a`。部署目录 `.env` 保留在 NAS，本次源码包不含 `.env`。
 - 首页、`/index.html` 和 JS 资源均返回 HTTP 200，且包含 `X-Content-Type-Options: nosniff`、`Referrer-Policy: strict-origin-when-cross-origin`、`X-Frame-Options: DENY`；HTML 为 `Cache-Control: no-cache`，JS 为 `public, max-age=31536000, immutable`。
-- `http://192.168.31.108:8081/healthz` 返回 `ok`，同源 `/api/actuator/health/readiness` 返回 `{"status":"UP"}`。网页镜像标签为 `wetalk-web:0.1.0`；部署前旧镜像保存在 `wetalk-web:0.1.0-pre-f0e9728-20260928`。已用 Compose 实际切回旧 Web 镜像并检查 `/healthz`，再切回 `wetalk-web:0.1.0`，复验安全响应头和 readiness；后端与数据库容器未重启。后端镜像回滚仍未演练。
+- `http://192.168.31.108:8081/healthz` 返回 `ok`，同源 `/api/actuator/health/readiness` 返回 `{"status":"UP"}`。网页镜像标签为 `wetalk-web:0.1.0`；部署前旧镜像保存在 `wetalk-web:0.1.0-pre-f0e9728-20260928`。已用 Compose 实际切回旧 Web 镜像并检查 `/healthz`，再切回 `wetalk-web:0.1.0`，复验安全响应头和 readiness；后端与数据库容器未重启。
+
+### 后端镜像回滚演练（2026-09-28）
+
+- 保留后端 0.0.2 镜像，再短暂以旧镜像代替 `wetalk-backend:0.0.3` 并通过原 Compose 重新创建后端容器；旧容器 readiness 返回 `UP`。
+- 随后恢复 0.0.3 镜像标签并再次重建后端；运行中镜像 ID 与备份的 0.0.3 镜像一致，readiness 返回 `UP`。MySQL/Redis 与数据目录全程未重启或修改。
+- 旧后端兼容性测试期间临时关闭 AI，回滚恢复后已将 NAS AI 配置恢复启用；邮件保持关闭，等待有效 QQ SMTP 授权码。
 
 已现场验证的 Web 回退与恢复命令（在网页 Compose 目录执行）：
 
@@ -147,4 +153,4 @@ sudo docker compose -f compose.yaml -f compose.nas.yaml up -d
 sudo docker compose -f compose.nas.yaml up -d
 ~~~
 
-本手册、Docker Compose 配置、NAS 容器部署、LAN 浏览器验收和数据库逻辑恢复演练已通过；文件目录恢复、应用镜像回滚、HTTPS/WSS 和实体设备验收仍待完成。
+本手册、Docker Compose 配置、NAS 容器部署、LAN 浏览器验收、数据库逻辑恢复、空目录文件归档/恢复以及 Web/后端镜像回滚演练已通过；非空真实附件恢复、HTTPS/WSS 和实体设备验收仍待完成。
