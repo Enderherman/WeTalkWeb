@@ -393,13 +393,13 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 ### 私聊发送者已读回执
 
 - 接收方标记私聊已读后，发送方实时收到 type 17，并将本人文字消息状态显示为“已读”；群聊不展示个人已读状态。
-- WebSocket INIT 恢复对端持久已读游标，重连后仍显示正确状态。后端 Maven 96 项、WeTalkWeb 244 项单测、类型检查和生产构建通过；真实双账号/MySQL/Redis/Netty E2E 验证 type 17、重复游标抑制和重连恢复。Playwright Chromium 两个独立浏览器在 1280×900、768×1024、390×844 真实后端链路验证实时消息、已读和刷新恢复；截图位于 `D:/environment/WeTalkBrowserQA/captures/chromium-1280-dual-account-read-receipt.png`、`chromium-768-dual-account-read-receipt.png`、`chromium-390-dual-account-read-receipt.png`。临时测试数据已清理；真机验收仍待完成。
+- WebSocket INIT 恢复对端持久已读游标，重连后仍显示正确状态。后端 Maven 96 项、WeTalkWeb 247 项单测、类型检查和生产构建通过；真实双账号/MySQL/Redis/Netty E2E 验证 type 17、重复游标抑制和重连恢复。Playwright Chromium 两个独立浏览器在 1280×900、768×1024、390×844 真实后端链路验证实时消息、已读和刷新恢复；截图位于 `D:/environment/WeTalkBrowserQA/captures/chromium-1280-dual-account-read-receipt.png`、`chromium-768-dual-account-read-receipt.png`、`chromium-390-dual-account-read-receipt.png`。临时测试数据已清理；真机验收仍待完成。
 
 ### NAS Docker 网页容器已部署并完成 LAN 实测
 
 - 新增多阶段 `Dockerfile`、Nginx 同源 `/api` 与 `/ws` 代理、外部 `wetalk-net` Compose 配置和 `.env.nas.example`；部署步骤、备份和回滚见 `docs/nas-docker-deployment.md`。后端 API/WS 默认只绑定 NAS 本机回环地址，只有网页入口映射到 LAN。静态资源使用长缓存，入口页不缓存，上传上限与后端文件限制相符。
 - 已在 NAS 部署 Web 与后端：Nginx 网页入口使用 `<NAS_LAN_IP>:8081`（默认 8080 已被占用），`/api` 和 `/ws` 走同源代理，后端宿主机端口只绑定回环地址；复用既有 MySQL/Redis 数据卷。数据库先备份后应用迁移 002/003，readiness 与 `/healthz` 返回 UP/ok。
-- Playwright 双账号真实后端验收覆盖注册、Cookie 登录、WebSocket、好友申请、消息发送/幂等重试、历史恢复、type 17 已读回执，以及 NAS 上附件上传/接收方下载字节校验；临时账号、关系、消息和文件均已清理。Chromium 360/390/768/1280 和 WebKit 登录/注册 390/768/1280 模拟视口无横向溢出，244 项单测、类型检查、生产构建与 NAS Docker 构建通过。数据库逻辑备份恢复演练已通过；文件目录备份恢复与应用镜像回滚、实体设备验收、HTTPS/WSS 仍待完成。
+- Playwright 双账号真实后端验收覆盖注册、Cookie 登录、WebSocket、好友申请、消息发送/幂等重试、历史恢复、type 17 已读回执，以及 NAS 上附件上传/接收方下载字节校验；临时账号、关系、消息和文件均已清理。Chromium 360/390/768/1280 和 WebKit 登录/注册 390/768/1280 模拟视口无横向溢出，247 项单测、类型检查、生产构建与 NAS Docker 构建通过。数据库逻辑备份恢复演练已通过；文件目录备份恢复与应用镜像回滚演练、实体设备验收、HTTPS/WSS 仍待完成。
 
 ### NAS WebKit 模拟键盘验收
 
@@ -409,7 +409,7 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 
 - Nginx location 自己设置 `Cache-Control` 时不会继承 server 级 `add_header`；因此 HTML 入口和 `/assets/` 之前缺少 `X-Content-Type-Options`、`Referrer-Policy` 和 `X-Frame-Options`。
 - 已在两个 location 显式补齐安全头，并新增 `nginxHeaders.spec.ts` 检查安全头和 HTML/静态资源缓存策略。全量 247 项测试、类型检查和生产构建通过。
-- 本次源码修复尚未重新部署到 NAS；部署后需用 HTTP 响应头检查确认线上生效。
+- 已部署已推送源码 `f0e9728` 至 NAS；只重建 `wetalk-web`，后端、MySQL、Redis 未重启。首页、`/index.html` 和 JS 静态资源均返回 `X-Content-Type-Options: nosniff`、`Referrer-Policy: strict-origin-when-cross-origin`、`X-Frame-Options: DENY`；入口页为 `Cache-Control: no-cache`，静态资源为一年 immutable 缓存。`/healthz` 返回 `ok`，同源 readiness 返回 `UP`。旧网页镜像保存在 `wetalk-web:0.1.0-pre-f0e9728-20260928`，NAS 源码包为 `wetalk-web-0.1.0-nas-2026-09-28-r4-source.zip`。
 
 ### 本轮修复：桌面聊天区两列布局
 
