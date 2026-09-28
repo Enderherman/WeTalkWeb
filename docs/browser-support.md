@@ -99,3 +99,9 @@ Playwright 1.63 启动可见的 Chromium 153.0.8010.12 实际浏览器窗口访�
 Playwright 1.63 启动本机安装的 Chrome 154.0.8037.57 与 Edge 154.0.4258.37，访问 NAS 实际部署站点。两个浏览器均检查登录、注册页的桌面 1440×900 和手机宽度仿真 390×844：页面 HTTP 200，图片验证码加载，Tab 顺序通过，没有横向溢出或 JavaScript 页面异常；未登录或提交表单。脚本为 `D:/environment/WeTalkBrowserQA/nas-installed-browsers.mjs`，8 张截图保存在 `D:/environment/WeTalkBrowserQA/captures`，文件名前缀分别为 `chrome-` 和 `edge-`。
 
 这项结果只覆盖已安装版本的登录和注册页。登录后聊天、前一稳定版浏览器、真实 iOS/Android 设备上的触控、安全区、软键盘和屏幕阅读器仍待验收。
+
+### Chrome / Edge 表单语义与按钮尺寸检查（2026-09-28）
+
+先在本地 Vite 页面用 mock 只替代图片验证码接口，再访问 NAS 实际部署站点并加载真实验证码。Chrome 154.0.8037.57、Edge 154.0.4258.37 各检查登录和注册页的 390×844 手机宽度仿真视口：页面均有主区域和一级标题；登录 3 个、注册 6 个输入框均关联标签；登录 2 个、注册 3 个按钮均有可访问名称且尺寸至少 24×24 CSS 像素。未提交表单。脚本为 `D:/environment/WeTalkBrowserQA/nas-auth-a11y-once.mjs`。
+
+这是 DOM 语义和仿真尺寸检查，不代替屏幕阅读器或实体设备触控、安全区域和软键盘验收。
