@@ -1,5 +1,12 @@
 # WeTalkWeb NAS Docker 内网部署手册
 
+## 2026-09-28 头像账号菜单改版部署
+
+- WeTalkWeb commit `ada35c0` 已推送并部署。源码归档 SHA-256：`b468a198540f40cb15d6b3ddf63c5da3e1152b8e513e985c6dd1cc5a7ff6eac1`。
+- 部署前将旧 `wetalk-web:0.1.0` 保存为 `wetalk-web:0.1.0-pre-ada35c0-20260928`；仅重建 `wetalk-web`，后端、MySQL、Redis 未重启，NAS 私有 `.env` 仍为权限 600。
+- `/healthz` 和 `/api/actuator/health/readiness` 均返回 HTTP 200；NAS CSS/聊天 JS 资源可读取 `.profile-actions-menu`、`.profile-menu-signout` 和“退出登录”菜单项。
+- 本轮未完成真实登录态浏览器目视确认；点击头像后的实际视觉与真实登出仍待验收。
+
 ## 2026-09-28 账号设置与聊天输入框修复部署
 
 - WeTalkWeb commit `2ab765e` 已推送并部署。源码归档 SHA-256：`222ee40e2fd16fa8dd7851223583b1cb45e119eb3c71bf48008c74c07bc5b507`。
