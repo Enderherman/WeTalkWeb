@@ -59,4 +59,10 @@ describe('accessibility color contrast', () => {
     expect(stylesheet).toMatch(/\.composer-preview:focus-within\s*\{[^}]*outline:\s*3px solid var\(--wt-accent\)/s)
     expect(stylesheet).toMatch(/\.composer-send:not\(:disabled\)\s*\{[^}]*color:\s*var\(--wt-white\)[^}]*background:\s*var\(--wt-accent-strong\)/s)
   })
+
+  it('styles account actions as a popover anchored to the avatar', () => {
+    expect(stylesheet).toMatch(/\.profile-actions-menu\s*\{[^}]*position:\s*absolute/s)
+    expect(stylesheet).toMatch(/\.profile-menu-signout\s*\{[^}]*color:\s*var\(--wt-danger-strong\)/s)
+    expect(stylesheet).not.toContain('.signout-button')
+  })
 })

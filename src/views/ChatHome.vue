@@ -49,6 +49,9 @@ const contactApplicationsOpen = ref(false)
 const contactDirectoryOpen = ref(false)
 const groupDirectoryOpen = ref(false)
 const groupDirectoryRefreshKey = ref(0)
+const profileMenuOpen = ref(false)
+const profileMenu = ref<HTMLElement | null>(null)
+const profileMenuFirstAction = ref<HTMLButtonElement | null>(null)
 const profileOpen = ref(false)
 const profileLoading = ref(false)
 const profileError = ref('')
@@ -551,6 +554,7 @@ function trapMobileNavigationFocus(event: KeyboardEvent) {
 }
 
 function openProfile() {
+  profileMenuOpen.value = false
   profileOpen.value = true
   activeProfileSection.value = 'account'
   profileEditOpen.value = false
@@ -567,6 +571,65 @@ function openProfile() {
     profileCloseButton.value?.focus()
   })
   void loadSessions()
+}
+
+function toggleProfileMenu() {
+  if (signingOut.value) return
+  if (profileMenuOpen.value) {
+    closeProfileMenuAndRestoreFocus()
+    return
+  }
+  profileMenuOpen.value = true
+  void nextTick(() => profileMenuFirstAction.value?.focus())
+}
+
+function closeProfileMenu() {
+  profileMenuOpen.value = false
+}
+
+function closeProfileMenuAndRestoreFocus() {
+  closeProfileMenu()
+  void nextTick(() => profileTrigger.value?.focus())
+}
+
+function openProfileFromMenu() {
+  closeProfileMenu()
+  openProfile()
+}
+
+function handleProfileMenuFocusOut(event: FocusEvent) {
+  const anchor = event.currentTarget as HTMLElement
+  if (event.relatedTarget instanceof Node && anchor.contains(event.relatedTarget)) return
+  closeProfileMenu()
+}
+
+function handleProfileMenuKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeProfileMenuAndRestoreFocus()
+    return
+  }
+
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+  const items = Array.from(profileMenu.value?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') || [])
+  if (!items.length) return
+  event.preventDefault()
+
+  const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement)
+  if (event.key === 'Home') {
+    items[0]?.focus()
+    return
+  }
+  if (event.key === 'End') {
+    items[items.length - 1]?.focus()
+    return
+  }
+
+  const direction = event.key === 'ArrowDown' ? 1 : -1
+  const nextIndex = currentIndex < 0
+    ? 0
+    : (currentIndex + direction + items.length) % items.length
+  items[nextIndex]?.focus()
 }
 
 function formatSessionTime(timestamp: number) {
@@ -640,27 +703,32 @@ function closeGroupDirectoryDialog() {
 }
 
 function openAbout() {
+  closeProfileMenu()
   profileOpen.value = false
   sidebarOpen.value = false
   void router.push({ name: 'about' })
 }
 
 function openAdminUsers() {
+  closeProfileMenu()
   sidebarOpen.value = false
   void router.push({ name: 'admin-users' })
 }
 
 function openAdminGroups() {
+  closeProfileMenu()
   sidebarOpen.value = false
   void router.push({ name: 'admin-groups' })
 }
 
 function openAdminSettings() {
+  closeProfileMenu()
   sidebarOpen.value = false
   void router.push({ name: 'admin-settings' })
 }
 
 function openAdminBeautyAccounts() {
+  closeProfileMenu()
   sidebarOpen.value = false
   void router.push({ name: 'admin-beauty-accounts' })
 }
@@ -1372,6 +1440,7 @@ function isAiMessage(message: InitialChatMessage) {
 }
 
 async function signOut() {
+  closeProfileMenu()
   signingOut.value = true
   try {
     await authApi.logout()
@@ -1389,7 +1458,7 @@ async function signOut() {
 </script>
 
 <template>
-  <main ref="chatShell" class="chat-shell" data-testid="chat-shell">
+  <main ref="chatShell" class="chat-shell" data-testid="chat-shell" @click="closeProfileMenu">
     <button
       v-if="sidebarOpen"
       class="sidebar-backdrop"
@@ -1505,64 +1574,78 @@ async function signOut() {
       </section>
 
       <div class="sidebar-bottom">
-        <button
-          class="profile-trigger"
-          data-testid="open-profile"
-        ref="profileTrigger"
-          type="button"
-          aria-haspopup="dialog"
-          @click="openProfile"
-        >
-          <AvatarThumbnail
-            class="profile-avatar"
-            :file-id="profile?.userId || authStore.session?.userId"
-            :fallback="avatarInitial"
-            :refresh-key="profileAvatarVersion"
-          />
-          <span class="profile-copy">
-            <strong>{{ displayName }}</strong>
-            <span>{{ profile?.email || authStore.session?.email }}</span>
-          </span>
-        </button>
-        <button
-          v-if="authStore.session?.admin"
-          class="sidebar-admin-button"
-          data-testid="open-admin-users"
-          type="button"
-          @click="openAdminUsers"
-        >管理用户</button>
-        <button
-          v-if="authStore.session?.admin"
-          class="sidebar-admin-button"
-          data-testid="open-admin-groups"
-          type="button"
-          @click="openAdminGroups"
-        >管理群聊</button>
-        <button
-          v-if="authStore.session?.admin"
-          class="sidebar-admin-button"
-          data-testid="open-admin-settings"
-          type="button"
-          @click="openAdminSettings"
-        >系统设置</button>
-        <button
-          v-if="authStore.session?.admin"
-          class="sidebar-admin-button"
-          data-testid="open-admin-beauty-accounts"
-          type="button"
-          @click="openAdminBeautyAccounts"
-        >靓号管理</button>
-        <button
-          class="icon-button signout-button"
-          data-testid="signout"
-          type="button"
-          :disabled="signingOut"
-          aria-label="退出登录"
-          title="退出登录"
-          @click="signOut"
-        >
-          ↗
-        </button>
+        <div class="profile-menu-anchor" @click.stop @focusout="handleProfileMenuFocusOut">
+          <button
+            class="profile-trigger"
+            data-testid="profile-menu-trigger"
+            ref="profileTrigger"
+            type="button"
+            aria-haspopup="menu"
+            aria-controls="profile-actions-menu"
+            :aria-expanded="profileMenuOpen"
+            @click="toggleProfileMenu"
+          >
+            <AvatarThumbnail
+              class="profile-avatar"
+              :file-id="profile?.userId || authStore.session?.userId"
+              :fallback="avatarInitial"
+              :refresh-key="profileAvatarVersion"
+            />
+            <span class="profile-copy">
+              <strong>{{ displayName }}</strong>
+              <span>{{ profile?.email || authStore.session?.email }}</span>
+            </span>
+          </button>
+          <div
+            v-if="profileMenuOpen"
+            id="profile-actions-menu"
+            ref="profileMenu"
+            class="profile-actions-menu"
+            role="menu"
+            aria-label="账号菜单"
+            data-testid="profile-actions-menu"
+            @keydown="handleProfileMenuKeydown"
+          >
+            <div class="profile-menu-account">
+              <AvatarThumbnail
+                class="profile-menu-avatar"
+                :file-id="profile?.userId || authStore.session?.userId"
+                :fallback="avatarInitial"
+                :refresh-key="profileAvatarVersion"
+              />
+              <span class="profile-menu-account-copy">
+                <strong>{{ displayName }}</strong>
+                <small>{{ profile?.email || authStore.session?.email }}</small>
+              </span>
+            </div>
+            <div class="profile-menu-divider" aria-hidden="true"></div>
+            <button
+              ref="profileMenuFirstAction"
+              class="profile-menu-item"
+              data-testid="open-profile"
+              role="menuitem"
+              type="button"
+              @click="openProfileFromMenu"
+            >个人资料与安全</button>
+            <template v-if="authStore.session?.admin">
+              <div class="profile-menu-divider" aria-hidden="true"></div>
+              <small class="profile-menu-section-label">管理</small>
+              <button class="profile-menu-item" data-testid="open-admin-users" role="menuitem" type="button" @click="openAdminUsers">管理用户</button>
+              <button class="profile-menu-item" data-testid="open-admin-groups" role="menuitem" type="button" @click="openAdminGroups">管理群聊</button>
+              <button class="profile-menu-item" data-testid="open-admin-settings" role="menuitem" type="button" @click="openAdminSettings">系统设置</button>
+              <button class="profile-menu-item" data-testid="open-admin-beauty-accounts" role="menuitem" type="button" @click="openAdminBeautyAccounts">靓号管理</button>
+            </template>
+            <div class="profile-menu-divider" aria-hidden="true"></div>
+            <button
+              class="profile-menu-item profile-menu-signout"
+              data-testid="signout"
+              role="menuitem"
+              type="button"
+              :disabled="signingOut"
+              @click="signOut"
+            >退出登录</button>
+          </div>
+        </div>
       </div>
     </aside>
 

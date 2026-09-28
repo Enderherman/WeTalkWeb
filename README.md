@@ -7,6 +7,12 @@
 - 验证：全量 259 项组件测试、Vue 类型检查和生产构建通过。真实 iOS/Android 设备及用户登录后的页面目视复验仍待完成。
 - 已推送并部署 WeTalkWeb `2ab765e`；NAS `wetalk-web:0.1.0` 重建后 `/healthz` 和后端 readiness 均返回 HTTP 200，新 CSS/聊天脚本资源已从 NAS 响应，旧镜像保留作回退。NAS 部署记录见 `docs/nas-docker-deployment.md`。
 
+### 本轮修复：头像账号菜单与退出登录（2026-09-28）
+
+- 点击侧栏头像打开账号菜单；个人资料、管理员入口和退出登录统一放进菜单，删除单独的箭头退出按钮。
+- 菜单支持 Escape 关闭并把焦点还给头像，方向键/Home/End 可在菜单项间移动；退出仍调用后端登出并清除本机登录态。
+- 验证：全量 261 项单测、Vue 类型检查和生产构建通过。NAS 部署与实际页面目视复验待完成。
+
 WeTalkWeb 是 WeTalk 的浏览器客户端新仓库，使用 Vue 3 + TypeScript + Vite。项目独立于 Electron 桌面客户端；后端 API 继续由同级 backend 提供。
 
 ## 当前进度

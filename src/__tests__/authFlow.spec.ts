@@ -154,6 +154,12 @@ async function mountChat() {
   return { wrapper, router, pinia, authStore, chatStore }
 }
 
+async function openProfileDialog(wrapper: Awaited<ReturnType<typeof mountChat>>['wrapper']) {
+  await wrapper.get('[data-testid="profile-menu-trigger"]').trigger('click')
+  await wrapper.get('[data-testid="open-profile"]').trigger('click')
+  await flushPromises()
+}
+
 beforeEach(() => {
   window.sessionStorage.clear()
   vi.clearAllMocks()
@@ -433,12 +439,37 @@ describe('authentication flow', () => {
     })
     const wrapper = mount(ChatHome, { global: { plugins: [pinia, router] } })
 
+    const avatarTrigger = wrapper.get('[data-testid="profile-menu-trigger"]')
+    await avatarTrigger.trigger('click')
+    expect(avatarTrigger.attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('[data-testid="profile-actions-menu"]').text()).toContain('退出登录')
+    expect(wrapper.find('.signout-button').exists()).toBe(false)
     await wrapper.get('[data-testid="signout"]').trigger('click')
     await flushPromises()
 
     expect(authApi.logout).toHaveBeenCalledOnce()
     expect(authStore.session).toBeNull()
     expect(router.currentRoute.value.name).toBe('login')
+  })
+
+  it('closes the avatar menu with Escape and restores focus to the avatar', async () => {
+    const { wrapper } = await mountChat()
+    document.body.appendChild(wrapper.element)
+    const avatarTrigger = wrapper.get('[data-testid="profile-menu-trigger"]')
+    expect(avatarTrigger.attributes('aria-haspopup')).toBe('menu')
+    expect(avatarTrigger.attributes('aria-controls')).toBe('profile-actions-menu')
+
+    await avatarTrigger.trigger('click')
+    await flushPromises()
+
+    const menu = wrapper.get('[data-testid="profile-actions-menu"]')
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="open-profile"]').element)
+    await menu.trigger('keydown', { key: 'Escape' })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="profile-actions-menu"]').exists()).toBe(false)
+    expect(avatarTrigger.attributes('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(avatarTrigger.element)
   })
 
   it('loads current profile details and refreshes the stored account summary', async () => {
@@ -450,7 +481,7 @@ describe('authentication flow', () => {
     })
     const { wrapper, authStore } = await mountChat()
 
-    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+    await openProfileDialog(wrapper)
 
     expect(authApi.getUserInfo).toHaveBeenCalledOnce()
     expect(wrapper.get('.profile-dialog').text()).toContain('current@example.com')
@@ -461,7 +492,7 @@ describe('authentication flow', () => {
 
   it('keeps profile controls visible and navigates between account sections', async () => {
     const { wrapper } = await mountChat()
-    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+    await openProfileDialog(wrapper)
 
     const dialog = wrapper.get('.profile-dialog')
     const toolbar = wrapper.get('[data-testid="profile-dialog-toolbar"]')
@@ -482,7 +513,7 @@ describe('authentication flow', () => {
     downloadPreferences.supportsSavePicker = true
     downloadPreferences.supportsDirectoryPicker = true
     const { wrapper } = await mountChat()
-    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+    await openProfileDialog(wrapper)
 
     expect(wrapper.get('[data-testid="download-preferences"]').text()).toContain('文件下载位置')
     await wrapper.get('[data-testid="download-location-mode"]').setValue('ask')
@@ -663,7 +694,7 @@ describe('authentication flow', () => {
   it('clears only the signed-in account text cache from the profile panel', async () => {
     const clearCache = vi.spyOn(textMessageCache, 'clearAccount').mockResolvedValue(undefined)
     const { wrapper } = await mountChat()
-    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+    await openProfileDialog(wrapper)
     await wrapper.get('[data-testid="clear-text-cache"]').trigger('click')
     await flushPromises()
 
@@ -908,8 +939,9 @@ describe('authentication flow', () => {
     const { wrapper } = await mountChat()
     document.body.appendChild(wrapper.element)
 
-    const trigger = wrapper.get('[data-testid="open-profile"]')
+    const trigger = wrapper.get('[data-testid="profile-menu-trigger"]')
     await trigger.trigger('click')
+    await wrapper.get('[data-testid="open-profile"]').trigger('click')
     await flushPromises()
     const dialog = wrapper.get('.profile-dialog')
     expect(document.activeElement).toBe(wrapper.get('.profile-close').element)
@@ -939,7 +971,7 @@ describe('authentication flow', () => {
     ])
     const { wrapper } = await mountChat()
 
-    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+    await openProfileDialog(wrapper)
     await flushPromises()
 
     expect(authApi.listSessions).toHaveBeenCalledOnce()
@@ -959,7 +991,7 @@ describe('authentication flow', () => {
     ])
     const { wrapper, authStore } = await mountChat()
 
-    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+    await openProfileDialog(wrapper)
     await flushPromises()
     await wrapper.get('[data-testid="revoke-session-session-phone"]').trigger('click')
     await wrapper.get('[data-testid="confirm-revoke-session-session-phone"]').trigger('click')
@@ -981,7 +1013,7 @@ describe('authentication flow', () => {
     vi.mocked(authApi.revokeOtherSessions).mockResolvedValue({ revokedCount: 2 })
     const { wrapper, authStore } = await mountChat()
 
-    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+    await openProfileDialog(wrapper)
     await flushPromises()
     await wrapper.get('[data-testid="revoke-other-sessions"]').trigger('click')
     await wrapper.get('[data-testid="confirm-revoke-other-sessions"]').trigger('click')
@@ -1046,9 +1078,11 @@ describe('authentication flow', () => {
       const navigationToggle = wrapper.get('[aria-label="打开导航菜单"]')
       await navigationToggle.trigger('click')
       await flushPromises()
-      const opener = wrapper.get('[data-testid="open-profile"]')
+      const opener = wrapper.get('[data-testid="profile-menu-trigger"]')
       ;(opener.element as HTMLElement).focus()
       await opener.trigger('click')
+      await flushPromises()
+      await wrapper.get('[data-testid="open-profile"]').trigger('click')
       await flushPromises()
 
       await wrapper.get('.profile-dialog').trigger('keydown', { key: 'Escape' })
@@ -1793,7 +1827,7 @@ describe('authentication flow', () => {
 
   it('rejects mismatched passwords before calling the backend', async () => {
     const { wrapper } = await mountChat()
-    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+    await openProfileDialog(wrapper)
     await wrapper.get('[data-testid="new-password"]').setValue('NewPassword123')
     await wrapper.get('[data-testid="confirm-new-password"]').setValue('Different123')
     await wrapper.get('[data-testid="password-form"]').trigger('submit')
@@ -1804,7 +1838,7 @@ describe('authentication flow', () => {
 
   it('clears the session after a password change and asks the user to log in again', async () => {
     const { wrapper, router, authStore } = await mountChat()
-    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+    await openProfileDialog(wrapper)
     await wrapper.get('[data-testid="new-password"]').setValue('NewPassword123')
     await wrapper.get('[data-testid="confirm-new-password"]').setValue('NewPassword123')
     await wrapper.get('[data-testid="password-form"]').trigger('submit')
@@ -1830,7 +1864,7 @@ describe('authentication flow', () => {
       areaCode: '320500',
     })
     const { wrapper, authStore } = await mountChat()
-    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+    await openProfileDialog(wrapper)
     await flushPromises()
     await wrapper.get('[data-testid="edit-profile"]').trigger('click')
     await wrapper.get('[data-testid="profile-edit-name"]').setValue('New Student')
