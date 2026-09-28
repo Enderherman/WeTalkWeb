@@ -177,6 +177,16 @@ const mediaPreviewErrors = reactive(new Map<number, string>())
 const mediaPreviewDialog = ref<HTMLElement | null>(null)
 const mediaPreviewTrigger = ref<HTMLElement | null>(null)
 const profileDialog = ref<HTMLElement | null>(null)
+const profileContent = ref<HTMLElement | null>(null)
+const profileSections = [
+  { id: 'account', label: '个人资料' },
+  { id: 'preferences', label: '偏好设置' },
+  { id: 'sessions', label: '登录设备' },
+  { id: 'security', label: '账号安全' },
+] as const
+type ProfileSectionId = (typeof profileSections)[number]['id']
+const profileSectionIds: readonly ProfileSectionId[] = profileSections.map(({ id }) => id)
+const activeProfileSection = ref<ProfileSectionId>('account')
 const profileTrigger = ref<HTMLButtonElement | null>(null)
 const profileCloseButton = ref<HTMLButtonElement | null>(null)
 const messagePanel = ref<HTMLElement | null>(null)
@@ -542,6 +552,7 @@ function trapMobileNavigationFocus(event: KeyboardEvent) {
 
 function openProfile() {
   profileOpen.value = true
+  activeProfileSection.value = 'account'
   profileEditOpen.value = false
   profileSaveError.value = ''
   profileSaveNotice.value = ''
@@ -551,7 +562,10 @@ function openProfile() {
   userSessions.value = []
   confirmSessionToRevoke.value = ''
   confirmRevokeOtherSessions.value = false
-  void nextTick(() => profileCloseButton.value?.focus())
+  void nextTick(() => {
+    if (profileContent.value) profileContent.value.scrollTop = 0
+    profileCloseButton.value?.focus()
+  })
   void loadSessions()
 }
 
@@ -809,6 +823,43 @@ function trapProfileFocus(event: KeyboardEvent) {
   trapDialogTab(event, profileDialog.value)
 }
 
+function selectProfileSection(sectionId: ProfileSectionId) {
+  activeProfileSection.value = sectionId
+  const content = profileContent.value
+  const section = document.getElementById(`profile-section-${sectionId}`)
+  if (!content || !section) return
+  const contentTop = content.getBoundingClientRect().top
+  const sectionTop = section.getBoundingClientRect().top
+  const nextScrollTop = content.scrollTop + sectionTop - contentTop
+  if (typeof content.scrollTo === 'function') {
+    content.scrollTo({ top: nextScrollTop, behavior: 'smooth' })
+  } else {
+    content.scrollTop = nextScrollTop
+  }
+}
+
+function updateActiveProfileSection() {
+  const content = profileContent.value
+  if (!content) return
+  const threshold = content.getBoundingClientRect().top + 24
+  let currentSection: ProfileSectionId = profileSectionIds[0]!
+  for (const sectionId of profileSectionIds) {
+    const section = document.getElementById(`profile-section-${sectionId}`)
+    if (section && section.getBoundingClientRect().top <= threshold) currentSection = sectionId
+  }
+  activeProfileSection.value = currentSection
+}
+
+function resizeMessageComposer() {
+  const textarea = messageComposer.value
+  if (!textarea) return
+  const maxHeight = 160
+  textarea.style.height = 'auto'
+  const nextHeight = Math.min(Math.max(textarea.scrollHeight, 30), maxHeight)
+  textarea.style.height = `${nextHeight}px`
+  textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden'
+}
+
 async function clearLocalTextCache() {
   const accountId = authStore.session?.userId
   if (!accountId || clearingTextCache.value || replayingPendingMessages.value) return
@@ -1033,6 +1084,7 @@ async function sendTextMessage() {
       ].sort((left, right) => left.createdAt - right.createdAt)
       pendingTextMessage.value = null
       messageDraft.value = ''
+      void nextTick(resizeMessageComposer)
       if (!browserIsOnline()) return
       await replayPendingTextMessages()
       return
@@ -1046,6 +1098,7 @@ async function sendTextMessage() {
     const message = await chatApi.sendTextMessage(contactId, content, clientMessageId)
     chatStore.appendMessage(message, true)
     messageDraft.value = ''
+    void nextTick(resizeMessageComposer)
     pendingTextMessage.value = null
   } catch (error: unknown) {
     messageError.value = error instanceof Error ? error.message : '消息发送失败，请稍后重试'
@@ -1902,12 +1955,13 @@ async function signOut() {
         <textarea
           v-model="messageDraft"
           :disabled="!selectedSession || selectedSession.groupClosed || selectedSession.groupAccessRevoked || sendingMessage || replayingPendingMessages"
-          rows="2"
+          rows="1"
           maxlength="500"
           placeholder="发送文字消息，Enter 发送，Shift+Enter 换行"
           aria-label="消息内容"
           ref="messageComposer"
           data-testid="message-composer"
+          @input="resizeMessageComposer"
           @keydown.enter.exact.prevent="sendTextMessage"
         ></textarea>
         <button
@@ -2008,18 +2062,39 @@ async function signOut() {
         @keydown.esc.stop.prevent="closeProfile"
         @keydown.tab="trapProfileFocus"
       >
-        <header class="profile-dialog-header">
-          <div>
-            <p class="eyebrow">账号</p>
-            <h2 id="profile-title">个人资料与安全</h2>
-          </div>
-          <button ref="profileCloseButton" class="icon-button profile-close" type="button" aria-label="关闭个人资料" @click="closeProfile">
-            ×
-          </button>
-        </header>
+        <div class="profile-dialog-toolbar" data-testid="profile-dialog-toolbar">
+          <header class="profile-dialog-header">
+            <div>
+              <p class="eyebrow">账号</p>
+              <h2 id="profile-title">个人资料与安全</h2>
+            </div>
+            <button ref="profileCloseButton" class="icon-button profile-close" type="button" aria-label="关闭个人资料" @click="closeProfile">
+              ×
+            </button>
+          </header>
+          <nav class="profile-section-nav" aria-label="账号设置分区" data-testid="profile-section-nav">
+            <button
+              v-for="section in profileSections"
+              :key="section.id"
+              type="button"
+              :aria-controls="`profile-section-${section.id}`"
+              :aria-pressed="activeProfileSection === section.id"
+              :data-testid="`profile-section-tab-${section.id}`"
+              @click="selectProfileSection(section.id)"
+            >{{ section.label }}</button>
+          </nav>
+        </div>
 
-        <p v-if="profileLoading" class="profile-status" role="status">正在读取个人资料…</p>
-        <p v-else-if="profileError" class="profile-load-error" role="alert">{{ profileError }}</p>
+        <div
+          ref="profileContent"
+          class="profile-dialog-content"
+          data-testid="profile-dialog-content"
+          @scroll.passive="updateActiveProfileSection"
+        >
+          <section id="profile-section-account" class="profile-settings-section" aria-labelledby="profile-section-account-title">
+            <h3 id="profile-section-account-title" class="profile-settings-section-title">个人资料</h3>
+            <p v-if="profileLoading" class="profile-status" role="status">正在读取个人资料…</p>
+            <p v-else-if="profileError" class="profile-load-error" role="alert">{{ profileError }}</p>
 
         <AvatarThumbnail
           class="profile-cover-thumbnail"
@@ -2120,6 +2195,11 @@ async function signOut() {
           </div>
         </dl>
 
+          </section>
+
+          <section id="profile-section-preferences" class="profile-settings-section" aria-labelledby="profile-section-preferences-title">
+            <h3 id="profile-section-preferences-title" class="profile-settings-section-title">偏好设置</h3>
+
         <button class="about-link-button" data-testid="open-about" type="button" @click="openAbout">
           关于 WeTalk Web
         </button>
@@ -2186,6 +2266,11 @@ async function signOut() {
           </p>
           <p v-if="downloadPreferenceNotice" class="contact-notice" role="status">{{ downloadPreferenceNotice }}</p>
         </section>
+
+          </section>
+
+          <section id="profile-section-sessions" class="profile-settings-section" aria-labelledby="profile-section-sessions-title">
+            <h3 id="profile-section-sessions-title" class="profile-settings-section-title">登录设备</h3>
 
         <section class="session-management" aria-labelledby="session-management-title" data-testid="session-management">
           <header class="session-management-header">
@@ -2271,6 +2356,11 @@ async function signOut() {
           </div>
         </section>
 
+          </section>
+
+          <section id="profile-section-security" class="profile-settings-section" aria-labelledby="profile-section-security-title">
+            <h3 id="profile-section-security-title" class="profile-settings-section-title">账号安全</h3>
+
         <form class="password-form" data-testid="password-form" @submit.prevent="changePassword">
           <div>
             <h3>修改密码</h3>
@@ -2301,6 +2391,8 @@ async function signOut() {
             {{ changingPassword ? '正在修改…' : '更新密码' }}
           </button>
         </form>
+          </section>
+        </div>
       </section>
     </div>
   </main>

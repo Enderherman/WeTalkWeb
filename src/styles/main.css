@@ -875,14 +875,72 @@ select:focus-visible {
 }
 
 .profile-dialog {
-  width: min(100%, 480px);
-  max-height: min(88dvh, 720px);
-  overflow: auto;
-  padding: 26px;
+  display: flex;
+  width: min(100%, 880px);
+  max-height: min(90dvh, 820px);
+  flex-direction: column;
+  overflow: hidden;
   border: 1px solid var(--wt-neutral-100);
   border-radius: 24px;
   background: var(--wt-white);
   box-shadow: 0 24px 80px rgb(17 24 20 / 18%);
+}
+
+.profile-dialog-toolbar {
+  flex: 0 0 auto;
+  padding: 24px 28px 0;
+  border-bottom: 1px solid var(--wt-neutral-100);
+  background: var(--wt-white);
+}
+
+.profile-dialog-content {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 22px 28px 28px;
+  scrollbar-gutter: stable;
+}
+
+.profile-section-nav {
+  display: flex;
+  gap: 7px;
+  margin-top: 17px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scrollbar-width: thin;
+}
+
+.profile-section-nav button {
+  min-height: 36px;
+  flex: 0 0 auto;
+  padding: 0 14px;
+  border: 1px solid var(--wt-neutral-100);
+  border-radius: 999px;
+  color: var(--wt-muted);
+  background: var(--wt-white);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.profile-section-nav button[aria-pressed="true"] {
+  border-color: #cddbd1;
+  color: var(--wt-accent-strong);
+  background: var(--wt-accent-muted);
+  font-weight: 600;
+}
+
+.profile-settings-section + .profile-settings-section {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--wt-neutral-100);
+}
+
+.profile-settings-section-title {
+  margin: 0 0 16px;
+  color: var(--wt-text);
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .contact-search-form,
@@ -2897,14 +2955,27 @@ select:focus-visible {
 
 .composer-preview textarea {
   width: 100%;
-  min-height: 42px;
+  height: 30px;
+  min-height: 30px;
   max-height: 160px;
+  box-sizing: border-box;
+  overflow-y: hidden;
+  padding: 4px 0;
   resize: none;
   border: 0;
   color: var(--wt-muted);
   background: transparent;
   font-size: 14px;
   line-height: 1.5;
+}
+
+.composer-preview:focus-within {
+  outline: 3px solid var(--wt-accent);
+  outline-offset: 2px;
+}
+
+.composer-preview textarea:focus-visible {
+  outline: none;
 }
 
 .composer-preview textarea::placeholder {
@@ -2944,9 +3015,25 @@ select:focus-visible {
   flex: 0 0 auto;
   border: 0;
   border-radius: 50%;
-  color: var(--wt-white);
+  color: #656660;
   background: #c9c9c4;
   font-size: 21px;
+  cursor: not-allowed;
+  transition: background-color 140ms ease, transform 140ms ease;
+}
+
+.composer-send:not(:disabled) {
+  color: var(--wt-white);
+  background: var(--wt-accent-strong);
+  cursor: pointer;
+}
+
+.composer-send:not(:disabled):hover {
+  background: #284e41;
+}
+
+.composer-send:not(:disabled):active {
+  transform: scale(0.96);
 }
 
 .chat-disclaimer {
@@ -3068,8 +3155,31 @@ select:focus-visible {
   .profile-dialog {
     width: 100%;
     max-height: min(88dvh, 720px);
-    padding: 21px 18px max(18px, env(safe-area-inset-bottom));
     border-radius: 22px 22px 14px 14px;
+  }
+
+  .profile-dialog-toolbar {
+    padding: 19px 18px 0;
+  }
+
+  .profile-dialog-content {
+    padding: 18px 18px max(24px, env(safe-area-inset-bottom));
+  }
+
+  .profile-dialog-header h2 {
+    font-size: 19px;
+  }
+
+  .profile-section-nav {
+    gap: 6px;
+    margin: 13px -18px 0;
+    padding: 0 18px 10px;
+  }
+
+  .profile-section-nav button {
+    min-height: 34px;
+    padding: 0 12px;
+    font-size: 11px;
   }
 
   .contact-directory-layout {

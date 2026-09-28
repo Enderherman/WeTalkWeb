@@ -48,4 +48,15 @@ describe('accessibility color contrast', () => {
       expect(stylesheet).not.toContain(`color: ${color}`)
     }
   })
+
+  it('keeps the account settings toolbar outside its scrollable content', () => {
+    expect(stylesheet).toMatch(/\.profile-dialog\s*\{[^}]*display:\s*flex[^}]*overflow:\s*hidden/s)
+    expect(stylesheet).toMatch(/\.profile-dialog-content\s*\{[^}]*overflow:\s*auto/s)
+  })
+
+  it('uses a one-line chat composer and a clear enabled send state', () => {
+    expect(stylesheet).toMatch(/\.composer-preview textarea\s*\{[^}]*height:\s*30px[^}]*min-height:\s*30px/s)
+    expect(stylesheet).toMatch(/\.composer-preview:focus-within\s*\{[^}]*outline:\s*3px solid var\(--wt-accent\)/s)
+    expect(stylesheet).toMatch(/\.composer-send:not\(:disabled\)\s*\{[^}]*color:\s*var\(--wt-white\)[^}]*background:\s*var\(--wt-accent-strong\)/s)
+  })
 })

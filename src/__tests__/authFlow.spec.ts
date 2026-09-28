@@ -459,6 +459,25 @@ describe('authentication flow', () => {
     expect(authStore.session?.admin).toBe(true)
   })
 
+  it('keeps profile controls visible and navigates between account sections', async () => {
+    const { wrapper } = await mountChat()
+    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+
+    const dialog = wrapper.get('.profile-dialog')
+    const toolbar = wrapper.get('[data-testid="profile-dialog-toolbar"]')
+    const content = wrapper.get('[data-testid="profile-dialog-content"]')
+    expect(toolbar.element.contains(wrapper.get('.profile-close').element)).toBe(true)
+    expect(content.element.contains(wrapper.get('.profile-close').element)).toBe(false)
+    expect(dialog.element.contains(toolbar.element)).toBe(true)
+    expect(wrapper.get('[data-testid="profile-section-tab-account"]').attributes('aria-pressed')).toBe('true')
+
+    await wrapper.get('[data-testid="profile-section-tab-security"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="profile-section-tab-security"]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.get('[data-testid="profile-section-tab-account"]').attributes('aria-pressed')).toBe('false')
+    expect(content.element.contains(wrapper.get('[data-testid="password-form"]').element)).toBe(true)
+  })
+
   it('exposes per-account download preferences and saves the selected mode', async () => {
     downloadPreferences.supportsSavePicker = true
     downloadPreferences.supportsDirectoryPicker = true
@@ -1116,7 +1135,10 @@ describe('authentication flow', () => {
       },
     })
     await flushPromises()
+    expect(wrapper.get('[data-testid="message-composer"]').attributes('rows')).toBe('1')
     await wrapper.get('[data-testid="message-composer"]').setValue('Hello from the web')
+    expect((wrapper.get('[data-testid="message-composer"]').element as HTMLTextAreaElement).style.height).toBe('30px')
+    expect(wrapper.get('[data-testid="send-message"]').element).toHaveProperty('disabled', false)
     await wrapper.get('[data-testid="send-message"]').trigger('click')
     expect(wrapper.get('[data-testid="send-message"]').attributes('aria-label')).toBe('正在发送')
     expect(wrapper.get('[data-testid="send-message"]').element).toHaveProperty('disabled', true)
