@@ -410,7 +410,7 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 
 - 新增多阶段 `Dockerfile`、Nginx 同源 `/api` 与 `/ws` 代理、外部 `wetalk-net` Compose 配置和 `.env.nas.example`；部署步骤、备份和回滚见 `docs/nas-docker-deployment.md`。后端 API/WS 默认只绑定 NAS 本机回环地址，只有网页入口映射到 LAN。静态资源使用长缓存，入口页不缓存，上传上限与后端文件限制相符。
 - 已在 NAS 部署 Web 与后端：Nginx 网页入口使用 `<NAS_LAN_IP>:8081`（默认 8080 已被占用），`/api` 和 `/ws` 走同源代理，后端宿主机端口只绑定回环地址；复用既有 MySQL/Redis 数据卷。数据库先备份后应用迁移 002/003，readiness 与 `/healthz` 返回 UP/ok。
-- Playwright 双账号真实后端验收覆盖注册、Cookie 登录、WebSocket、好友申请、消息发送/幂等重试、历史恢复、type 17 已读回执，以及 NAS 上附件上传/接收方下载字节校验；临时账号、关系、消息和文件均已清理。Chromium 360/390/768/1280 和 WebKit 登录/注册 390/768/1280 模拟视口无横向溢出，253 项单测、类型检查、生产构建与 NAS Docker 构建通过。数据库逻辑恢复、空目录探针和 2 个真实附件（约 3.1 MiB）归档/隔离恢复演练均通过；真实附件恢复后文件数、相对路径及汇总 SHA-256 一致，原文件保持不变，NAS 私有验证归档已保留。Web/后端镜像回滚通过。桌面 Chromium 登录/注册匿名验收见下文；实体手机验收与 HTTPS/WSS 仍待完成。
+- Playwright 双账号真实后端验收覆盖注册、Cookie 登录、WebSocket、好友申请、消息发送/幂等重试、历史恢复、type 17 已读回执，以及 NAS 上附件上传/接收方下载字节校验；临时账号、关系、消息和文件均已清理。Chromium 360/390/768/1280 和 WebKit 登录/注册 390/768/1280 模拟视口无横向溢出，254 项单测、类型检查、生产构建与 NAS Docker 构建通过。数据库逻辑恢复、空目录探针和 2 个真实附件（约 3.1 MiB）归档/隔离恢复演练均通过；真实附件恢复后文件数、相对路径及汇总 SHA-256 一致，原文件保持不变，NAS 私有验证归档已保留。Web/后端镜像回滚通过。桌面 Chromium 登录/注册匿名验收见下文；实体手机验收与 HTTPS/WSS 仍待完成。
 
 ### NAS WebKit 模拟键盘验收
 
@@ -451,3 +451,4 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 
 - Safari 的动态可视高度小于 CSS `100vh` 时，聊天壳已缩到 VisualViewport，但 `body` 原先仍保留较大的最小高度，导致页面底部多出可滚动空白。现在在 iPad/手机聊天布局中锁定 `html`、`body` 与 `#app` 到可视区底边；聊天壳按 `offsetTop + height` 更新，离开聊天页会清除锁定。
 - WebKit 26.6 回归覆盖 iPad 分屏 512px、11 英寸纵向 834px、12.9 英寸纵向 1024px CSS 宽度，并模拟 VisualViewport 比布局高度短 16px：旧行为滚动 16px，修复后页面滚动为 0。真实 iPad Pro Safari 复验仍待完成。
+- 已将 WeTalkWeb `527f4b5` 部署到 NAS `wetalk-web:0.1.0`；`/healthz` 为 `ok`、后端 readiness 为 `UP`，仅重建网页容器。旧镜像保留为 `wetalk-web:0.1.0-pre-527f4b5-20260928`。真实 iPad Pro Safari 仍待复验。

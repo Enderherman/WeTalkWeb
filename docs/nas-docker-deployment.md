@@ -153,4 +153,4 @@ sudo docker compose -f compose.yaml -f compose.nas.yaml up -d
 sudo docker compose -f compose.nas.yaml up -d
 ~~~
 
-本手册、Docker Compose 配置、NAS 容器部署、LAN 浏览器验收、数据库逻辑恢复、空目录与非空真实附件归档/恢复以及 Web/后端镜像回滚演练已通过；HTTPS/WSS 和实体设备验收仍待完成。
+2026-09-28 iPad Safari 聊天页底部滚动修复已部署：WeTalkWeb commit `527f4b5` 的源码归档 SHA-256 为 `8ee72d514160dae2c2cbe9329bb994eafef3c3d5138dd1dac2502c436355957f`，网页镜像 `wetalk-web:0.1.0` 已重建；旧镜像标签为 `wetalk-web:0.1.0-pre-527f4b5-20260928`。`/healthz` 返回 `ok`、后端 readiness 为 `UP`，仅重建网页容器，后端/MySQL/Redis 未重启。生产 NAS 页面上的 WebKit 26.6 mock API/WebSocket 回归在 512/834/1024px iPad 模拟视口通过，VisualViewport 比布局高度少 16px 时修复后 `scrollY=0`。本手册、数据库/附件归档恢复及 Web/后端镜像回滚演练已通过；真实 iPad Pro Safari、HTTPS/WSS 仍待验收。
