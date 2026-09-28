@@ -436,7 +436,7 @@
         "tags": ["Contacts"],
         "operationId": "searchContact",
         "summary": "Search for a user or group",
-        "description": "Searches by the contact ID. The result includes the relationship status visible to the current user.",
+        "description": "Searches by an exact user ID, group ID, or email address. Email addresses are not returned in the result.",
         "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
         "requestBody": {
           "required": true,
@@ -458,6 +458,43 @@
                 "schema": {
                   "oneOf": [
                     { "$ref": "#/components/schemas/ContactSearchResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
+    "/contact/searchByKeyword": {
+      "post": {
+        "tags": ["Contacts"],
+        "operationId": "searchContactsByKeyword",
+        "summary": "Search contacts by email, ID, or nickname",
+        "description": "Matches email addresses exactly and searches user nicknames and active group names by substring. Returns at most 10 users and 10 groups, with relationship status for the current user. Email addresses are not returned.",
+        "security": [{ "tokenHeader": [] }, { "cookieSession": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["keyword"],
+                "properties": { "keyword": { "type": "string", "minLength": 1, "maxLength": 254 } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Matching contact summaries or a body-level business error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/ContactSearchListResponse" },
                     { "$ref": "#/components/schemas/BusinessErrorResponse" }
                   ]
                 }
@@ -2242,6 +2279,23 @@
             "type": "object",
             "required": ["code", "data"],
             "properties": { "code": { "const": 200 }, "data": { "$ref": "#/components/schemas/ContactSearchResult" } }
+          }
+        ]
+      },
+      "ContactSearchListResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseResponse" },
+          {
+            "type": "object",
+            "required": ["code", "data"],
+            "properties": {
+              "code": { "const": 200 },
+              "data": {
+                "type": "array",
+                "maxItems": 20,
+                "items": { "$ref": "#/components/schemas/ContactSearchResult" }
+              }
+            }
           }
         ]
       },

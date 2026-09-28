@@ -1037,6 +1037,77 @@ select:focus-visible {
   gap: 10px;
 }
 
+.contact-search-results {
+  display: grid;
+  max-height: min(34dvh, 280px);
+  gap: 6px;
+  overflow: auto;
+  margin-top: 18px;
+}
+
+.contact-search-results-label {
+  margin: 0 0 3px;
+  color: var(--wt-muted);
+  font-size: 12px;
+}
+
+.contact-search-result-option {
+  display: flex;
+  min-width: 0;
+  min-height: 54px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--wt-neutral-100);
+  border-radius: 12px;
+  color: var(--wt-text);
+  background: var(--wt-white);
+  text-align: left;
+  cursor: pointer;
+}
+
+.contact-search-result-option:hover,
+.contact-search-result-option.is-selected {
+  border-color: #cddbd1;
+  background: var(--wt-accent-muted);
+}
+
+.contact-search-result-avatar {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.contact-search-result-option-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.contact-search-result-option-copy strong,
+.contact-search-result-option-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contact-search-result-option-copy strong {
+  font-size: 12px;
+}
+
+.contact-search-result-option-copy small {
+  color: var(--wt-muted);
+  font-size: 10px;
+}
+
+.contact-search-result-selected {
+  margin-left: auto;
+  color: var(--wt-accent-strong);
+  font-size: 15px;
+  font-weight: 700;
+}
+
 .contact-search-form {
   margin-top: 22px;
 }

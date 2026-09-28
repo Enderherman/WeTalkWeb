@@ -7,6 +7,7 @@ import { chatApi } from '@/api/chat'
 vi.mock('@/api/contacts', () => ({
   contactApi: {
     search: vi.fn(),
+    searchByKeyword: vi.fn(),
     applyAdd: vi.fn(),
   },
 }))
@@ -33,24 +34,23 @@ function mountDialog(extraProps: { returnFocusTarget?: HTMLElement | null } = {}
 }
 
 describe('contact search dialog', () => {
-  it('validates the user ID before calling the backend', async () => {
+  it('requires a search keyword before calling the backend', async () => {
     const wrapper = mountDialog()
-    await wrapper.get('[data-testid="contact-id-search"]').setValue('X200')
     await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')
 
-    expect(contactApi.search).not.toHaveBeenCalled()
-    expect(wrapper.get('[role="alert"]').text()).toContain('以 U 开头的用户编号或以 G 开头的群编号')
+    expect(contactApi.searchByKeyword).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"]').text()).toContain('请输入邮箱、用户或群昵称、用户或群编号')
   })
 
   it('searches for a user and submits the optional greeting', async () => {
-    vi.mocked(contactApi.search).mockResolvedValue(result)
+    vi.mocked(contactApi.searchByKeyword).mockResolvedValue([result])
     vi.mocked(contactApi.applyAdd).mockResolvedValue(1)
     const wrapper = mountDialog()
     await wrapper.get('[data-testid="contact-id-search"]').setValue('U200')
     await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')
     await flushPromises()
 
-    expect(contactApi.search).toHaveBeenCalledWith('U200')
+    expect(contactApi.searchByKeyword).toHaveBeenCalledWith('U200')
     expect(wrapper.get('[data-testid="contact-result"]').text()).toContain('Friend')
     await wrapper.get('[data-testid="contact-apply-info"]').setValue('你好')
     await wrapper.get('[data-testid="contact-request-form"]').trigger('submit')
@@ -62,8 +62,46 @@ describe('contact search dialog', () => {
     expect(wrapper.find('[data-testid="send-contact-request"]').exists()).toBe(false)
   })
 
+  it('accepts an exact email search and shows the matching user', async () => {
+    vi.mocked(contactApi.searchByKeyword).mockResolvedValue([{
+      ...result,
+      contactId: 'U222',
+      nickName: 'Email Match',
+    }])
+    const wrapper = mountDialog()
+
+    await wrapper.get('[data-testid="contact-id-search"]').setValue('friend@example.com')
+    await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(contactApi.searchByKeyword).toHaveBeenCalledWith('friend@example.com')
+    expect(wrapper.get('[data-testid="contact-result"]').text()).toContain('Email Match')
+    expect(wrapper.get('[data-testid="contact-result"]').text()).toContain('U222')
+  })
+
+  it('lets the user choose among fuzzy nickname and group-name matches', async () => {
+    vi.mocked(contactApi.searchByKeyword).mockResolvedValue([
+      { ...result, contactId: 'U223', nickName: 'Study Alice' },
+      { contactId: 'G302', contactType: 'GROUP', nickName: 'Study Group', status: null },
+    ])
+    const wrapper = mountDialog()
+
+    await wrapper.get('[data-testid="contact-id-search"]').setValue('Study')
+    await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="contact-search-results"]').text()).toContain('Study Alice')
+    expect(wrapper.get('[data-testid="contact-search-results"]').text()).toContain('Study Group')
+    expect(wrapper.find('[data-testid="contact-result"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="contact-search-option-G302"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="contact-result"]').text()).toContain('Study Group')
+    expect(wrapper.get('[data-testid="send-contact-request"]').text()).toContain('申请加入群聊')
+  })
+
   it('refreshes the chat after a directly accepted friend request', async () => {
-    vi.mocked(contactApi.search).mockResolvedValue(result)
+    vi.mocked(contactApi.searchByKeyword).mockResolvedValue([result])
     vi.mocked(contactApi.applyAdd).mockResolvedValue(0)
     const wrapper = mountDialog()
     await wrapper.get('[data-testid="contact-id-search"]').setValue('U200')
@@ -78,16 +116,16 @@ describe('contact search dialog', () => {
   })
 
   it('searches a group and joins immediately when its policy allows direct entry', async () => {
-    vi.mocked(contactApi.search).mockResolvedValue({
+    vi.mocked(contactApi.searchByKeyword).mockResolvedValue([{
       contactId: 'G300', contactType: 'GROUP', nickName: 'Study Group', status: null,
-    })
+    }])
     vi.mocked(contactApi.applyAdd).mockResolvedValue(0)
     const wrapper = mountDialog()
     await wrapper.get('[data-testid="contact-id-search"]').setValue('G300')
     await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')
     await flushPromises()
 
-    expect(contactApi.search).toHaveBeenCalledWith('G300')
+    expect(contactApi.searchByKeyword).toHaveBeenCalledWith('G300')
     expect(wrapper.get('[data-testid="contact-result"]').text()).toContain('Study Group')
     await wrapper.get('[data-testid="contact-request-form"]').trigger('submit')
     await flushPromises()
@@ -98,9 +136,9 @@ describe('contact search dialog', () => {
   })
 
   it('shows a pending group-join notice when owner approval is required', async () => {
-    vi.mocked(contactApi.search).mockResolvedValue({
+    vi.mocked(contactApi.searchByKeyword).mockResolvedValue([{
       contactId: 'G301', contactType: 'GROUP', nickName: 'Private Group', status: null,
-    })
+    }])
     vi.mocked(contactApi.applyAdd).mockResolvedValue(1)
     const wrapper = mountDialog()
     await wrapper.get('[data-testid="contact-id-search"]').setValue('G301')
@@ -114,7 +152,7 @@ describe('contact search dialog', () => {
   })
 
   it('does not offer an add action for an existing friend', async () => {
-    vi.mocked(contactApi.search).mockResolvedValue({ ...result, status: 1, statusName: '好友' })
+    vi.mocked(contactApi.searchByKeyword).mockResolvedValue([{ ...result, status: 1, statusName: '好友' }])
     const wrapper = mountDialog()
     await wrapper.get('[data-testid="contact-id-search"]').setValue('U200')
     await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')
@@ -125,7 +163,7 @@ describe('contact search dialog', () => {
   })
 
   it('clears the previous result as soon as the search ID changes', async () => {
-    vi.mocked(contactApi.search).mockResolvedValue(result)
+    vi.mocked(contactApi.searchByKeyword).mockResolvedValue([result])
     const wrapper = mountDialog()
     await wrapper.get('[data-testid="contact-id-search"]').setValue('U200')
     await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')
@@ -137,7 +175,7 @@ describe('contact search dialog', () => {
   })
 
   it('shows an empty state when the backend returns no contact', async () => {
-    vi.mocked(contactApi.search).mockResolvedValue(null)
+    vi.mocked(contactApi.searchByKeyword).mockResolvedValue([])
     const wrapper = mountDialog()
     await wrapper.get('[data-testid="contact-id-search"]').setValue('U404')
     await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')

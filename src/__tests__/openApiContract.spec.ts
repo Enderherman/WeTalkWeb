@@ -52,6 +52,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/contact/loadApply',
       '/contact/loadContact',
       '/contact/search',
+      '/contact/searchByKeyword',
       '/group/addOrRemoveGroupUser',
       '/group/dissolutionGroup',
       '/group/getGroupInfo',
@@ -87,6 +88,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/chat/markRead',
       '/chat/loadHistory',
       '/contact/search',
+      '/contact/searchByKeyword',
       '/contact/applyAdd',
       '/contact/loadApply',
       '/contact/dealWithApply',
@@ -290,6 +292,19 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(contract.components.schemas.WebAuthSession.properties).not.toHaveProperty('token')
     expect(contract.paths['/account/webLogin'].post.responses['200'].headers['Set-Cookie'].description).toContain('HttpOnly')
     expect(contract.paths['/account/webSocketTicket'].post.description).toContain('60 seconds')
+  })
+
+  it('documents exact email and fuzzy contact nickname search', () => {
+    const operation = contract.paths['/contact/searchByKeyword'].post
+    const requestSchema = operation.requestBody.content['application/x-www-form-urlencoded'].schema
+    const responseSchema = operation.responses['200'].content['application/json'].schema.oneOf[0]
+
+    expect(operation.description).toContain('email addresses exactly')
+    expect(requestSchema.required).toEqual(['keyword'])
+    expect(requestSchema.properties.keyword.maxLength).toBe(254)
+    expect(responseSchema.$ref).toBe('#/components/schemas/ContactSearchListResponse')
+    expect(contract.components.schemas.ContactSearchListResponse.allOf[1].properties.data.maxItems).toBe(20)
+    expect(contract.paths['/contact/search'].post.description).toContain('email address')
   })
 
   it('documents multi-device sessions without exposing authentication credentials', () => {

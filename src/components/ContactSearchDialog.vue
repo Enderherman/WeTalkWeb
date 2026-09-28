@@ -17,7 +17,9 @@ const emit = defineEmits<{
 
 const query = ref('')
 const applyInfo = ref('')
-const result = ref<ContactSearchResult | null>(null)
+const results = ref<ContactSearchResult[]>([])
+const selectedContactId = ref('')
+const result = computed(() => results.value.find((contact) => contact.contactId === selectedContactId.value) || null)
 const searched = ref(false)
 const searching = ref(false)
 const applying = ref(false)
@@ -44,7 +46,8 @@ const relationshipLabel = computed(() => {
 })
 
 function resetSearchResult() {
-  result.value = null
+  results.value = []
+  selectedContactId.value = ''
   searched.value = false
   requestSent.value = false
   searchError.value = ''
@@ -53,26 +56,24 @@ function resetSearchResult() {
 }
 
 async function searchContact() {
-  const contactId = query.value.trim()
-  result.value = null
+  const keyword = query.value.trim()
+  results.value = []
+  selectedContactId.value = ''
   searched.value = false
   requestSent.value = false
   notice.value = ''
   applyError.value = ''
   searchError.value = ''
 
-  if (!contactId) {
-    searchError.value = '请输入用户编号'
-    return
-  }
-  if (!/^[UG]/.test(contactId)) {
-    searchError.value = '请输入以 U 开头的用户编号或以 G 开头的群编号'
+  if (!keyword) {
+    searchError.value = '请输入邮箱、用户或群昵称、用户或群编号'
     return
   }
 
   searching.value = true
   try {
-    result.value = await contactApi.search(contactId)
+    results.value = await contactApi.searchByKeyword(keyword)
+    if (results.value.length === 1) selectedContactId.value = results.value[0]!.contactId
     searched.value = true
   } catch (error: unknown) {
     searchError.value = error instanceof Error ? error.message : '搜索失败，请稍后重试'
@@ -93,7 +94,9 @@ async function sendRequest() {
     requestSent.value = true
     if (joinType === 0) {
       notice.value = contact.contactType === 'GROUP' ? '已加入群聊，会话正在同步' : '已直接添加为好友，会话正在同步'
-      result.value = { ...contact, status: 1, statusName: contact.contactType === 'GROUP' ? '已加入群聊' : '好友' }
+      results.value = results.value.map((item) => item.contactId === contact.contactId
+        ? { ...item, status: 1, statusName: contact.contactType === 'GROUP' ? '已加入群聊' : '好友' }
+        : item)
       emit('contactAdded')
     } else {
       notice.value = contact.contactType === 'GROUP' ? '入群申请已发送，等待群主处理' : '好友申请已发送，等待对方处理'
@@ -129,14 +132,14 @@ async function sendRequest() {
       </header>
 
       <form class="contact-search-form" data-testid="contact-search-form" @submit.prevent="searchContact">
-        <label for="contact-id-search">用户或群编号</label>
+        <label for="contact-id-search">邮箱、昵称或编号</label>
         <div class="contact-search-row">
           <input
             id="contact-id-search"
             v-model="query"
             data-testid="contact-id-search"
             autocomplete="off"
-            placeholder="U 开头为用户，G 开头为群"
+            placeholder="邮箱、用户昵称、群昵称或 U/G 编号"
             :disabled="searching || applying"
             @input="resetSearchResult"
           />
@@ -148,9 +151,34 @@ async function sendRequest() {
       </form>
 
       <p v-if="searching" class="contact-status" role="status">正在搜索…</p>
-      <p v-else-if="searched && !result" class="contact-empty" data-testid="contact-not-found">
+      <p v-else-if="searched && !results.length" class="contact-empty" data-testid="contact-not-found">
         没有找到匹配的联系人，请检查编号后重试。
       </p>
+
+      <section v-if="results.length > 1" class="contact-search-results" data-testid="contact-search-results" aria-label="匹配的联系人">
+        <p class="contact-search-results-label">找到 {{ results.length }} 个匹配项，请选择要添加的联系人：</p>
+        <button
+          v-for="contact in results"
+          :key="contact.contactId"
+          class="contact-search-result-option"
+          :class="{ 'is-selected': selectedContactId === contact.contactId }"
+          :data-testid="`contact-search-option-${contact.contactId}`"
+          type="button"
+          :aria-pressed="selectedContactId === contact.contactId"
+          @click="selectedContactId = contact.contactId"
+        >
+          <AvatarThumbnail
+            class="contact-search-result-avatar"
+            :file-id="contact.contactId"
+            :fallback="(contact.nickName || contact.contactId).slice(0, 1)"
+          />
+          <span class="contact-search-result-option-copy">
+            <strong>{{ contact.nickName || 'WeTalk 用户' }}</strong>
+            <small>{{ contact.contactType === 'USER' ? '用户' : '群聊' }} · {{ contact.contactId }}</small>
+          </span>
+          <span v-if="selectedContactId === contact.contactId" class="contact-search-result-selected" aria-hidden="true">✓</span>
+        </button>
+      </section>
 
       <section v-if="result" class="contact-result" data-testid="contact-result" aria-label="搜索结果">
         <div class="contact-result-heading">

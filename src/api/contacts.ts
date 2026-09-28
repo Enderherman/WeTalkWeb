@@ -66,6 +66,8 @@ export interface GroupProfile {
 export const contactApi = {
   search: (contactId: string): Promise<ContactSearchResult | null> =>
     postForm<ContactSearchResult | null>('/contact/search', { contactId }),
+  searchByKeyword: (keyword: string): Promise<ContactSearchResult[]> =>
+    postForm<ContactSearchResult[]>('/contact/searchByKeyword', { keyword }),
   applyAdd: (contactId: string, applyInfo = ''): Promise<number | null> =>
     postForm<number | null>('/contact/applyAdd', { contactId, applyInfo }),
   loadApplications: (pageNo = 1): Promise<ContactApplicationsPage> =>

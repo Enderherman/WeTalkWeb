@@ -15,6 +15,16 @@ describe('contact API', () => {
     expect(postForm).toHaveBeenCalledWith('/contact/search', { contactId: 'U200' })
   })
 
+  it('searches contacts by email or fuzzy nickname keyword', async () => {
+    const results = [
+      { contactId: 'U200', contactType: 'USER' as const, nickName: 'Friend', status: null },
+    ]
+    vi.mocked(postForm).mockResolvedValue(results)
+
+    await expect(contactApi.searchByKeyword('friend@example.com')).resolves.toEqual(results)
+    expect(postForm).toHaveBeenCalledWith('/contact/searchByKeyword', { keyword: 'friend@example.com' })
+  })
+
   it('sends an optional greeting with a friend request', async () => {
     vi.mocked(postForm).mockResolvedValue(1)
 
