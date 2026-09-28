@@ -15,9 +15,9 @@
 
 ## 短期部署目标
 
-短期仅计划在 NAS Docker 的内网环境测试；正式域名尚未确定，配置暂以 `<WETALK_WEB_HOST>` 占位，NAS 地址、端口和容器网络在部署阶段确认。部署时优先让网页、`/api` 和 `/ws` 共用同源入口。内网 HTTP 测试仅用于隔离的测试环境；若通过 NAS 反向代理启用 HTTPS/WSS，则设置 `WETALK_WEB_AUTH_COOKIE_SECURE=true`。对外发布前必须确定正式域名、HTTPS/WSS、允许的 Origin、备份与回滚配置。
+NAS Docker 内网部署已于 2026-09-28 完成，网页使用同源入口。正式域名尚未确定，仍以 `<WETALK_WEB_HOST>` 占位；对外发布前需配置 HTTPS/WSS、精确 Origin、备份与回滚。内网 HTTP 测试仅用于隔离的测试环境；若通过 NAS 反向代理启用 HTTPS/WSS，则设置 `WETALK_WEB_AUTH_COOKIE_SECURE=true`。生产 HTTPS/WSS 尚未配置。
 
-WeTalkWeb 提供 `Dockerfile` 和 `compose.nas.yaml`：Nginx 容器监听 8080，同源代理 `/api` 到 `wetalk:5050`、`/ws` 到 `wetalk:5051`，并加入后端共用的外部 Docker 网络 `wetalk-net`。后端 `BACKEND_BIND_IP` 和 MySQL/Redis `NAS_BIND_IP` 默认留在 NAS 回环地址，只有网页入口绑定 LAN。复制 `.env.nas.example` 为 `.env`，将 `WEB_BIND_IP` 设为刚核实的 NAS 局域网地址；后端 `WETALK_WEB_ALLOWED_ORIGINS` 设为同源 `http://<NAS_LAN_IP>:<WEB_PUBLISHED_PORT>`。内网 HTTP 测试时 `WETALK_WEB_AUTH_COOKIE_SECURE=false`，对外 HTTPS/WSS 部署必须设为 `true`。Compose 启动命令和健康探针见本节下方；当前仅完成本地打包配置，尚未在 NAS 实际部署。
+WeTalkWeb 提供 `Dockerfile` 和 `compose.nas.yaml`：Nginx 容器监听 8080，同源代理 `/api` 到 `wetalk:5050`、`/ws` 到 `wetalk:5051`，并加入后端共用的外部 Docker 网络 `wetalk-net`。后端 `BACKEND_BIND_IP` 和 MySQL/Redis `NAS_BIND_IP` 默认留在 NAS 回环地址，只有网页入口绑定 LAN。复制 `.env.nas.example` 为 `.env`，将 `WEB_BIND_IP` 设为刚核实的 NAS 局域网地址；后端 `WETALK_WEB_ALLOWED_ORIGINS` 设为同源 `http://<NAS_LAN_IP>:<WEB_PUBLISHED_PORT>`。内网 HTTP 测试时 `WETALK_WEB_AUTH_COOKIE_SECURE=false`，对外 HTTPS/WSS 部署必须设为 `true`。本次 NAS 的 8080 已被占用，网页入口设为 8081；后端/API/WS 宿主机端口仅绑定回环地址，MySQL/Redis 复用既有服务。readiness 与 `/healthz` 已现场验证。
 
 首次部署需先在 `wetalk-net` 网络中启动已配置的后端/基础服务，再启动网页容器：
 
@@ -44,6 +44,13 @@ Chromium 360×800 还截图检查了通用服务错误页、空会话和服务�
 测试还验证了消息搜索输入框的焦点进入/返回、桌面资料弹窗的焦点往返，以及移动联系人弹窗关闭后侧栏保持展开并将焦点返回可见的打开按钮。API 和 WebSocket 响应由测试桩提供，因此这项检查只记录浏览器渲染和交互表现，不代替真实后端联调。截图保存在 `D:/environment/WeTalkBrowserQA/captures`。Chromium 移动设备仿真和 Playwright WebKit 不能代替真实 Android Chrome/iOS Safari；真机矩阵仍待完成。
 
 已目视检查桌面登录、移动登录/注册和桌面/移动聊天截图。统一色彩以白色和浅灰中性色为主、绿色作强调色；焦点环及辅助文字对比度由 CSS 单元测试自动检查。
+
+## NAS 实际部署验收（2026-09-28）
+
+- LAN 地址模板为 `http://<NAS_LAN_IP>:8081`；部署前发现默认 8080 已占用。浏览器通过同源 Nginx 访问 REST 与 WebSocket。
+- 真实双账号后端链路通过注册/登录、Cookie、WebSocket、联系人申请、消息幂等、历史恢复、type 17 已读回执，以及文本附件上传/下载字节核对。临时账号、关系、消息和文件已清理。
+- Chromium 360/390/768/1280 模拟视口与 WebKit 登录/注册 390/768/1280 模拟视口无横向溢出；WebKit 字段 Tab 顺序和模式链接焦点检查通过。模拟结果不等于 iOS Safari/Android Chrome 真机验收。
+- 源码提交 `aa41ef7` 已补齐 HTML/静态资源安全响应头，但 NAS 当前镜像尚未重新部署；现网响应头检查仍缺安全头。收到轮换后的 NAS SSH 接入方式后再部署并复验。
 
 ## 浏览器能力要求
 
