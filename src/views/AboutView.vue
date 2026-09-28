@@ -18,7 +18,7 @@ function returnToChat() {
 
     <section class="about-card" aria-labelledby="about-title">
       <p class="eyebrow">关于</p>
-      <h1 id="about-title">WeTalk Web</h1>
+      <h1 id="about-title">WeTalk</h1>
       <p class="about-description">一个简洁、专注的浏览器聊天空间，连接现有 WeTalk 服务。</p>
 
       <dl class="about-details">

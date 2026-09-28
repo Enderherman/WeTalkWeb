@@ -2284,7 +2284,7 @@ async function signOut() {
             <h3 id="profile-section-preferences-title" class="profile-settings-section-title">偏好设置</h3>
 
         <button class="about-link-button" data-testid="open-about" type="button" @click="openAbout">
-          关于 WeTalk Web
+          关于 WeTalk
         </button>
 
         <div class="text-cache-controls">
