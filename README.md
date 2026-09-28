@@ -4,6 +4,7 @@
 
 - 浏览器标签页改用 WeTalkApp 实际使用的 `frontend/resources/icon.png`，页面标题和关于页名称统一为 `WeTalk`。
 - 验证：WeTalkWeb 266 项单测、类型检查和生产构建通过。
+- 已部署 NAS；网页容器健康检查通过，页面返回 `<title>WeTalk</title>` 和新图标路径，图标资源 HTTP 200。旧镜像标签为 `wetalk-web:0.1.0-pre-branding-20260929`。
 
 ## 本轮功能：联系人邮箱与昵称搜索（2026-09-29）
 

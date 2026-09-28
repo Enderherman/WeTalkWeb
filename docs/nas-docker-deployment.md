@@ -1,5 +1,10 @@
 # WeTalkWeb NAS Docker 内网部署手册
 
+## 2026-09-29 网页品牌统一
+
+- WeTalkWeb commit `2c820e9`；源码包 SHA-256：`24f5460bc1d1dc71af949d5dfc20792b13cda445c83d5304d745ad6cbdd06337`。浏览器标签图标复用 WeTalkApp 的 `frontend/resources/icon.png`，标签标题和关于页名称显示为 `WeTalk`。
+- NAS 旧网页镜像保存在 `wetalk-web:0.1.0-pre-branding-20260929`，只重建 `wetalk-web` 容器。Compose 校验和 Docker 构建通过；`/healthz` 与 `/api/actuator/health/readiness` 返回 HTTP 200，首页包含 `<title>WeTalk</title>` 及新图标路径，`/wetalk-app-icon.png` 返回 HTTP 200。
+
 ## 2026-09-29 联系人邮箱与昵称搜索部署
 
 - 后端 commit `9f790f0`；发布包 SHA-256：`8d2fc126e11c31f272c5b41206e0e5693f636882e4229c5a86272ca002985711`。部署前保存旧镜像 `wetalk-backend:0.0.3-pre-contact-search-20260929`，仅重建 `wetalk` 服务，容器状态为 healthy，后端 readiness 返回 HTTP 200 / `UP`。
