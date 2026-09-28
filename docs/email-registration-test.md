@@ -10,7 +10,7 @@
 
 - 使用当前 NAS 后端的真实 `POST /api/account/registerEmailCode` 接口。
 - 响应为 HTTP 200、业务码 200，后端的 Java 邮件发送调用成功返回。
-- 发送目标由 NAS 私有 `.env` 中的 `MAIL_USERNAME` 配置确定；本文件不记录邮箱地址或凭据。
+- SMTP 发件账户和口令来自 NAS 私有 `.env`；本轮收件邮箱按用户指定，仅放在 `D:/environment/WeTalkBrowserQA/nas-send-registration-code-once.mjs` 本地脚本中，不写入仓库。
 - 初始诊断使用一次性 Redis JSON 字符串键，接口请求后确认已删除；随后从 NAS 实际注册页正常解答真实图片验证码并再次成功调用接口，没有加入长期绕过逻辑。
 - 后端容器恢复 healthy；MySQL 和 Redis 容器在后端更新期间没有重启。
 
