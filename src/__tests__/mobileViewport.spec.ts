@@ -11,9 +11,11 @@ describe('mobile chat viewport sizing', () => {
   })
 
   it('collapses the desktop sidebar while keeping the mobile drawer available', () => {
-    expect(stylesheet).toMatch(/@media\s*\(min-width:\s*761px\)\s*\{[\s\S]*?\.chat-shell\.is-sidebar-collapsed\s*\{[^}]*grid-template-columns:\s*0\s+minmax\(0,\s*1fr\)/s)
+    expect(stylesheet).toMatch(/@media\s*\(min-width:\s*761px\)\s*\{[\s\S]*?\.chat-shell\.is-sidebar-collapsed\s*\{[^}]*grid-template-columns:\s*76px\s+minmax\(0,\s*1fr\)/s)
     expect(stylesheet).toMatch(/@media\s*\(max-width:\s*760px\)\s*\{[\s\S]*?\.chat-sidebar\s*\{[^}]*transform:\s*translateX\(-105%\)/s)
-    expect(stylesheet).toMatch(/\.chat-shell\.is-sidebar-collapsed\s+\.chat-sidebar\s*\{[^}]*width:\s*0/)
+    expect(stylesheet).toMatch(/\.chat-shell\.is-sidebar-collapsed\s+\.chat-sidebar\s*\{[^}]*width:\s*76px/)
+    expect(stylesheet).toMatch(/\.chat-shell\.is-sidebar-collapsed\s+\.sidebar-brand-name,[\s\S]*?\.chat-shell\.is-sidebar-collapsed\s+\.profile-copy,\s*\.chat-shell\.is-sidebar-collapsed\s+\.sidebar-label\s*\{\s*display:\s*none;/)
+    expect(stylesheet).toMatch(/\.chat-shell\.is-sidebar-collapsed\s+\.session-avatar\s*\{[^}]*width:\s*40px;[^}]*height:\s*40px;/s)
   })
 
   it('uses the visual viewport height and removes the desktop minimum height on narrow screens', () => {

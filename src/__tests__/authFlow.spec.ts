@@ -1982,53 +1982,98 @@ describe('authentication flow', () => {
     expect(contactApi.loadApplications).toHaveBeenCalledWith(1)
   })
 
-  it('searches recent chats from the sidebar and filters by name or preview', async () => {
+  it('places full-history search beside the sidebar collapse control', async () => {
     const { wrapper, chatStore } = await mountChat()
     document.body.appendChild(wrapper.element)
     chatStore.receiveMessage({
       messageType: 0,
       extentData: {
-        chatSessionList: [
-          {
-            sessionId: 'S200', contactId: 'U200', contactName: 'Needle Friend',
-            lastMessage: 'A recent hello', lastReceiveTime: 2000, contactType: 0,
-          },
-          {
-            sessionId: 'S201', contactId: 'U201', contactName: 'Colleague',
-            lastMessage: 'Needle in preview', lastReceiveTime: 1000, contactType: 0,
-          },
-        ],
+        chatSessionList: [{
+          sessionId: 'S200', contactId: 'U200', contactName: 'Friend',
+          lastMessage: 'A recent hello', lastReceiveTime: 2000, contactType: 0,
+        }],
         chatMessageList: [],
         applyCount: 0,
       },
     })
     await flushPromises()
 
-    await wrapper.get('[data-testid="open-sidebar-search"]').trigger('click')
-    const input = wrapper.get('[data-testid="sidebar-search-input"]')
-    expect(document.activeElement).toBe(input.element)
+    const search = wrapper.get('[data-testid="toggle-message-search"]')
+    const collapse = wrapper.get('[data-testid="collapse-sidebar"]')
+    expect(search.element.parentElement).toBe(collapse.element.parentElement)
+    expect(search.element.compareDocumentPosition(collapse.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(wrapper.find('.chat-main [data-testid="toggle-message-search"]').exists()).toBe(false)
 
-    await input.setValue('needle')
-    expect(wrapper.find('[data-testid="chat-session-S200"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="chat-session-S201"]').exists()).toBe(true)
-    await input.setValue('missing')
-    expect(wrapper.get('[data-testid="sidebar-search-empty"]').text()).toContain('没有匹配的聊天')
-
-    await input.setValue('Needle Friend')
-    await wrapper.get('[data-testid="chat-session-S200"]').trigger('click')
+    await search.trigger('click')
     await flushPromises()
-    expect(wrapper.get('[data-testid="chat-session-S200"]').classes()).toContain('is-active')
-    expect(wrapper.find('[data-testid="sidebar-search-input"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="message-search-panel"]').exists()).toBe(true)
+  })
+
+  it('closes the mobile drawer before searching and restores focus to its opener', async () => {
+    const { wrapper, chatStore } = await mountChat()
+    document.body.appendChild(wrapper.element)
+    const innerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth')
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 })
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200', contactId: 'U200', contactName: 'Friend',
+          lastMessage: 'Hello', lastReceiveTime: 1000, contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 0,
+      },
+    })
+    await flushPromises()
+
+    try {
+      const menuTrigger = wrapper.get('[aria-label="打开导航菜单"]')
+      await menuTrigger.trigger('click')
+      await flushPromises()
+      await wrapper.get('[data-testid="toggle-message-search"]').trigger('click')
+      await flushPromises()
+
+      const input = wrapper.get('[data-testid="message-search-input"]')
+      expect(menuTrigger.attributes('aria-expanded')).toBe('false')
+      expect(document.activeElement).toBe(input.element)
+      await input.trigger('keydown', { key: 'Escape' })
+      await flushPromises()
+      expect(document.activeElement).toBe(menuTrigger.element)
+    } finally {
+      if (innerWidth) Object.defineProperty(window, 'innerWidth', innerWidth)
+      wrapper.unmount()
+      wrapper.element.remove()
+    }
   })
 
   it('collapses the desktop sidebar and returns focus when it is expanded', async () => {
-    const { wrapper } = await mountChat()
+    const { wrapper, chatStore } = await mountChat()
     document.body.appendChild(wrapper.element)
+    chatStore.receiveMessage({
+      messageType: 0,
+      extentData: {
+        chatSessionList: [{
+          sessionId: 'S200', contactId: 'U200', contactName: 'Friend',
+          lastMessage: 'Hello', lastReceiveTime: 1000, contactType: 0,
+        }],
+        chatMessageList: [],
+        applyCount: 1,
+      },
+    })
+    await flushPromises()
 
     await wrapper.get('[data-testid="collapse-sidebar"]').trigger('click')
     await flushPromises()
     expect(wrapper.get('[data-testid="chat-shell"]').classes()).toContain('is-sidebar-collapsed')
     expect(document.activeElement).toBe(wrapper.get('[data-testid="expand-sidebar"]').element)
+    expect(wrapper.find('[data-testid="toggle-message-search"]').exists()).toBe(true)
+    expect(wrapper.find('.chat-main [data-testid="toggle-message-search"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="open-contact-search"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="open-contact-directory"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="open-group-directory"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="chat-session-S200"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="profile-menu-trigger"] .profile-avatar').exists()).toBe(true)
 
     await wrapper.get('[data-testid="expand-sidebar"]').trigger('click')
     await flushPromises()
