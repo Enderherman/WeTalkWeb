@@ -440,3 +440,9 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 - Chromium 360×800 另截图检查服务错误、空会话和历史加载状态；服务错误页隐藏了测试桩提供的原始诊断信息。
 - 所有页面文档宽度等于视口宽度，未见横向溢出；5 种视口的页面异常计数为 0。键盘回归验证搜索框焦点、移动侧栏联系人弹窗焦点返回/侧栏状态，以及桌面资料弹窗焦点往返。
 - 预览测试使用 API/WebSocket 测试桩。截图保存在 `D:/environment/WeTalkBrowserQA/captures`；WebKit 模拟不是 iOS Safari 真机验收，真机测试仍待完成。
+
+### NAS 实际桌面 Chromium 验收（2026-09-28）
+
+- Windows 1920×1080 显示器上以可见的 Chromium 153.0.8010.12 窗口访问 NAS 实际网页，最大化 viewport 为 1920×952；登录和注册页均 HTTP 200，验证码图片加载成功，无页面异常或横向溢出。
+- 键盘遍历通过；注册顺序包含邮箱验证码输入框和“发送验证码”按钮。未输入账户信息，也未提交表单。
+- 登录/注册截图：`D:/environment/WeTalkBrowserQA/captures/nas-desktop-login-chromium-20260928.png`、`D:/environment/WeTalkBrowserQA/captures/nas-desktop-register-chromium-20260928.png`。Playwright WebKit 在 390/768/1280 下的 NAS 登录/注册 Tab 顺序回归通过；iOS Safari、Android Chrome 和登录后聊天流程仍待验收。

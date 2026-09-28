@@ -6,7 +6,7 @@
 
 | 环境 | 验收目标 | 核心尺寸 | 当前状态 |
 |---|---|---|---|
-| Windows 桌面 Chrome、Edge | 各自当前稳定版及前一稳定版 | 1280×800、1366×768 | 构建和组件测试通过；浏览器视觉验收待完成 |
+| Windows 桌面 Chrome、Edge | 各自当前稳定版及前一稳定版 | 1280×800、1366×768 | 已在 Windows 实际桌面浏览器 Chromium 153.0.8010.12 / 1920×952 viewport 验收登录和注册页、验证码及键盘顺序；Chrome/Edge 当前与前一稳定版矩阵、聊天核心流程仍待验收 |
 | Android Chrome | 当前稳定版及前一稳定版 | 360×800、390×844 | 真机验收待完成 |
 | iOS Safari | 当前稳定版及前一稳定版 | 390×844、768×1024 | 真机验收待完成 |
 | Firefox 桌面 | 当前稳定版基础兼容 | 1280×800 | 最佳努力支持，不作为首发验收门槛 |
@@ -79,5 +79,11 @@ Chromium 360×800 还截图检查了通用服务错误页、空会话和服务�
 ### 真实后端会话管理浏览器回归（2026-09-27）
 
 本地 Chromium 桌面、手机视口通过 Vite 代理访问真实 Spring Boot、MySQL 和 Redis。创建三个独立会话后，网页显示设备标签和当前会话标志；分别执行单设备撤销与退出其他设备，当前浏览器保持在线，被撤销 Cookie 返回 901、目标 WebSocket 断开。MySQL 临时账号、关联记录及 Redis session/限流键已清理。
+
+### Windows 实际桌面 Chromium 验收（2026-09-28）
+
+Playwright 1.63 启动可见的 Chromium 153.0.8010.12 实际浏览器窗口访问 NAS 部署网页；Windows 显示器为 1920×1080，最大化浏览器 viewport 为 1920×952。登录、注册页均返回 HTTP 200，真实图片验证码可加载，页面无 JavaScript 异常或横向溢出。键盘顺序验证通过：登录为邮箱、密码、图片验证码、验证码刷新、登录；注册为昵称、邮箱、密码、确认密码、邮箱验证码、发送邮箱验证码、图片验证码、验证码刷新、创建账号。未输入账户信息或提交表单。
+
+登录与注册截图：`D:/environment/WeTalkBrowserQA/captures/nas-desktop-login-chromium-20260928.png`、`D:/environment/WeTalkBrowserQA/captures/nas-desktop-register-chromium-20260928.png`。NAS 实际站点的 Playwright WebKit 390×844、768×1024、1280×900 登录/注册共 6 组检查也通过，包含邮箱验证码输入框与发送按钮的 Tab 顺序、模式链接焦点、零横向溢出和零页面异常；这仍不代替当前稳定版 Chrome/Edge 完整聊天流程或 iOS/Android 真机验收。
 
 会话列表截图：D:/environment/WeTalkBrowserQA/captures/chromium-1280-session-list.png、D:/environment/WeTalkBrowserQA/captures/chromium-390-session-list.png。这些是浏览器视口模拟，不替代真实 Android/iOS 设备验收。
