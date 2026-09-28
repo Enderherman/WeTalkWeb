@@ -113,6 +113,12 @@ curl -f http://192.168.31.108:8081/healthz
 WETALK_WEB_IMAGE=wetalk-web:0.1.0 docker compose -f compose.nas.yaml up -d --no-deps --force-recreate wetalk-web
 ~~~
 
+### WeTalk 0.0.3 邮箱注册与 AI 运行配置（2026-09-28）
+
+- NAS 后端更新到 `wetalk-backend:0.0.3`，Web 注册界面也已更新；后端 readiness 返回 `UP`，MySQL/Redis 与数据目录未重建或迁移。
+- DeepSeek 通过后端 OpenAI 兼容服务配置，模型为 `deepseek-flash`；从 NAS 使用运行环境中的 API Key 发起的最小请求返回 HTTP 200。Key 只保存在 NAS 私有 `.env`（权限 600），未放进仓库、前端或发布包。
+- QQ SMTP 到 `smtp.qq.com:465` 的 TCP/TLS/EHLO 可用，但当前授权码在 AUTH 阶段被拒绝，未发送测试邮件。为避免继续使用失败口令，NAS `.env` 中已清除该值并将 `WETALK_EMAIL_ENABLED=false`；收到有效授权码后再设置 `MAIL_PASSWORD`、启用邮件功能并复测注册。
+
 ## 备份与回滚
 
 每次升级前先安排写入窗口，保存数据库、业务文件目录、当前 `.env` 和 `secrets/`。如果是升级且旧镜像仍在本机，先保存可回滚镜像；首次安装时跳过：
