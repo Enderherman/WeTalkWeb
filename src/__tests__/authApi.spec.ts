@@ -29,6 +29,38 @@ describe('auth API compatibility', () => {
     })
   })
 
+  it('sends an image-captcha-protected registration email-code request', async () => {
+    vi.mocked(postForm).mockResolvedValue(null)
+
+    await expect(authApi.sendRegistrationEmailCode({
+      email: 'student@example.com',
+      checkCodeKey: 'captcha-key',
+      checkCode: '9',
+    })).resolves.toBeUndefined()
+    expect(postForm).toHaveBeenCalledWith('/account/registerEmailCode', {
+      email: 'student@example.com',
+      checkCodeKey: 'captcha-key',
+      checkCode: '9',
+    })
+  })
+
+  it('registers with an email verification code after the captcha was consumed', async () => {
+    vi.mocked(postForm).mockResolvedValue(null)
+
+    await expect(authApi.register({
+      email: 'student@example.com',
+      nickName: 'Student',
+      password: 'WeTalk123',
+      emailCode: '123456',
+    })).resolves.toBeUndefined()
+    expect(postForm).toHaveBeenCalledWith('/account/register', {
+      email: 'student@example.com',
+      nickName: 'Student',
+      password: 'WeTalk123',
+      emailCode: '123456',
+    })
+  })
+
   it('requests a short-lived WebSocket ticket through the protected session', async () => {
     vi.mocked(postForm).mockResolvedValue({ ticket: 'one-time-ticket' })
 

@@ -16,6 +16,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/account/login',
       '/account/logout',
       '/account/register',
+      '/account/registerEmailCode',
       '/account/revokeOtherSessions',
       '/account/revokeSession',
       '/account/saveUserInfo',
@@ -144,6 +145,9 @@ describe('WeTalkWeb OpenAPI contract', () => {
   it('preserves the current credential and text-history constraints', () => {
     expect(contract.components.schemas.LoginRequest.properties.password.pattern).toBe('^[a-f0-9]{32}$')
     expect(contract.components.schemas.RegisterRequest.properties.password.minLength).toBe(8)
+    expect(contract.components.schemas.RegisterRequest.required).toEqual(['email', 'password', 'nickName', 'emailCode'])
+    expect(contract.components.schemas.RegistrationEmailCodeRequest.required).toEqual(['email', 'checkCodeKey', 'checkCode'])
+    expect(contract.paths['/account/register'].post.description).toContain('valid six-digit email code')
     expect(contract.components.schemas.SendChatMessageRequest.properties.messageContent.maxLength).toBe(500)
     expect(contract.components.schemas.SendChatMessageRequest.properties.messageType.enum).toEqual([2, 5])
     expect(contract.components.schemas.SendChatMessageRequest.properties.clientMessageId).toMatchObject({

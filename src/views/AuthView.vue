@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { authApi } from '@/api/auth'
 import type { WebAuthSession } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
-import { validateAuthForm } from '@/utils/authValidation'
+import { validateAuthForm, validateEmail } from '@/utils/authValidation'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,13 +14,17 @@ const isRegister = computed(() => route.name === 'register')
 const registeredNotice = computed(() => route.query.registered === '1')
 const passwordUpdatedNotice = computed(() => route.query.passwordUpdated === '1')
 const expiredNotice = computed(() => route.query.expired === '1')
-const form = reactive({ email: '', nickName: '', password: '', confirmPassword: '', checkCode: '' })
+const form = reactive({ email: '', nickName: '', password: '', confirmPassword: '', checkCode: '', emailCode: '' })
 const fieldErrors = ref<Record<string, string>>({})
 const pageError = ref('')
+const emailCodeNotice = ref('')
 const captchaImage = ref('')
 const captchaKey = ref('')
 const captchaLoading = ref(false)
 const submitting = ref(false)
+const emailCodeSending = ref(false)
+const emailCodeCountdown = ref(0)
+let emailCodeTimer: number | null = null
 
 const title = computed(() => (isRegister.value ? '创建你的账号' : '欢迎回来'))
 const captchaSource = computed(() => {
@@ -50,20 +54,89 @@ async function refreshCaptcha() {
 watch(isRegister, () => {
   fieldErrors.value = {}
   pageError.value = ''
+  emailCodeNotice.value = ''
   form.checkCode = ''
+  form.emailCode = ''
+  stopEmailCodeCountdown()
   void refreshCaptcha()
+})
+
+watch(() => form.email, () => {
+  form.emailCode = ''
+  emailCodeNotice.value = ''
 })
 
 onMounted(() => {
   void refreshCaptcha()
 })
 
+onBeforeUnmount(() => {
+  stopEmailCodeCountdown()
+})
+
+function stopEmailCodeCountdown() {
+  if (emailCodeTimer !== null) window.clearInterval(emailCodeTimer)
+  emailCodeTimer = null
+  emailCodeCountdown.value = 0
+}
+
+function startEmailCodeCountdown() {
+  stopEmailCodeCountdown()
+  emailCodeCountdown.value = 60
+  emailCodeTimer = window.setInterval(() => {
+    if (emailCodeCountdown.value <= 1) {
+      stopEmailCodeCountdown()
+      return
+    }
+    emailCodeCountdown.value -= 1
+  }, 1000)
+}
+
+async function sendRegistrationEmailCode() {
+  pageError.value = ''
+  emailCodeNotice.value = ''
+  fieldErrors.value = {}
+
+  const emailError = validateEmail(form.email)
+  if (emailError) {
+    fieldErrors.value.email = emailError
+    return
+  }
+  if (!form.checkCode.trim()) {
+    fieldErrors.value.checkCode = '请输入图片验证码'
+    return
+  }
+  if (!captchaKey.value) {
+    pageError.value = '图片验证码已失效，请刷新后重试'
+    await refreshCaptcha()
+    return
+  }
+
+  emailCodeSending.value = true
+  try {
+    await authApi.sendRegistrationEmailCode({
+      email: form.email.trim(),
+      checkCodeKey: captchaKey.value,
+      checkCode: form.checkCode.trim(),
+    })
+    emailCodeNotice.value = '如果邮箱可以注册，验证码已发送，请查收。'
+    startEmailCodeCountdown()
+  } catch (error: unknown) {
+    pageError.value = error instanceof Error ? error.message : '验证码发送失败，请稍后重试'
+  } finally {
+    form.checkCode = ''
+    await refreshCaptcha()
+    emailCodeSending.value = false
+  }
+}
+
 async function submit() {
   pageError.value = ''
+  emailCodeNotice.value = ''
   fieldErrors.value = validateAuthForm(isRegister.value ? 'register' : 'login', form)
   if (Object.keys(fieldErrors.value).length > 0) return
 
-  if (!captchaKey.value) {
+  if (!isRegister.value && !captchaKey.value) {
     pageError.value = '请先刷新并填写图片验证码'
     await refreshCaptcha()
     return
@@ -76,8 +149,7 @@ async function submit() {
         email: form.email.trim(),
         nickName: form.nickName.trim(),
         password: form.password,
-        checkCodeKey: captchaKey.value,
-        checkCode: form.checkCode.trim(),
+        emailCode: form.emailCode.trim(),
       })
       form.password = ''
       form.confirmPassword = ''
@@ -96,8 +168,10 @@ async function submit() {
     await router.replace({ name: 'chat' })
   } catch (error: unknown) {
     pageError.value = error instanceof Error ? error.message : '操作失败，请稍后重试'
-    form.checkCode = ''
-    await refreshCaptcha()
+    if (!isRegister.value) {
+      form.checkCode = ''
+      await refreshCaptcha()
+    }
   } finally {
     submitting.value = false
   }
@@ -134,6 +208,7 @@ function toSession(user: WebAuthSession, emailFallback: string) {
       <p v-if="registeredNotice" class="notice notice-success" role="status">注册成功，请登录</p>
       <p v-if="passwordUpdatedNotice" class="notice notice-success" role="status">密码已修改，请使用新密码登录</p>
       <p v-if="expiredNotice" class="notice notice-error" role="status">登录状态已过期，请重新登录</p>
+      <p v-if="emailCodeNotice" class="notice notice-success" data-testid="email-code-notice" role="status">{{ emailCodeNotice }}</p>
       <p v-if="pageError" class="notice notice-error" role="alert">{{ pageError }}</p>
 
       <form class="auth-form" novalidate @submit.prevent="submit">
@@ -194,6 +269,32 @@ function toSession(user: WebAuthSession, emailFallback: string) {
           <small v-if="fieldErrors.confirmPassword" id="confirm-password-error" class="field-error" role="alert">{{ fieldErrors.confirmPassword }}</small>
         </label>
 
+        <div v-if="isRegister" class="field">
+          <label for="email-code">邮箱验证码</label>
+          <div class="captcha-row">
+            <input
+              id="email-code"
+              v-model.trim="form.emailCode"
+              data-testid="email-code"
+              type="text"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              maxlength="6"
+              placeholder="输入邮件中的 6 位验证码"
+              :aria-invalid="Boolean(fieldErrors.emailCode)"
+              :aria-describedby="fieldErrors.emailCode ? 'email-code-error' : undefined"
+            />
+            <button
+              class="captcha-refresh"
+              data-testid="send-email-code"
+              type="button"
+              :disabled="emailCodeSending || captchaLoading || emailCodeCountdown > 0"
+              @click="sendRegistrationEmailCode"
+            >{{ emailCodeSending ? '正在发送…' : emailCodeCountdown > 0 ? `${emailCodeCountdown} 秒后重发` : '发送验证码' }}</button>
+          </div>
+          <small v-if="fieldErrors.emailCode" id="email-code-error" class="field-error" role="alert">{{ fieldErrors.emailCode }}</small>
+        </div>
+
         <div class="field">
           <label for="captcha-input">图片验证码</label>
           <div class="captcha-row">
@@ -233,7 +334,7 @@ function toSession(user: WebAuthSession, emailFallback: string) {
           {{ isRegister ? '登录' : '注册' }}
         </RouterLink>
       </p>
-      <p class="auth-footnote">当前注册使用图片验证码；邮箱验证码暂未接入。</p>
+      <p class="auth-footnote">{{ isRegister ? '图片验证码用于发送邮箱验证码；注册还需输入邮件中的 6 位验证码。' : '登录需要通过图片验证码。' }}</p>
     </section>
 
     <footer class="auth-footer">简洁、专注的聊天空间</footer>

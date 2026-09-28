@@ -7,6 +7,7 @@ const validLogin = {
   password: 'WeTalk123',
   confirmPassword: '',
   checkCode: '9',
+  emailCode: '',
 }
 
 describe('validateAuthForm', () => {
@@ -32,6 +33,17 @@ describe('validateAuthForm', () => {
     })
     expect(errors.nickName).toBe('请输入昵称')
     expect(errors.confirmPassword).toBe('两次输入的密码不一致')
+    expect(errors.emailCode).toBe('请输入 6 位邮箱验证码')
+  })
+
+  it('accepts registration without an image captcha after using it to request an email code', () => {
+    expect(validateAuthForm('register', {
+      ...validLogin,
+      nickName: 'Student',
+      confirmPassword: validLogin.password,
+      checkCode: '',
+      emailCode: '123456',
+    })).toEqual({})
   })
 })
 

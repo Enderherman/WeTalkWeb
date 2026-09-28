@@ -26,7 +26,7 @@
         "tags": ["Account"],
         "operationId": "getCheckCode",
         "summary": "Create an image captcha",
-        "description": "Creates a short-lived captcha and returns its image data URI and one-time key. The key expires after ten minutes and is consumed by registration or login. The backend mapping currently accepts an unrestricted HTTP method; WeTalkWeb uses POST.",
+        "description": "Creates a short-lived captcha and returns its image data URI and one-time key. The key expires after ten minutes and is consumed by registration email-code requests or login. The backend mapping currently accepts an unrestricted HTTP method; WeTalkWeb uses POST.",
         "responses": {
           "200": {
             "description": "Captcha created.",
@@ -53,12 +53,44 @@
         }
       }
     },
+    "/account/registerEmailCode": {
+      "post": {
+        "tags": ["Account"],
+        "operationId": "sendRegistrationEmailCode",
+        "summary": "Send a registration email code",
+        "description": "Validates the one-time image captcha and sends a six-digit code to the address. The code expires after ten minutes. Existing accounts receive the same success response without a message, to avoid account enumeration.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": { "$ref": "#/components/schemas/RegistrationEmailCodeRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email code request result. Inspect code for business success or failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/NullDataResponse" },
+                    { "$ref": "#/components/schemas/BusinessErrorResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/BusinessError" }
+        }
+      }
+    },
     "/account/register": {
       "post": {
         "tags": ["Account"],
         "operationId": "registerAccount",
         "summary": "Register an account",
-        "description": "The server hashes the submitted password. Password constraints are copied from the current backend validation rule. Email ownership is not verified by the current backend.",
+        "description": "Requires a valid six-digit email code that was sent to the email address. The server hashes the submitted password. Password constraints are copied from the current backend validation rule.",
         "requestBody": {
           "required": true,
           "content": {
@@ -82,8 +114,8 @@
                   "success": {
                     "value": { "status": "success", "code": 200, "data": null }
                   },
-                  "captchaFailure": {
-                    "value": { "status": "error", "code": 600, "message": "图片验证码错误", "data": null }
+                  "emailCodeFailure": {
+                    "value": { "status": "error", "code": 600, "message": "邮箱验证码错误或已过期", "data": null }
                   }
                 }
               }
@@ -1753,9 +1785,8 @@
       },
       "RegisterRequest": {
         "type": "object",
-        "required": ["checkCodeKey", "email", "password", "nickName", "checkCode"],
+        "required": ["email", "password", "nickName", "emailCode"],
         "properties": {
-          "checkCodeKey": { "type": "string", "format": "uuid" },
           "email": { "type": "string", "format": "email" },
           "password": {
             "type": "string",
@@ -1765,6 +1796,15 @@
             "description": "Raw password sent to the server, which hashes it. Must contain at least one letter and one digit."
           },
           "nickName": { "type": "string" },
+          "emailCode": { "type": "string", "minLength": 6, "maxLength": 6, "pattern": "^[0-9]{6}$" }
+        }
+      },
+      "RegistrationEmailCodeRequest": {
+        "type": "object",
+        "required": ["email", "checkCodeKey", "checkCode"],
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "checkCodeKey": { "type": "string", "format": "uuid" },
           "checkCode": { "type": "string" }
         }
       },

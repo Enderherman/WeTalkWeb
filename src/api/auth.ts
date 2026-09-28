@@ -67,8 +67,17 @@ export interface LoginInput {
   checkCode: string
 }
 
-export interface RegisterInput extends LoginInput {
+export interface RegistrationEmailCodeInput {
+  email: string
+  checkCodeKey: string
+  checkCode: string
+}
+
+export interface RegisterInput {
+  email: string
   nickName: string
+  password: string
+  emailCode: string
 }
 
 export function hashLoginPassword(password: string): string {
@@ -78,14 +87,21 @@ export function hashLoginPassword(password: string): string {
 export const authApi = {
   getCaptcha: () => postForm<CaptchaData>('/account/checkCode', {}),
 
+  sendRegistrationEmailCode: async (input: RegistrationEmailCodeInput): Promise<void> => {
+    await postForm<null>('/account/registerEmailCode', {
+      email: input.email,
+      checkCodeKey: input.checkCodeKey,
+      checkCode: input.checkCode,
+    })
+  },
+
   register: async (input: RegisterInput): Promise<void> => {
     // The existing backend hashes the registration password itself.
     await postForm<null>('/account/register', {
       email: input.email,
       password: input.password,
       nickName: input.nickName,
-      checkCodeKey: input.checkCodeKey,
-      checkCode: input.checkCode,
+      emailCode: input.emailCode,
     })
   },
 

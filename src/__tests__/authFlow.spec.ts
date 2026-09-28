@@ -46,6 +46,7 @@ const { downloadPreferences } = vi.hoisted(() => ({
 vi.mock('@/api/auth', () => ({
   authApi: {
     getCaptcha: vi.fn(),
+    sendRegistrationEmailCode: vi.fn(),
     register: vi.fn(),
     login: vi.fn(),
     createWebSocketTicket: vi.fn(),
@@ -290,7 +291,7 @@ describe('authentication flow', () => {
     await wrapper.get('[data-testid="email"]').setValue('student@example.com')
     await wrapper.get('[data-testid="password"]').setValue('WeTalk123')
     await wrapper.get('[data-testid="confirm-password"]').setValue('WeTalk123')
-    await wrapper.get('[data-testid="captcha"]').setValue('9')
+    await wrapper.get('[data-testid="email-code"]').setValue('123456')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
@@ -298,11 +299,33 @@ describe('authentication flow', () => {
       email: 'student@example.com',
       nickName: 'Student',
       password: 'WeTalk123',
-      checkCodeKey: 'captcha-key',
-      checkCode: '9',
+      emailCode: '123456',
     })
     expect(router.currentRoute.value.name).toBe('login')
     expect(router.currentRoute.value.query.registered).toBe('1')
+  })
+
+  it('sends an email code after checking the address and image captcha', async () => {
+    vi.mocked(authApi.sendRegistrationEmailCode).mockResolvedValue(undefined)
+    const { wrapper } = await mountAuth('/register')
+    await wrapper.get('[data-testid="email"]').setValue('student@example.com')
+    await wrapper.get('[data-testid="captcha"]').setValue('9')
+
+    try {
+      await wrapper.get('[data-testid="send-email-code"]').trigger('click')
+      await flushPromises()
+
+      expect(authApi.sendRegistrationEmailCode).toHaveBeenCalledWith({
+        email: 'student@example.com',
+        checkCodeKey: 'captcha-key',
+        checkCode: '9',
+      })
+      expect(wrapper.get('[data-testid="email-code-notice"]').text()).toContain('验证码已发送')
+      expect(authApi.getCaptcha).toHaveBeenCalledTimes(2)
+    } finally {
+      wrapper.unmount()
+      wrapper.element.remove()
+    }
   })
 
   it('stores the returned session and opens the authenticated shell after login', async () => {
