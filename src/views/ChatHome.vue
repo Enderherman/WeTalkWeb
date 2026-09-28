@@ -283,12 +283,19 @@ function dismissWebReleaseNotice() {
 function syncChatViewportHeight() {
   const shell = chatShell.value
   if (!shell) return
-  if (window.innerWidth <= 760 && chatVisualViewport) {
-    shell.style.setProperty('--wt-chat-visual-viewport-height', `${Math.max(1, Math.round(chatVisualViewport.height))}px`)
-    shell.style.setProperty('--wt-chat-visual-viewport-top', `${Math.max(0, Math.round(chatVisualViewport.offsetTop))}px`)
+  const rootStyle = document.documentElement.style
+  if (window.innerWidth <= 1024 && chatVisualViewport) {
+    const height = Math.max(1, Math.round(chatVisualViewport.height))
+    const top = Math.max(0, Math.round(chatVisualViewport.offsetTop))
+    shell.style.setProperty('--wt-chat-visual-viewport-height', `${height}px`)
+    shell.style.setProperty('--wt-chat-visual-viewport-top', `${top}px`)
+    rootStyle.setProperty('--wt-chat-viewport-bottom', `${top + height}px`)
+    document.documentElement.classList.add('wt-chat-viewport-lock')
   } else {
     shell.style.removeProperty('--wt-chat-visual-viewport-height')
     shell.style.removeProperty('--wt-chat-visual-viewport-top')
+    rootStyle.removeProperty('--wt-chat-viewport-bottom')
+    document.documentElement.classList.remove('wt-chat-viewport-lock')
   }
 }
 
@@ -299,6 +306,8 @@ onBeforeUnmount(() => {
   chatVisualViewport?.removeEventListener('scroll', syncChatViewportHeight)
   chatShell.value?.style.removeProperty('--wt-chat-visual-viewport-height')
   chatShell.value?.style.removeProperty('--wt-chat-visual-viewport-top')
+  document.documentElement.style.removeProperty('--wt-chat-viewport-bottom')
+  document.documentElement.classList.remove('wt-chat-viewport-lock')
   chatVisualViewport = null
   historyRequestId += 1
   resetFullHistorySearch()

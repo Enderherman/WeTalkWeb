@@ -96,7 +96,7 @@ curl -f "http://${NAS_LAN_IP}:${WEB_PUBLISHED_PORT}/healthz"
 - 备份后应用 `sql/002-client-message-idempotency.sql` 与 `sql/003-persistent-unread-cursor.sql`，并读回确认字段和索引。测试后清理了临时账号、好友关系、会话和消息，业务表行数恢复为 0。
 - NAS Docker 后端 readiness 返回 `UP`，网页 `/healthz` 返回 `ok`，同源 `/api/actuator/health/readiness` 返回 `UP`。Playwright 双账号真实后端验证注册/登录、Cookie 会话、WebSocket、好友申请、私聊发送、幂等重试、附件上传/下载、历史恢复和 type 17 已读回执。生产网页在 Chromium 360/390/768/1280、WebKit 登录/注册 390/768/1280 模拟视口无横向溢出或页面错误；WebKit 模拟不等同于 iOS Safari 实机验收。
 - WebKit 登录/注册模拟还验证了邮箱、密码、验证码到提交按钮的 Tab 顺序和模式切换链接焦点；真实 iOS Safari 键盘/触控仍待用户设备验收。
-- 已将数据库逻辑备份恢复到隔离的无网络 MySQL 8.4 临时容器，恢复出 9 张表后应用 002/003 并核对字段和索引；测试容器与随机凭据已清理。数据库恢复演练通过。附件目录归档/恢复演练也已通过；目录原有 0 个文件，本次写入一次性探针、归档到受限临时目录、恢复到隔离目录并核对 SHA-256 一致，随后清理探针和临时归档。非空真实附件恢复、HTTPS/WSS、正式域名、实体手机 Safari/Chrome 和辅助功能检查仍待完成。
+- 已将数据库逻辑备份恢复到隔离的无网络 MySQL 8.4 临时容器，恢复出 9 张表后应用 002/003 并核对字段和索引；测试容器与随机凭据已清理。数据库恢复演练通过。空目录探针演练后，又对后端持久化附件目录中的 2 个真实文件（约 3.1 MiB）进行归档和隔离恢复；归档完整性、文件数、相对路径及汇总 SHA-256 均匹配，原文件未改动，验证归档保留在 NAS 私有备份目录、权限为 600，临时恢复副本已清理。HTTPS/WSS、正式域名、实体手机 Safari/Chrome 和辅助功能检查仍待完成。
 
 ### Nginx 安全响应头修复部署（2026-09-28）
 
@@ -109,7 +109,7 @@ curl -f "http://${NAS_LAN_IP}:${WEB_PUBLISHED_PORT}/healthz"
 
 - 保留后端 0.0.2 镜像，再短暂以旧镜像代替 `wetalk-backend:0.0.3` 并通过原 Compose 重新创建后端容器；旧容器 readiness 返回 `UP`。
 - 随后恢复 0.0.3 镜像标签并再次重建后端；运行中镜像 ID 与备份的 0.0.3 镜像一致，readiness 返回 `UP`。MySQL/Redis 与数据目录全程未重启或修改。
-- 旧后端兼容性测试期间临时关闭 AI，回滚恢复后已将 NAS AI 配置恢复启用；邮件保持关闭，等待有效 QQ SMTP 授权码。
+- 旧后端兼容性测试期间临时关闭 AI，回滚恢复后已将 NAS AI 配置恢复启用。2026-09-28 更新 QQ SMTP 授权码后 TLS/AUTH 与测试邮件提交通过；私有 `.env` 已启用邮箱注册、`MAIL_DEBUG=false` 且权限为 600，仅重建后端容器后 readiness 返回 UP。收件箱确认和注册验证码全链路仍待完成。
 
 已现场验证的 Web 回退与恢复命令（在网页 Compose 目录执行）：
 
@@ -123,7 +123,7 @@ WETALK_WEB_IMAGE=wetalk-web:0.1.0 docker compose -f compose.nas.yaml up -d --no-
 
 - NAS 后端更新到 `wetalk-backend:0.0.3`，Web 注册界面也已更新；后端 readiness 返回 `UP`，MySQL/Redis 与数据目录未重建或迁移。
 - DeepSeek 通过后端 OpenAI 兼容服务配置，模型为 `deepseek-flash`；从 NAS 使用运行环境中的 API Key 发起的最小请求返回 HTTP 200。Key 只保存在 NAS 私有 `.env`（权限 600），未放进仓库、前端或发布包。
-- QQ SMTP 到 `smtp.qq.com:465` 的 TCP/TLS/EHLO 可用，但当前授权码在 AUTH 阶段被拒绝，未发送测试邮件。为避免继续使用失败口令，NAS `.env` 中已清除该值并将 `WETALK_EMAIL_ENABLED=false`；收到有效授权码后再设置 `MAIL_PASSWORD`、启用邮件功能并复测注册。
+- 首次使用的 QQ SMTP 授权码在 AUTH 阶段被拒绝，随后已从 NAS `.env` 清除。2026-09-28 新授权码已通过 `smtp.qq.com:465` TLS/AUTH，QQ SMTP 接受了一封发往配置邮箱的测试邮件；新口令只保存在 NAS 权限 600 的 `.env`，没有写入 Git 或镜像，`MAIL_DEBUG=false`。后端现已启用邮件注册并健康运行；收件箱确认、图片验证码请求邮件码及最终邮箱注册尚待完成。
 
 ## 备份与回滚
 
@@ -153,4 +153,4 @@ sudo docker compose -f compose.yaml -f compose.nas.yaml up -d
 sudo docker compose -f compose.nas.yaml up -d
 ~~~
 
-本手册、Docker Compose 配置、NAS 容器部署、LAN 浏览器验收、数据库逻辑恢复、空目录文件归档/恢复以及 Web/后端镜像回滚演练已通过；非空真实附件恢复、HTTPS/WSS 和实体设备验收仍待完成。
+本手册、Docker Compose 配置、NAS 容器部署、LAN 浏览器验收、数据库逻辑恢复、空目录与非空真实附件归档/恢复以及 Web/后端镜像回滚演练已通过；HTTPS/WSS 和实体设备验收仍待完成。

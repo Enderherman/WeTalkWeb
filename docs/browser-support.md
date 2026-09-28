@@ -87,3 +87,7 @@ Playwright 1.63 启动可见的 Chromium 153.0.8010.12 实际浏览器窗口访�
 登录与注册截图：`D:/environment/WeTalkBrowserQA/captures/nas-desktop-login-chromium-20260928.png`、`D:/environment/WeTalkBrowserQA/captures/nas-desktop-register-chromium-20260928.png`。NAS 实际站点的 Playwright WebKit 390×844、768×1024、1280×900 登录/注册共 6 组检查也通过，包含邮箱验证码输入框与发送按钮的 Tab 顺序、模式链接焦点、零横向溢出和零页面异常；这仍不代替当前稳定版 Chrome/Edge 完整聊天流程或 iOS/Android 真机验收。
 
 会话列表截图：D:/environment/WeTalkBrowserQA/captures/chromium-1280-session-list.png、D:/environment/WeTalkBrowserQA/captures/chromium-390-session-list.png。这些是浏览器视口模拟，不替代真实 Android/iOS 设备验收。
+
+### iPad Safari 底部滚动修复回归（2026-09-28）
+
+聊天页面根节点现在锁定到 VisualViewport 的底边高度，避免 Safari 地址栏/工具栏收起造成 `100vh` 高于可视区时仍能滚动页面背景。Playwright WebKit 26.6 在 512px（iPad 分屏窄视口）、834px（11 英寸纵向）和 1024px（12.9 英寸纵向）宽度模拟了布局高度比可视高度多 16px 的情况：修复前可滚动 16px，修复后 document/body 不再滚动，聊天壳与可视区底边一致。截图保存在 `D:/environment/WeTalkBrowserQA/captures/nas-chat-scroll-after-ipadSplit-20260928.png`。测试 mock 了 API/WebSocket 和 VisualViewport 尺寸，仍需用户在实际 iPad Pro Safari 上复验。

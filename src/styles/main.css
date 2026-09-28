@@ -2957,14 +2957,24 @@ select:focus-visible {
   font-size: 11px;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 1024px) {
+  html.wt-chat-viewport-lock,
+  html.wt-chat-viewport-lock body,
+  html.wt-chat-viewport-lock #app {
+    height: var(--wt-chat-viewport-bottom, 100dvh);
+    min-height: 0;
+    overflow: hidden;
+  }
+
   .chat-shell {
     position: fixed;
     inset-inline: 0;
     top: var(--wt-chat-visual-viewport-top, 0px);
     min-height: 0;
   }
+}
 
+@media (max-width: 760px) {
   .not-found-page {
     padding-right: 20px;
     padding-left: 20px;

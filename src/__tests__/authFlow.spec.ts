@@ -943,6 +943,8 @@ describe('authentication flow', () => {
       const shell = wrapper.get('[data-testid="chat-shell"]')
       expect((shell.element as HTMLElement).style.getPropertyValue('--wt-chat-visual-viewport-height')).toBe('540px')
       expect((shell.element as HTMLElement).style.getPropertyValue('--wt-chat-visual-viewport-top')).toBe('0px')
+      expect(document.documentElement.classList.contains('wt-chat-viewport-lock')).toBe(true)
+      expect(document.documentElement.style.getPropertyValue('--wt-chat-viewport-bottom')).toBe('540px')
 
       Object.defineProperty(viewport, 'height', { configurable: true, value: 240 })
       Object.defineProperty(viewport, 'offsetTop', { configurable: true, value: 96 })
@@ -950,11 +952,13 @@ describe('authentication flow', () => {
       await flushPromises()
       expect((shell.element as HTMLElement).style.getPropertyValue('--wt-chat-visual-viewport-height')).toBe('240px')
       expect((shell.element as HTMLElement).style.getPropertyValue('--wt-chat-visual-viewport-top')).toBe('96px')
+      expect(document.documentElement.style.getPropertyValue('--wt-chat-viewport-bottom')).toBe('336px')
 
       Object.defineProperty(viewport, 'offsetTop', { configurable: true, value: 120 })
       viewport.dispatchEvent(new Event('scroll'))
       await flushPromises()
       expect((shell.element as HTMLElement).style.getPropertyValue('--wt-chat-visual-viewport-top')).toBe('120px')
+      expect(document.documentElement.style.getPropertyValue('--wt-chat-viewport-bottom')).toBe('360px')
     } finally {
       wrapper.unmount()
       wrapper.element.remove()
@@ -963,6 +967,8 @@ describe('authentication flow', () => {
       if (originalViewport) Object.defineProperty(window, 'visualViewport', originalViewport)
       else Reflect.deleteProperty(window, 'visualViewport')
     }
+    expect(document.documentElement.classList.contains('wt-chat-viewport-lock')).toBe(false)
+    expect(document.documentElement.style.getPropertyValue('--wt-chat-viewport-bottom')).toBe('')
   })
 
   it('keeps mobile navigation open so closing the profile dialog restores visible focus', async () => {

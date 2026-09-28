@@ -12,6 +12,10 @@ describe('mobile chat viewport sizing', () => {
 
   it('uses the visual viewport height and removes the desktop minimum height on narrow screens', () => {
     expect(stylesheet).toMatch(/\.chat-shell\s*\{[^}]*height:\s*var\(--wt-chat-visual-viewport-height,\s*100dvh\)/s)
-    expect(stylesheet).toMatch(/@media\s*\(max-width:\s*760px\)\s*\{\s*\.chat-shell\s*\{[^}]*position:\s*fixed;[^}]*top:\s*var\(--wt-chat-visual-viewport-top,\s*0px\);[^}]*min-height:\s*0;/s)
+    expect(stylesheet).toMatch(/@media\s*\(max-width:\s*1024px\)\s*\{[\s\S]*?\.chat-shell\s*\{[^}]*position:\s*fixed;[^}]*top:\s*var\(--wt-chat-visual-viewport-top,\s*0px\);[^}]*min-height:\s*0;/s)
+  })
+
+  it('locks tablet and mobile chat roots to the visual viewport so Safari cannot scroll the page background', () => {
+    expect(stylesheet).toMatch(/@media\s*\(max-width:\s*1024px\)\s*\{\s*html\.wt-chat-viewport-lock,\s*html\.wt-chat-viewport-lock body,\s*html\.wt-chat-viewport-lock #app\s*\{[^}]*height:\s*var\(--wt-chat-viewport-bottom,\s*100dvh\);[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s)
   })
 })
