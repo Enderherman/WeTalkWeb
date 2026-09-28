@@ -1,5 +1,11 @@
 # WeTalkWeb NAS Docker 内网部署手册
 
+## 2026-09-29 按反馈重排侧栏搜索与图标栏
+
+- WeTalkWeb commit `3c344c1`；源码包 SHA-256：`11e3ab7a4ac6dc5dfd0de73a7cf7fa61a5d72a65f3c229cd66dbdb52dd895a0d`。侧栏标题行的搜索按钮紧挨收起按钮左侧，并调用原有本会话全文搜索；聊天区右侧重复按钮已移除。桌面收起后保留图标与头像轨道。
+- 旧网页镜像保存在 `wetalk-web:0.1.0-pre-sidebar-final-20260929`，仅重建 `wetalk-web`。Docker 构建通过；`/healthz` 与后端 readiness 均返回 HTTP 200，新 `ChatHome` 资源返回 HTTP 200，并包含 `collapse-sidebar` 和 `message-search-panel`。
+- 移动端回归确认：在抽屉中打开搜索会先收起抽屉，Esc 后焦点回到导航按钮；没有改动后端、MySQL 或 Redis。
+
 ## 2026-09-29 侧栏搜索与收起
 
 - WeTalkWeb commit `add29df`；源码包 SHA-256：`42953c8c314fe3eb80daee3f68730ebf6b7f9feb8ab81111f7eb2d2b7ecefc83`。
