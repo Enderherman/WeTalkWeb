@@ -105,6 +105,14 @@ curl -f "http://${NAS_LAN_IP}:${WEB_PUBLISHED_PORT}/healthz"
 - 首页、`/index.html` 和 JS 资源均返回 HTTP 200，且包含 `X-Content-Type-Options: nosniff`、`Referrer-Policy: strict-origin-when-cross-origin`、`X-Frame-Options: DENY`；HTML 为 `Cache-Control: no-cache`，JS 为 `public, max-age=31536000, immutable`。
 - `http://192.168.31.108:8081/healthz` 返回 `ok`，同源 `/api/actuator/health/readiness` 返回 `{"status":"UP"}`。网页镜像标签为 `wetalk-web:0.1.0`；部署前旧镜像保存在 `wetalk-web:0.1.0-pre-f0e9728-20260928`。已用 Compose 实际切回旧 Web 镜像并检查 `/healthz`，再切回 `wetalk-web:0.1.0`，复验安全响应头和 readiness；后端与数据库容器未重启。后端镜像回滚仍未演练。
 
+已现场验证的 Web 回退与恢复命令（在网页 Compose 目录执行）：
+
+~~~shell
+WETALK_WEB_IMAGE=wetalk-web:0.1.0-pre-f0e9728-20260928 docker compose -f compose.nas.yaml up -d --no-deps --force-recreate wetalk-web
+curl -f http://192.168.31.108:8081/healthz
+WETALK_WEB_IMAGE=wetalk-web:0.1.0 docker compose -f compose.nas.yaml up -d --no-deps --force-recreate wetalk-web
+~~~
+
 ## 备份与回滚
 
 每次升级前先安排写入窗口，保存数据库、业务文件目录、当前 `.env` 和 `secrets/`。如果是升级且旧镜像仍在本机，先保存可回滚镜像；首次安装时跳过：
