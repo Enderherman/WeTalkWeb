@@ -1,5 +1,11 @@
 # WeTalkWeb NAS Docker 内网部署手册
 
+## 2026-09-29 侧栏搜索与收起
+
+- WeTalkWeb commit `add29df`；源码包 SHA-256：`42953c8c314fe3eb80daee3f68730ebf6b7f9feb8ab81111f7eb2d2b7ecefc83`。
+- 部署前旧镜像保存为 `wetalk-web:0.1.0-pre-sidebar-nav-20260929`，仅重建 `wetalk-web` 容器。Compose 校验和 Docker 构建通过，容器启动正常。
+- NAS `/healthz` 与 `/api/actuator/health/readiness` 均返回 HTTP 200；新 `ChatHome` 脚本返回 HTTP 200，包含 `open-sidebar-search` 和 `collapse-sidebar` 控件。
+
 ## 2026-09-29 网页品牌统一
 
 - WeTalkWeb commit `2c820e9`；源码包 SHA-256：`24f5460bc1d1dc71af949d5dfc20792b13cda445c83d5304d745ad6cbdd06337`。浏览器标签图标复用 WeTalkApp 的 `frontend/resources/icon.png`，标签标题和关于页名称显示为 `WeTalk`。
