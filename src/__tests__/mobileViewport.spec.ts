@@ -10,6 +10,12 @@ describe('mobile chat viewport sizing', () => {
     expect(stylesheet).toMatch(/@media\s*\(max-width:\s*760px\)\s*\{[\s\S]*?\.chat-shell\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s)
   })
 
+  it('collapses the desktop sidebar while keeping the mobile drawer available', () => {
+    expect(stylesheet).toMatch(/@media\s*\(min-width:\s*761px\)\s*\{[\s\S]*?\.chat-shell\.is-sidebar-collapsed\s*\{[^}]*grid-template-columns:\s*0\s+minmax\(0,\s*1fr\)/s)
+    expect(stylesheet).toMatch(/@media\s*\(max-width:\s*760px\)\s*\{[\s\S]*?\.chat-sidebar\s*\{[^}]*transform:\s*translateX\(-105%\)/s)
+    expect(stylesheet).toMatch(/\.chat-shell\.is-sidebar-collapsed\s+\.chat-sidebar\s*\{[^}]*width:\s*0/)
+  })
+
   it('uses the visual viewport height and removes the desktop minimum height on narrow screens', () => {
     expect(stylesheet).toMatch(/\.chat-shell\s*\{[^}]*height:\s*var\(--wt-chat-visual-viewport-height,\s*100dvh\)/s)
     expect(stylesheet).toMatch(/@media\s*\(max-width:\s*1024px\)\s*\{[\s\S]*?\.chat-shell\s*\{[^}]*position:\s*fixed;[^}]*top:\s*var\(--wt-chat-visual-viewport-top,\s*0px\);[^}]*min-height:\s*0;/s)

@@ -535,6 +535,25 @@ select:focus-visible {
   background: var(--wt-soft);
 }
 
+@media (min-width: 761px) {
+  .chat-shell {
+    transition: grid-template-columns 180ms ease;
+  }
+
+  .chat-shell.is-sidebar-collapsed {
+    grid-template-columns: 0 minmax(0, 1fr);
+  }
+
+  .chat-shell.is-sidebar-collapsed .chat-sidebar {
+    width: 0;
+    min-width: 0;
+    overflow: hidden;
+    padding-right: 0;
+    padding-left: 0;
+    visibility: hidden;
+  }
+}
+
 .sidebar-top,
 .sidebar-brand,
 .new-chat-button,
@@ -546,7 +565,13 @@ select:focus-visible {
 
 .sidebar-top {
   justify-content: space-between;
-  padding: 0 5px 21px;
+  padding: 0 5px 14px;
+}
+
+.sidebar-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .sidebar-brand {
@@ -559,11 +584,12 @@ select:focus-visible {
 
 .new-chat-button {
   gap: 10px;
-  min-height: 43px;
-  padding: 0 12px;
-  border: 1px solid #e5e5e1;
-  border-radius: 12px;
-  background: var(--wt-white);
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
   text-align: left;
   font-size: 14px;
   font-weight: 500;
@@ -577,7 +603,7 @@ select:focus-visible {
 .contact-add-button,
 .contact-directory-button,
 .group-directory-button {
-  margin-top: 8px;
+  margin-top: 3px;
   color: var(--wt-text);
   cursor: pointer;
 }
@@ -588,13 +614,109 @@ select:focus-visible {
 .contact-directory-button:focus-visible,
 .group-directory-button:hover,
 .group-directory-button:focus-visible {
-  border-color: #d5ddd7;
-  background: #f0f4f1;
+  border-color: transparent;
+  background: #ecece9;
 }
 
 .new-chat-button span {
   font-size: 20px;
   font-weight: 400;
+}
+
+.sidebar-search-button {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--wt-text);
+  background: transparent;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.sidebar-search-button:hover,
+.sidebar-search-button:focus-visible,
+.sidebar-search-button.is-active {
+  background: #ecece9;
+}
+
+.sidebar-control-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.desktop-sidebar-collapse,
+.desktop-sidebar-expand {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  color: var(--wt-muted);
+}
+
+.sidebar-search-field {
+  display: flex;
+  min-width: 0;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  margin: 3px 0 2px;
+  padding: 0 10px;
+  border: 1px solid #e5e5e1;
+  border-radius: 10px;
+  color: var(--wt-muted);
+  background: var(--wt-white);
+}
+
+.sidebar-search-field:focus-within {
+  border-color: #9fb8a7;
+  box-shadow: 0 0 0 3px rgb(66 102 78 / 12%);
+}
+
+.sidebar-search-field input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: var(--wt-text);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+}
+
+.sidebar-search-field input::placeholder {
+  color: var(--wt-muted);
+}
+
+.sidebar-search-clear {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  color: var(--wt-muted);
+  background: transparent;
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.sidebar-search-clear:hover {
+  color: var(--wt-text);
+  background: var(--wt-neutral-100);
 }
 
 .history-section {
@@ -3280,6 +3402,11 @@ select:focus-visible {
   .mobile-menu-open,
   .mobile-menu-close {
     display: grid;
+  }
+
+  .desktop-sidebar-collapse,
+  .desktop-sidebar-expand {
+    display: none;
   }
 
   .chat-topbar {

@@ -31,6 +31,13 @@ const chatStore = useChatStore()
 const downloadPreferencesStore = useDownloadPreferencesStore()
 const systemSettingsStore = useSystemSettingsStore()
 const sidebarOpen = ref(false)
+const sidebarCollapsed = ref(false)
+const sidebarSearchOpen = ref(false)
+const sidebarSearchQuery = ref('')
+const sidebarSearchInput = ref<HTMLInputElement | null>(null)
+const sidebarSearchTrigger = ref<HTMLButtonElement | null>(null)
+const desktopSidebarCollapseButton = ref<HTMLButtonElement | null>(null)
+const desktopSidebarExpandButton = ref<HTMLButtonElement | null>(null)
 const mobileMenuTrigger = ref<HTMLElement | null>(null)
 const mobileMenuCloseButton = ref<HTMLButtonElement | null>(null)
 const chatNavigation = ref<HTMLElement | null>(null)
@@ -96,6 +103,14 @@ const avatarInitial = computed(() => displayName.value.slice(0, 1).toUpperCase()
 const selectedSession = computed(
   () => chatStore.sessionList.find((session) => session.sessionId === selectedSessionId.value) || null,
 )
+const filteredChatSessions = computed(() => {
+  const query = sidebarSearchQuery.value.trim().toLocaleLowerCase()
+  if (!query) return chatStore.sessionList
+  return chatStore.sessionList.filter((session) =>
+    [session.contactName, session.contactId, session.lastMessage]
+      .some((value) => typeof value === 'string' && value.toLocaleLowerCase().includes(query)),
+  )
+})
 const activeSessionLatestMessageId = computed(() =>
   chatStore.initialMessages.reduce(
     (latest, message) => message.sessionId === selectedSessionId.value ? Math.max(latest, message.messageId) : latest,
@@ -519,8 +534,40 @@ function closeMobileNavigation(restoreFocus = true) {
   }
 }
 
+function collapseDesktopSidebar() {
+  closeProfileMenu()
+  sidebarCollapsed.value = true
+  void nextTick(() => desktopSidebarExpandButton.value?.focus())
+}
+
+function expandDesktopSidebar() {
+  sidebarCollapsed.value = false
+  void nextTick(() => desktopSidebarCollapseButton.value?.focus())
+}
+
+async function toggleSidebarSearch() {
+  if (sidebarSearchOpen.value) {
+    sidebarSearchOpen.value = false
+    sidebarSearchQuery.value = ''
+    await nextTick()
+    sidebarSearchTrigger.value?.focus()
+    return
+  }
+  sidebarSearchOpen.value = true
+  await nextTick()
+  sidebarSearchInput.value?.focus()
+}
+
+function closeSidebarSearch() {
+  sidebarSearchOpen.value = false
+  sidebarSearchQuery.value = ''
+  void nextTick(() => sidebarSearchTrigger.value?.focus())
+}
+
 function selectChatSession(sessionId: string) {
   selectedSessionId.value = sessionId
+  sidebarSearchOpen.value = false
+  sidebarSearchQuery.value = ''
   if (sidebarOpen.value) {
     sidebarOpen.value = false
     void nextTick(() => messageComposer.value?.focus())
@@ -1458,7 +1505,13 @@ async function signOut() {
 </script>
 
 <template>
-  <main ref="chatShell" class="chat-shell" data-testid="chat-shell" @click="closeProfileMenu">
+  <main
+    ref="chatShell"
+    class="chat-shell"
+    :class="{ 'is-sidebar-collapsed': sidebarCollapsed }"
+    data-testid="chat-shell"
+    @click="closeProfileMenu"
+  >
     <button
       v-if="sidebarOpen"
       class="sidebar-backdrop"
@@ -1481,21 +1534,80 @@ async function signOut() {
           <span class="brand-mark">W</span>
           <span>WeTalk</span>
         </RouterLink>
-        <button
-          ref="mobileMenuCloseButton"
-          class="icon-button mobile-menu-close"
-          type="button"
-          aria-label="关闭菜单"
-          @click="closeMobileNavigation()"
-        >
-          ×
-        </button>
+        <div class="sidebar-top-actions">
+          <button
+            ref="desktopSidebarCollapseButton"
+            class="icon-button desktop-sidebar-collapse"
+            data-testid="collapse-sidebar"
+            type="button"
+            aria-label="收起侧边栏"
+            aria-controls="chat-navigation"
+            aria-expanded="true"
+            @click="collapseDesktopSidebar"
+          >
+            <svg class="sidebar-control-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="3.75" y="4.5" width="16.5" height="15" rx="2.5"></rect>
+              <path d="M9 4.75v14.5"></path>
+            </svg>
+          </button>
+          <button
+            ref="mobileMenuCloseButton"
+            class="icon-button mobile-menu-close"
+            type="button"
+            aria-label="关闭菜单"
+            @click="closeMobileNavigation()"
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       <button class="new-chat-button" type="button" disabled>
         <span aria-hidden="true">＋</span>
         新聊天
       </button>
+      <button
+        ref="sidebarSearchTrigger"
+        class="sidebar-search-button"
+        data-testid="open-sidebar-search"
+        type="button"
+        aria-label="搜索聊天"
+        aria-controls="sidebar-search-input"
+        :aria-expanded="sidebarSearchOpen"
+        :class="{ 'is-active': sidebarSearchOpen }"
+        @click="toggleSidebarSearch"
+      >
+        <svg class="sidebar-control-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="10.8" cy="10.8" r="6.5"></circle>
+          <path d="m15.6 15.6 4.1 4.1"></path>
+        </svg>
+        <span>搜索</span>
+      </button>
+      <div v-if="sidebarSearchOpen" class="sidebar-search-field">
+        <svg class="sidebar-control-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="10.8" cy="10.8" r="6.5"></circle>
+          <path d="m15.6 15.6 4.1 4.1"></path>
+        </svg>
+        <input
+          id="sidebar-search-input"
+          ref="sidebarSearchInput"
+          v-model="sidebarSearchQuery"
+          data-testid="sidebar-search-input"
+          type="search"
+          autocomplete="off"
+          placeholder="搜索聊天"
+          aria-label="搜索聊天名称或最近消息"
+          @keydown.esc.stop.prevent="closeSidebarSearch"
+        />
+        <button
+          v-if="sidebarSearchQuery"
+          class="sidebar-search-clear"
+          data-testid="clear-sidebar-search"
+          type="button"
+          aria-label="清除聊天搜索"
+          @click="sidebarSearchQuery = ''; sidebarSearchInput?.focus()"
+        >×</button>
+      </div>
       <button
         class="new-chat-button contact-add-button"
         data-testid="open-contact-search"
@@ -1525,14 +1637,17 @@ async function signOut() {
       </button>
 
       <section class="history-section" aria-label="聊天记录">
-        <p class="sidebar-label">最近的聊天</p>
+        <p class="sidebar-label">{{ sidebarSearchOpen ? '搜索结果' : '最近的聊天' }}</p>
         <p v-if="!chatStore.initialized" class="history-empty">
           {{ chatStore.connectionError || connectionLabel }}
         </p>
         <p v-else-if="chatStore.sessionList.length === 0" class="history-empty">还没有聊天会话</p>
+        <p v-else-if="filteredChatSessions.length === 0" class="history-empty" data-testid="sidebar-search-empty">
+          没有匹配的聊天
+        </p>
         <div v-else class="chat-session-list">
           <button
-            v-for="session in chatStore.sessionList"
+            v-for="session in filteredChatSessions"
             :key="session.sessionId"
             class="chat-session-entry"
             :data-testid="`chat-session-${session.sessionId}`"
@@ -1662,6 +1777,23 @@ async function signOut() {
         松开鼠标以上传普通文件
       </div>
       <header class="chat-topbar">
+        <button
+          v-if="sidebarCollapsed"
+          ref="desktopSidebarExpandButton"
+          class="icon-button desktop-sidebar-expand"
+          data-testid="expand-sidebar"
+          type="button"
+          aria-label="展开侧边栏"
+          aria-controls="chat-navigation"
+          aria-expanded="false"
+          @click="expandDesktopSidebar"
+        >
+          <svg class="sidebar-control-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3.75" y="4.5" width="16.5" height="15" rx="2.5"></rect>
+            <path d="M9 4.75v14.5"></path>
+            <path d="m12.5 9 3 3-3 3"></path>
+          </svg>
+        </button>
         <button
           class="icon-button mobile-menu-open"
           type="button"
