@@ -21,6 +21,7 @@ import { getChatFileType, getChatMediaKind, getChatMediaMimeType, validateChatFi
 import { validatePassword } from '@/utils/authValidation'
 import { validateProfileImageUpload } from '@/utils/imageValidation'
 import { formatMessageTimeDivider, shouldShowMessageTime } from '@/utils/messageTime'
+import { createClientMessageId } from '@/utils/clientMessageId'
 import { trapDialogTab } from '@/composables/useDialogFocus'
 import { webClientVersion } from '@/config/version'
 
@@ -253,6 +254,7 @@ onMounted(() => {
   chatVisualViewport = window.visualViewport
   window.addEventListener('resize', syncChatViewportHeight)
   chatVisualViewport?.addEventListener('resize', syncChatViewportHeight)
+  chatVisualViewport?.addEventListener('scroll', syncChatViewportHeight)
   syncChatViewportHeight()
   void loadProfile()
   void systemSettingsStore.load().catch(() => undefined)
@@ -283,8 +285,10 @@ function syncChatViewportHeight() {
   if (!shell) return
   if (window.innerWidth <= 760 && chatVisualViewport) {
     shell.style.setProperty('--wt-chat-visual-viewport-height', `${Math.max(1, Math.round(chatVisualViewport.height))}px`)
+    shell.style.setProperty('--wt-chat-visual-viewport-top', `${Math.max(0, Math.round(chatVisualViewport.offsetTop))}px`)
   } else {
     shell.style.removeProperty('--wt-chat-visual-viewport-height')
+    shell.style.removeProperty('--wt-chat-visual-viewport-top')
   }
 }
 
@@ -292,7 +296,9 @@ onBeforeUnmount(() => {
   window.removeEventListener('online', handlePendingMessagesOnline)
   window.removeEventListener('resize', syncChatViewportHeight)
   chatVisualViewport?.removeEventListener('resize', syncChatViewportHeight)
+  chatVisualViewport?.removeEventListener('scroll', syncChatViewportHeight)
   chatShell.value?.style.removeProperty('--wt-chat-visual-viewport-height')
+  chatShell.value?.style.removeProperty('--wt-chat-visual-viewport-top')
   chatVisualViewport = null
   historyRequestId += 1
   resetFullHistorySearch()
@@ -993,7 +999,7 @@ async function sendTextMessage() {
     const existingAttempt = pendingTextMessage.value
     const clientMessageId = existingAttempt && existingAttempt.contactId === contactId && existingAttempt.messageContent === content
       ? existingAttempt.clientMessageId
-      : crypto.randomUUID()
+      : createClientMessageId()
     const lastQueuedAt = pendingTextMessages.value.reduce((latest, item) => Math.max(latest, item.createdAt), 0)
     const pending: PendingTextMessage = {
       clientMessageId,

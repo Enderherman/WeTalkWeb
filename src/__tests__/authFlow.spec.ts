@@ -906,11 +906,12 @@ describe('authentication flow', () => {
     expect(wrapper.get('[data-testid="session-management"]').text()).toContain('已退出 2 台其他设备')
   })
 
-  it('resizes the mobile chat shell with the visible viewport when the virtual keyboard changes height', async () => {
+  it('keeps the mobile chat shell aligned with the visible viewport when the keyboard moves it', async () => {
     const originalWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth')
     const originalViewport = Object.getOwnPropertyDescriptor(window, 'visualViewport')
     const viewport = new EventTarget() as unknown as VisualViewport
     Object.defineProperty(viewport, 'height', { configurable: true, value: 540 })
+    Object.defineProperty(viewport, 'offsetTop', { configurable: true, value: 0 })
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 })
     Object.defineProperty(window, 'visualViewport', { configurable: true, value: viewport })
 
@@ -918,11 +919,19 @@ describe('authentication flow', () => {
     try {
       const shell = wrapper.get('[data-testid="chat-shell"]')
       expect((shell.element as HTMLElement).style.getPropertyValue('--wt-chat-visual-viewport-height')).toBe('540px')
+      expect((shell.element as HTMLElement).style.getPropertyValue('--wt-chat-visual-viewport-top')).toBe('0px')
 
       Object.defineProperty(viewport, 'height', { configurable: true, value: 240 })
+      Object.defineProperty(viewport, 'offsetTop', { configurable: true, value: 96 })
       viewport.dispatchEvent(new Event('resize'))
       await flushPromises()
       expect((shell.element as HTMLElement).style.getPropertyValue('--wt-chat-visual-viewport-height')).toBe('240px')
+      expect((shell.element as HTMLElement).style.getPropertyValue('--wt-chat-visual-viewport-top')).toBe('96px')
+
+      Object.defineProperty(viewport, 'offsetTop', { configurable: true, value: 120 })
+      viewport.dispatchEvent(new Event('scroll'))
+      await flushPromises()
+      expect((shell.element as HTMLElement).style.getPropertyValue('--wt-chat-visual-viewport-top')).toBe('120px')
     } finally {
       wrapper.unmount()
       wrapper.element.remove()

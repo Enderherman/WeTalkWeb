@@ -2959,6 +2959,9 @@ select:focus-visible {
 
 @media (max-width: 760px) {
   .chat-shell {
+    position: fixed;
+    inset-inline: 0;
+    top: var(--wt-chat-visual-viewport-top, 0px);
     min-height: 0;
   }
 

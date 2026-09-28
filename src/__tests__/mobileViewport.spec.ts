@@ -12,6 +12,6 @@ describe('mobile chat viewport sizing', () => {
 
   it('uses the visual viewport height and removes the desktop minimum height on narrow screens', () => {
     expect(stylesheet).toMatch(/\.chat-shell\s*\{[^}]*height:\s*var\(--wt-chat-visual-viewport-height,\s*100dvh\)/s)
-    expect(stylesheet).toMatch(/@media\s*\(max-width:\s*760px\)\s*\{\s*\.chat-shell\s*\{[^}]*min-height:\s*0;/s)
+    expect(stylesheet).toMatch(/@media\s*\(max-width:\s*760px\)\s*\{\s*\.chat-shell\s*\{[^}]*position:\s*fixed;[^}]*top:\s*var\(--wt-chat-visual-viewport-top,\s*0px\);[^}]*min-height:\s*0;/s)
   })
 })

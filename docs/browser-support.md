@@ -50,6 +50,7 @@ Chromium 360×800 还截图检查了通用服务错误页、空会话和服务�
 - LAN 地址模板为 `http://<NAS_LAN_IP>:8081`；部署前发现默认 8080 已占用。浏览器通过同源 Nginx 访问 REST 与 WebSocket。
 - 真实双账号后端链路通过注册/登录、Cookie、WebSocket、联系人申请、消息幂等、历史恢复、type 17 已读回执，以及文本附件上传/下载字节核对。临时账号、关系、消息和文件已清理。
 - Chromium 360/390/768/1280 模拟视口与 WebKit 登录/注册 390/768/1280 模拟视口无横向溢出；WebKit 字段 Tab 顺序和模式链接焦点检查通过。模拟结果不等于 iOS Safari/Android Chrome 真机验收。
+- 修复 iPhone Safari 在 NAS 内网 HTTP 下缺少 `crypto.randomUUID` 导致消息无法发送的问题，使用 `crypto.getRandomValues` 生成 UUID v4 回退；移动聊天壳同步 `VisualViewport` 高度和顶部偏移，以固定定位适配软键盘和地址栏滚动。全量 249 项单测、类型检查和构建通过；iOS/Android 真机复验仍待完成。
 - 源码提交 `aa41ef7` 补齐 HTML/静态资源安全响应头后，已于 2026-09-28 随 `f0e9728` 部署到 NAS。现场检查首页、`/index.html` 和 JS 静态资源均返回 `X-Content-Type-Options: nosniff`、`Referrer-Policy: strict-origin-when-cross-origin`、`X-Frame-Options: DENY`；入口页不缓存，静态资源使用一年 immutable 缓存。`/healthz` 返回 `ok`，同源 readiness 返回 `UP`。
 
 ## 浏览器能力要求

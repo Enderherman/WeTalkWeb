@@ -8,7 +8,7 @@ WeTalkWeb 是 WeTalk 的浏览器客户端新仓库，使用 Vue 3 + TypeScript 
 - 已实现注册、登录、图片验证码、个人资料读取/编辑、头像/封面上传、修改密码、登出、关于页和认证后聊天页占位壳，支持桌面和窄屏布局。
 - 已接入 HttpOnly Cookie 会话、一次性 WebSocket 票据、同源 WebSocket、5 秒心跳、断线重连、INIT 会话初始化、一对一文字收发、历史游标分页、全会话历史搜索、纯文字 IndexedDB 缓存与断线文字队列/重放、消息时间分隔、服务器持久未读数与当前页实时 badge、失败草稿手动重试、文字消息幂等重试、个人资料编辑/头像封面上传、关于页和管理员用户/群聊/系统设置、机器人头像/封面、靓号及下载/存储偏好；网页群组与附件操作遵循当前系统配额，以及联系人搜索/申请、好友目录、群聊目录/创建、成员名单、群成员管理、群资料编辑、群实时同步、普通文件选择/拖放/上传/下载、聊天图片预览与同源音视频 Range 播放、视频首帧封面生成与预览、表单错误无障碍关联、媒体预览焦点管理、移动导航焦点管理与展开状态、用户/群头像及封面显示；收到实时申请帧时更新侧栏计数。
 - 已接入 AI 类型 14/15/16 流式回复、服务端停止/失败状态和登录后版本说明提示；网页版不下载桌面安装包。
-- 247 项认证/资料/密码/路由/聊天/缓存/未读数/搜索/重试/联系人/群聊/文件/头像/管理/API 错误页/OpenAPI 契约及响应式布局样式单元测试通过；类型检查和生产构建通过。Vite 代理和临时本地账号完成 HttpOnly Cookie 认证闭环、Cookie 保护的资料请求、短期 WebSocket ticket/一次性握手/登出撤销、联系人搜索/申请/同意、群号搜索/申请/审批、好友资料、删除/拉黑、群创建 multipart 上传、群主添加/移出成员、成员退群、群主解散、群主修改群资料、群主/成员目录与成员名单、双账号文字发送/接收、历史读回、HTTP 过期码 901 和服务端断开/恢复验证；双账号真实 WebSocket 验证群创建/加入/改名/退群/移出/解散事件和成员人数，重连后失效群不再出现在会话列表；普通文件与图片、MP4 视频 type 5/6 上传、历史读回和双方下载字节已真实后端验证，群资料更新后从详情和群主列表读回成功，未上传新头像时原头像文件哈希不变；另验证个人资料编辑与 JPEG 头像/封面上传、用户/群头像显示、管理员 `/admin/loadUser` 权限/脱敏及用户筛选/启停/强制下线、管理员 `/admin/loadGroup` 群主/成员摘要与确认解散状态、管理员系统设置读写与用户侧配置读取，以及更新包发布下载/删除。临时账号、Redis ticket、更新包记录和文件、群、附件、头像和关联数据已清理。当前会话未读数由服务端持久游标提供；全会话搜索复用历史游标分页，在网页逐页匹配并限制显示 50 条。Playwright 已完成登录/注册/聊天、错误/空/加载状态及焦点回归；真实设备验收仍待完成；好友申请按钮的屏幕阅读器名称会包含未处理数量；桌面聊天区已修正为左侧栏加主聊天区的两列布局；私聊发送者已读回执已实现并通过真实后端验证（WebSocket type 17，INIT 持久游标恢复）。
+- 249 项认证/资料/密码/路由/聊天/缓存/未读数/搜索/重试/联系人/群聊/文件/头像/管理/API 错误页/OpenAPI 契约及响应式布局样式单元测试通过；类型检查和生产构建通过。Vite 代理和临时本地账号完成 HttpOnly Cookie 认证闭环、Cookie 保护的资料请求、短期 WebSocket ticket/一次性握手/登出撤销、联系人搜索/申请/同意、群号搜索/申请/审批、好友资料、删除/拉黑、群创建 multipart 上传、群主添加/移出成员、成员退群、群主解散、群主修改群资料、群主/成员目录与成员名单、双账号文字发送/接收、历史读回、HTTP 过期码 901 和服务端断开/恢复验证；双账号真实 WebSocket 验证群创建/加入/改名/退群/移出/解散事件和成员人数，重连后失效群不再出现在会话列表；普通文件与图片、MP4 视频 type 5/6 上传、历史读回和双方下载字节已真实后端验证，群资料更新后从详情和群主列表读回成功，未上传新头像时原头像文件哈希不变；另验证个人资料编辑与 JPEG 头像/封面上传、用户/群头像显示、管理员 `/admin/loadUser` 权限/脱敏及用户筛选/启停/强制下线、管理员 `/admin/loadGroup` 群主/成员摘要与确认解散状态、管理员系统设置读写与用户侧配置读取，以及更新包发布下载/删除。临时账号、Redis ticket、更新包记录和文件、群、附件、头像和关联数据已清理。当前会话未读数由服务端持久游标提供；全会话搜索复用历史游标分页，在网页逐页匹配并限制显示 50 条。Playwright 已完成登录/注册/聊天、错误/空/加载状态及焦点回归；真实设备验收仍待完成；好友申请按钮的屏幕阅读器名称会包含未处理数量；桌面聊天区已修正为左侧栏加主聊天区的两列布局；私聊发送者已读回执已实现并通过真实后端验证（WebSocket type 17，INIT 持久游标恢复）。
 
 ### 首个交付相对空仓库的变化
 
@@ -384,6 +384,12 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 - 手机窄屏聊天区监听 `VisualViewport.resize`，按虚拟键盘弹出后实际可见高度调整容器；760px 以下移除桌面端 520px 最小高度，无该 API 时回退到 CSS `100dvh`。
 - 组件测试模拟键盘打开/收起时的可视区高度变化，CSS 测试检查窄屏最小高度规则；全量 235 项单测、类型检查和生产构建通过。iOS/Android 真机验收仍待完成。
 
+### iPhone Safari 键盘布局与消息发送修复（2026-09-28）
+
+- NAS 内网 HTTP 属于非安全上下文，部分 iPhone Safari 不提供 `crypto.randomUUID`；网页现使用 `crypto.getRandomValues` 生成 UUID v4 作为回退，点击发送不再因缺少该 API 报错。
+- 移动聊天壳固定跟随 `VisualViewport` 的高度和顶部偏移，并监听键盘引起的 resize 与地址栏滚动；新增随机 ID、视口定位回归测试。全量 249 项单测、类型检查和生产构建通过。
+- 自动化验证不代替 iOS Safari 真机复测；请用手机再次检查键盘弹出后输入框位置和消息发送。
+
 ### 登录设备数量限制和 NAS 内网联调已完成（2026-09-28）
 
 - 同一账号最多同时保留一台电脑客户端和一个浏览器；同类设备新登录会替换旧会话。个人资料与安全页显示设备类别、设备标签、最近活动和当前会话，可撤销其他会话；响应不含 token/Cookie/raw User-Agent。
@@ -393,13 +399,13 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 ### 私聊发送者已读回执
 
 - 接收方标记私聊已读后，发送方实时收到 type 17，并将本人文字消息状态显示为“已读”；群聊不展示个人已读状态。
-- WebSocket INIT 恢复对端持久已读游标，重连后仍显示正确状态。后端 Maven 96 项、WeTalkWeb 247 项单测、类型检查和生产构建通过；真实双账号/MySQL/Redis/Netty E2E 验证 type 17、重复游标抑制和重连恢复。Playwright Chromium 两个独立浏览器在 1280×900、768×1024、390×844 真实后端链路验证实时消息、已读和刷新恢复；截图位于 `D:/environment/WeTalkBrowserQA/captures/chromium-1280-dual-account-read-receipt.png`、`chromium-768-dual-account-read-receipt.png`、`chromium-390-dual-account-read-receipt.png`。临时测试数据已清理；真机验收仍待完成。
+- WebSocket INIT 恢复对端持久已读游标，重连后仍显示正确状态。后端 Maven 96 项、WeTalkWeb 249 项单测、类型检查和生产构建通过；真实双账号/MySQL/Redis/Netty E2E 验证 type 17、重复游标抑制和重连恢复。Playwright Chromium 两个独立浏览器在 1280×900、768×1024、390×844 真实后端链路验证实时消息、已读和刷新恢复；截图位于 `D:/environment/WeTalkBrowserQA/captures/chromium-1280-dual-account-read-receipt.png`、`chromium-768-dual-account-read-receipt.png`、`chromium-390-dual-account-read-receipt.png`。临时测试数据已清理；真机验收仍待完成。
 
 ### NAS Docker 网页容器已部署并完成 LAN 实测
 
 - 新增多阶段 `Dockerfile`、Nginx 同源 `/api` 与 `/ws` 代理、外部 `wetalk-net` Compose 配置和 `.env.nas.example`；部署步骤、备份和回滚见 `docs/nas-docker-deployment.md`。后端 API/WS 默认只绑定 NAS 本机回环地址，只有网页入口映射到 LAN。静态资源使用长缓存，入口页不缓存，上传上限与后端文件限制相符。
 - 已在 NAS 部署 Web 与后端：Nginx 网页入口使用 `<NAS_LAN_IP>:8081`（默认 8080 已被占用），`/api` 和 `/ws` 走同源代理，后端宿主机端口只绑定回环地址；复用既有 MySQL/Redis 数据卷。数据库先备份后应用迁移 002/003，readiness 与 `/healthz` 返回 UP/ok。
-- Playwright 双账号真实后端验收覆盖注册、Cookie 登录、WebSocket、好友申请、消息发送/幂等重试、历史恢复、type 17 已读回执，以及 NAS 上附件上传/接收方下载字节校验；临时账号、关系、消息和文件均已清理。Chromium 360/390/768/1280 和 WebKit 登录/注册 390/768/1280 模拟视口无横向溢出，247 项单测、类型检查、生产构建与 NAS Docker 构建通过。数据库逻辑恢复及附件目录归档/恢复演练通过；NAS 附件目录原有 0 个文件，本次用一次性探针校验归档与恢复哈希后清理。Web 镜像 Compose 回退和恢复通过；后端镜像回滚、非空真实附件恢复、实体设备验收、HTTPS/WSS 仍待完成。
+- Playwright 双账号真实后端验收覆盖注册、Cookie 登录、WebSocket、好友申请、消息发送/幂等重试、历史恢复、type 17 已读回执，以及 NAS 上附件上传/接收方下载字节校验；临时账号、关系、消息和文件均已清理。Chromium 360/390/768/1280 和 WebKit 登录/注册 390/768/1280 模拟视口无横向溢出，249 项单测、类型检查、生产构建与 NAS Docker 构建通过。数据库逻辑恢复及附件目录归档/恢复演练通过；NAS 附件目录原有 0 个文件，本次用一次性探针校验归档与恢复哈希后清理。Web 镜像 Compose 回退和恢复通过；后端镜像回滚、非空真实附件恢复、实体设备验收、HTTPS/WSS 仍待完成。
 
 ### NAS WebKit 模拟键盘验收
 
@@ -408,7 +414,7 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 ### 本轮修复：Nginx 安全响应头继承
 
 - Nginx location 自己设置 `Cache-Control` 时不会继承 server 级 `add_header`；因此 HTML 入口和 `/assets/` 之前缺少 `X-Content-Type-Options`、`Referrer-Policy` 和 `X-Frame-Options`。
-- 已在两个 location 显式补齐安全头，并新增 `nginxHeaders.spec.ts` 检查安全头和 HTML/静态资源缓存策略。全量 247 项测试、类型检查和生产构建通过。
+- 已在两个 location 显式补齐安全头，并新增 `nginxHeaders.spec.ts` 检查安全头和 HTML/静态资源缓存策略。全量 249 项测试、类型检查和生产构建通过。
 - 已部署已推送源码 `f0e9728` 至 NAS；只重建 `wetalk-web`，后端、MySQL、Redis 未重启。首页、`/index.html` 和 JS 静态资源均返回 `X-Content-Type-Options: nosniff`、`Referrer-Policy: strict-origin-when-cross-origin`、`X-Frame-Options: DENY`；入口页为 `Cache-Control: no-cache`，静态资源为一年 immutable 缓存。`/healthz` 返回 `ok`，同源 readiness 返回 `UP`。旧网页镜像保存在 `wetalk-web:0.1.0-pre-f0e9728-20260928`；NAS Compose 实际回退至旧镜像后健康检查通过，再恢复 `wetalk-web:0.1.0` 并复验安全头。源码包为 `wetalk-web-0.1.0-nas-2026-09-28-r4-source.zip`。
 
 ### 本轮修复：桌面聊天区两列布局
