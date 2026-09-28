@@ -5,6 +5,7 @@
 - 添加联系人可用邮箱地址精确找到用户，也可按用户昵称或群昵称做子串匹配；多个候选结果会列出供用户选择，响应不包含邮箱地址。
 - WeTalkWeb 和 WeTalkApp 共用后端 `/contact/searchByKeyword` 接口；旧 `/contact/search` 也支持邮箱精确查询。
 - 验证：后端 Maven `clean verify` 106 项通过；WeTalkWeb 265 项单测、类型检查和生产构建通过；WeTalkApp 生产构建通过。
+- NAS 后端与网页已部署，readiness 和 `/healthz` 均为 HTTP 200，新 `ChatHome` 脚本可读取到 `searchByKeyword`；旧镜像已保留，详情见 `docs/nas-docker-deployment.md`。
 
 ## 本轮修复：账号设置分区与消息输入框（2026-09-28）
 

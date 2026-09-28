@@ -1,5 +1,12 @@
 # WeTalkWeb NAS Docker 内网部署手册
 
+## 2026-09-29 联系人邮箱与昵称搜索部署
+
+- 后端 commit `9f790f0`；发布包 SHA-256：`8d2fc126e11c31f272c5b41206e0e5693f636882e4229c5a86272ca002985711`。部署前保存旧镜像 `wetalk-backend:0.0.3-pre-contact-search-20260929`，仅重建 `wetalk` 服务，容器状态为 healthy，后端 readiness 返回 HTTP 200 / `UP`。
+- WeTalkWeb commit `ecd1292`；源码包 SHA-256：`7b8343d0627401787fb4928669340a3cd41d273f33d7ea6c0a011f3b0bd18d4a`。部署前保存旧镜像 `wetalk-web:0.1.0-pre-contact-search-20260929`，仅重建 `wetalk-web`，Docker 构建通过；`/healthz` 和 `/api/actuator/health/readiness` 均返回 HTTP 200，新的 `ChatHome` 静态脚本返回 HTTP 200 并包含 `searchByKeyword`。
+- MySQL、Redis 没有重建，NAS `.env` 未放入发布包或修改。真实后端对未登录的 `/api/contact/searchByKeyword` 返回业务码 901，确认接口受登录保护。当前没有临时登录账号，因此 NAS 上尚未执行带登录态的联系人搜索；邮箱、昵称匹配由后端测试覆盖。
+- WeTalkApp commit `91e74a1` 已推送，桌面端构建通过；桌面安装包不是 NAS 服务，本次未重建桌面安装包。
+
 ## 2026-09-28 头像账号菜单改版部署
 
 - WeTalkWeb commit `ada35c0` 已推送并部署。源码归档 SHA-256：`b468a198540f40cb15d6b3ddf63c5da3e1152b8e513e985c6dd1cc5a7ff6eac1`。
