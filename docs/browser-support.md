@@ -93,3 +93,9 @@ Playwright 1.63 启动可见的 Chromium 153.0.8010.12 实际浏览器窗口访�
 聊天页面根节点现在锁定到 VisualViewport 的底边高度，避免 Safari 地址栏/工具栏收起造成 `100vh` 高于可视区时仍能滚动页面背景。Playwright WebKit 26.6 在 512px（iPad 分屏窄视口）、834px（11 英寸纵向）和 1024px（12.9 英寸纵向）宽度模拟了布局高度比可视高度多 16px 的情况：修复前可滚动 16px，修复后 document/body 不再滚动，聊天壳与可视区底边一致。该回归已针对 NAS 部署构建再次通过，API/WebSocket 和 VisualViewport 尺寸使用 mock；截图保存在 `D:/environment/WeTalkBrowserQA/captures/nas-chat-scroll-after-ipadSplit-20260928.png`。真实 iPad Pro Safari 仍需复验。
 
 修复部署：WeTalkWeb commit `527f4b5`，源码 ZIP SHA-256 `8ee72d514160dae2c2cbe9329bb994eafef3c3d5138dd1dac2502c436355957f`。NAS 网页镜像 `wetalk-web:0.1.0` 已重建，容器 `/healthz` 返回 `ok`、后端 readiness 返回 `UP`；后端、MySQL、Redis 未重启。旧网页镜像保存在 `wetalk-web:0.1.0-pre-527f4b5-20260928`。iPad Pro 实机复验仍待完成。
+
+### 实际安装版 Chrome / Edge 登录注册检查（2026-09-28）
+
+Playwright 1.63 启动本机安装的 Chrome 154.0.8037.57 与 Edge 154.0.4258.37，访问 NAS 实际部署站点。两个浏览器均检查登录、注册页的桌面 1440×900 和手机宽度仿真 390×844：页面 HTTP 200，图片验证码加载，Tab 顺序通过，没有横向溢出或 JavaScript 页面异常；未登录或提交表单。脚本为 `D:/environment/WeTalkBrowserQA/nas-installed-browsers.mjs`，8 张截图保存在 `D:/environment/WeTalkBrowserQA/captures`，文件名前缀分别为 `chrome-` 和 `edge-`。
+
+这项结果只覆盖已安装版本的登录和注册页。登录后聊天、前一稳定版浏览器、真实 iOS/Android 设备上的触控、安全区、软键盘和屏幕阅读器仍待验收。
