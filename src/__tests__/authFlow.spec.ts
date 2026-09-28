@@ -321,6 +321,53 @@ describe('authentication flow', () => {
         checkCode: '9',
       })
       expect(wrapper.get('[data-testid="email-code-notice"]').text()).toContain('验证码已发送')
+      expect(wrapper.get('[data-testid="send-email-code"]').attributes('disabled')).toBeDefined()
+      expect(wrapper.get('[data-testid="send-email-code"]').text()).toContain('60 秒后重发')
+      expect(authApi.getCaptcha).toHaveBeenCalledTimes(2)
+    } finally {
+      wrapper.unmount()
+      wrapper.element.remove()
+    }
+  })
+
+  it('unlocks the email code button when the resend cooldown expires', async () => {
+    vi.mocked(authApi.sendRegistrationEmailCode).mockResolvedValue(undefined)
+    const { wrapper } = await mountAuth('/register')
+    await wrapper.get('[data-testid="email"]').setValue('student@example.com')
+    await wrapper.get('[data-testid="captcha"]').setValue('9')
+
+    try {
+      vi.useFakeTimers()
+      await wrapper.get('[data-testid="send-email-code"]').trigger('click')
+      await flushPromises()
+
+      const button = wrapper.get('[data-testid="send-email-code"]')
+      expect(button.attributes('disabled')).toBeDefined()
+      await vi.advanceTimersByTimeAsync(60_000)
+      await flushPromises()
+      expect(button.attributes('disabled')).toBeUndefined()
+      expect(button.text()).toBe('发送验证码')
+      expect(authApi.sendRegistrationEmailCode).toHaveBeenCalledTimes(1)
+    } finally {
+      wrapper.unmount()
+      wrapper.element.remove()
+      vi.useRealTimers()
+    }
+  })
+
+  it('shows the mail service error and permits retry when sending fails', async () => {
+    vi.mocked(authApi.sendRegistrationEmailCode).mockRejectedValue(new Error('邮件服务暂不可用'))
+    const { wrapper } = await mountAuth('/register')
+    await wrapper.get('[data-testid="email"]').setValue('student@example.com')
+    await wrapper.get('[data-testid="captcha"]').setValue('9')
+
+    try {
+      await wrapper.get('[data-testid="send-email-code"]').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.get('[role="alert"]').text()).toContain('邮件服务暂不可用')
+      expect(wrapper.get('[data-testid="send-email-code"]').attributes('disabled')).toBeUndefined()
+      expect(wrapper.find('[data-testid="email-code-notice"]').exists()).toBe(false)
       expect(authApi.getCaptcha).toHaveBeenCalledTimes(2)
     } finally {
       wrapper.unmount()
