@@ -123,7 +123,7 @@ WETALK_WEB_IMAGE=wetalk-web:0.1.0 docker compose -f compose.nas.yaml up -d --no-
 
 - NAS 后端更新到 `wetalk-backend:0.0.3`，Web 注册界面也已更新；后端 readiness 返回 `UP`，MySQL/Redis 与数据目录未重建或迁移。
 - DeepSeek 通过后端 OpenAI 兼容服务配置，模型为 `deepseek-flash`；从 NAS 使用运行环境中的 API Key 发起的最小请求返回 HTTP 200。Key 只保存在 NAS 私有 `.env`（权限 600），未放进仓库、前端或发布包。
-- 首次使用的 QQ SMTP 授权码在 AUTH 阶段被拒绝，随后已从 NAS `.env` 清除。2026-09-28 新授权码已通过 `smtp.qq.com:465` TLS/AUTH，QQ SMTP 接受了一封发往配置邮箱的测试邮件；新口令只保存在 NAS 权限 600 的 `.env`，没有写入 Git 或镜像，`MAIL_DEBUG=false`。后端现已启用邮件注册并健康运行；收件箱确认、图片验证码请求邮件码及最终邮箱注册尚待完成。
+- 首次使用的 QQ SMTP 授权码在 AUTH 阶段被拒绝，随后已从 NAS `.env` 清除。2026-09-28 新授权码已通过 `smtp.qq.com:465` TLS/AUTH，QQ SMTP 接受了一封发往配置邮箱的测试邮件；新口令只保存在 NAS 权限 600 的 `.env`，没有写入 Git 或镜像，`MAIL_DEBUG=false`。本机后端 101 项测试通过后，NAS 实际 `POST /api/account/registerEmailCode` 返回 HTTP 200/业务码 200，接口使用的一次性 JSON 序列化 CAPTCHA 测试键已删除。后端邮件发送路径已验收；收件箱到达和最终邮箱注册仍待确认，详见 `email-registration-test.md`。
 
 ## 备份与回滚
 

@@ -394,6 +394,7 @@ AI 联系人使用后端已有的 `/chat/sendMessage` 和 WebSocket 类型 14/15
 
 - 注册流程先通过图片验证码请求邮件中的 6 位验证码，再使用邮箱、密码、昵称和邮箱验证码创建账号；登录流程保持图片验证码。验证码 10 分钟过期并受邮箱/来源限流。
 - Web 和 Electron App 共用后端邮件验证接口；SMTP 密码和 DeepSeek API Key 只由后端私有 `.env` 运行配置读取，前端不接触密钥，也不写入仓库。DeepSeek 使用后端 OpenAI 兼容服务，默认模型为 `deepseek-flash`。
+- NAS 邮箱验证码接口验收记录见 `docs/email-registration-test.md`；其中区分了后端邮件发送成功与收件箱到达确认。
 
 ### 登录设备数量限制和 NAS 内网联调已完成（2026-09-28）
 
