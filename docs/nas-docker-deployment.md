@@ -1,5 +1,13 @@
 # WeTalkWeb NAS Docker 内网部署手册
 
+## 2026-09-28 账号设置与聊天输入框修复部署
+
+- WeTalkWeb commit `2ab765e` 已推送并部署。源码归档 SHA-256：`222ee40e2fd16fa8dd7851223583b1cb45e119eb3c71bf48008c74c07bc5b507`。
+- 部署前把原 `wetalk-web:0.1.0` 标记为 `wetalk-web:0.1.0-pre-2ab765e-20260928`；旧镜像 ID 为 `sha256:7b51b39d9c6ce6278293436e062b3a165049b3b3957cec1057f80d71c5c8e20c`。新镜像 ID 为 `sha256:5d74c1ebc8a8d960430ec243c259c1d5b9ccd81134fb38fec1e989a4eee597c7`。
+- 仅以 `docker compose ... up -d --build --no-deps wetalk-web` 重建网页容器；NAS 私有 `.env` 保持原文件且权限为 600，后端、MySQL、Redis 未重建。
+- NAS `/healthz` 与 `/api/actuator/health/readiness` 均为 HTTP 200；新 CSS/聊天 JS 资源可读取，包含 `.profile-dialog-content`、`.profile-section-nav` 和设置分区标记；首页安全响应头与 `no-cache` 入口缓存头仍存在。旧镜像保留用于回退。
+- 本轮没有真实登录态浏览器截图；用户登录后的资料弹窗滚动和聊天输入框目视复验、iOS/Android 真机验证仍待完成。
+
 本手册描述一个同源入口：Nginx 网页容器对局域网提供 HTTP 服务，并在 Docker 网络内把 `/api` 和 `/ws` 转发给 WeTalk 后端。正式域名、HTTPS/WSS 和公网开放不在当前内网测试范围内。
 
 ## 部署拓扑

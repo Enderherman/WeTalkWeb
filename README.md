@@ -5,6 +5,7 @@
 - 个人资料与安全弹窗增加“个人资料、偏好设置、登录设备、账号安全”二级菜单；关闭按钮和菜单留在工具栏，只有设置内容滚动，长页面滚动时关闭按钮不会离开视口。
 - 聊天输入框默认一行，按 Shift+Enter 增加内容时自动扩展至 160px；焦点环改为显示在输入框外层；可发送时使用绿色按钮和白色箭头。
 - 验证：全量 259 项组件测试、Vue 类型检查和生产构建通过。真实 iOS/Android 设备及用户登录后的页面目视复验仍待完成。
+- 已推送并部署 WeTalkWeb `2ab765e`；NAS `wetalk-web:0.1.0` 重建后 `/healthz` 和后端 readiness 均返回 HTTP 200，新 CSS/聊天脚本资源已从 NAS 响应，旧镜像保留作回退。NAS 部署记录见 `docs/nas-docker-deployment.md`。
 
 WeTalkWeb 是 WeTalk 的浏览器客户端新仓库，使用 Vue 3 + TypeScript + Vite。项目独立于 Electron 桌面客户端；后端 API 继续由同级 backend 提供。
 
