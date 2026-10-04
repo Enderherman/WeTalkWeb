@@ -6,9 +6,35 @@ import {
   MAX_ATTACHMENT_SIZE_BYTES,
   MAX_IMAGE_SIZE_BYTES,
   validateChatFile,
+  normalizeChatUploadFile,
 } from '@/utils/fileValidation'
 
 describe('chat file validation', () => {
+  it('keeps the mjpeg JPEG alias and normalizes missing browser MIME without changing names or size', () => {
+    for (const [name, type, expected] of [
+      ['camera.mjpeg', 'video/x-motion-jpeg', 'image/jpeg'], ['camera.mjpeg', '', 'image/jpeg'],
+      ['photo.PNG', '', 'image/png'], ['audio.wav', '', 'audio/wav'],
+    ]) {
+      const file = new File(['bytes'], name!, { type, lastModified: 1234 })
+      expect(validateChatFile(file)).toBeNull()
+      const normalized = normalizeChatUploadFile(file)
+      expect(normalized.type).toBe(expected)
+      expect(normalized.name).toBe(file.name)
+      expect(normalized.size).toBe(file.size)
+      expect(normalized.lastModified).toBe(file.lastModified)
+    }
+    expect(getChatFileType('camera.mjpeg')).toBe(0)
+  })
+
+  it('rejects known mismatched image MIME and unsafe names rather than relabeling arbitrary files', () => {
+    const mismatched = new File(['text'], 'photo.png', { type: 'text/plain' })
+    expect(validateChatFile(mismatched)).toContain('不一致')
+    expect(normalizeChatUploadFile(mismatched)).toBe(mismatched)
+    for (const name of ['../photo.png', 'folder\\photo.png', 'line\nname.txt']) {
+      expect(validateChatFile({ name, size: 1 })).toContain('文件名不能')
+    }
+  })
+
   it('allows a normal document up to the configured client limit', () => {
     expect(getChatFileType('notes.txt')).toBe(2)
     expect(validateChatFile({ name: 'notes.txt', size: MAX_ATTACHMENT_SIZE_BYTES })).toBeNull()

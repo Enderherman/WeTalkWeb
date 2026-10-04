@@ -2540,7 +2540,7 @@
         "required": ["messageId", "file"],
         "properties": {
           "messageId": { "type": "integer", "minimum": 1 },
-          "file": { "type": "string", "format": "binary", "x-min-bytes": 1, "description": "Non-empty original attachment. Size is bounded by the stricter configured quota of the declared type and filename extension; image type 0 also validates matching extension/MIME/signature." },
+          "file": { "type": "string", "format": "binary", "x-min-bytes": 1, "x-chat-image-extensions": ["mjpeg", "jpeg", "jpg", "png", "gif", "bmp", "webp"], "x-mjpeg-mime-aliases": ["image/jpeg", "video/x-motion-jpeg", "image/x-mjpeg", "video/mjpeg"], "description": "Non-empty original attachment. Size uses the stricter configured quota of declared type and extension. Image type 0 validates extension/MIME/signature; .mjpeg is a chat-only JPEG alias and still requires a JPEG signature. Clients may fill an empty browser MIME from a supported extension, but the server never bypasses signature validation." },
           "cover": { "type": "string", "format": "binary", "x-min-bytes": 1, "x-size-quota": "SystemSettings.maxImageSize", "description": "Optional cover or thumbnail image; when present it must be non-empty and match a supported image extension, MIME and signature within the current image quota." }
         }
       },

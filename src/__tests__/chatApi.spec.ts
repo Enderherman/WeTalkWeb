@@ -7,6 +7,16 @@ vi.mock('@/api/http', () => ({ postDownload: vi.fn(), postForm: vi.fn(), postMul
 beforeEach(() => vi.clearAllMocks())
 
 describe('chat API', () => {
+  it('uploads JPEG aliases and empty browser MIME with canonical media types', async () => {
+    vi.mocked(postMultipart).mockResolvedValue('上传成功')
+    const image = new File(['jpeg bytes'], 'camera.mjpeg', { type: 'video/x-motion-jpeg' })
+    const cover = new File(['png bytes'], 'cover.png', { type: '' })
+    await chatApi.uploadFile(42, image, undefined, cover)
+    const body = vi.mocked(postMultipart).mock.calls[0]![1]
+    expect(body.get('file')).toMatchObject({ name: 'camera.mjpeg', type: 'image/jpeg', size: image.size })
+    expect(body.get('cover')).toMatchObject({ name: 'cover.png', type: 'image/png', size: cover.size })
+  })
+
   it('sends plain text through the existing chat message endpoint', async () => {
     const message = {
       messageId: 11,

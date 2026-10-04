@@ -56,14 +56,29 @@ export function getChatMediaMimeType(fileName: string): string | null {
   return mimeTypes[extension] || null
 }
 
-export function validateChatFile(file: Pick<File, 'name' | 'size'>, limits: ChatFileLimits = {}): string | null {
+const mjpegMimeAliases = new Set(['image/jpeg', 'video/x-motion-jpeg', 'image/x-mjpeg', 'video/mjpeg'])
+
+export function normalizeChatUploadFile(file: File): File {
+  const expected = getChatMediaMimeType(file.name)
+  const mjpegAlias = file.name.toLowerCase().endsWith('.mjpeg') && mjpegMimeAliases.has(file.type.toLowerCase())
+  if (!expected || (file.type && !mjpegAlias) || file.type === expected) return file
+  return new File([file], file.name, { type: expected, lastModified: file.lastModified })
+}
+
+export function validateChatFile(file: Pick<File, 'name' | 'size'> & Partial<Pick<File, 'type'>>, limits: ChatFileLimits = {}): string | null {
   if (!file.name.trim() || file.name.length > 200) {
     return '文件名不能为空，且不能超过 200 个字符'
   }
+  if (file.name === '.' || file.name === '..' || /[\\/\x00-\x1f\x7f]/.test(file.name)) return '文件名不能包含路径分隔符或控制字符'
   if (file.size === 0) return '空文件无法发送'
   const extension = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.') + 1).toLowerCase() : ''
   if (extension && !/^[a-z0-9]{1,16}$/.test(extension)) return '文件扩展名格式不受支持'
   const fileType = getChatFileType(file.name)
+  if (fileType === 0 && file.type) {
+    const mime = file.type.toLowerCase()
+    const expected = getChatMediaMimeType(file.name)
+    if (mime !== expected && !(extension === 'mjpeg' && mjpegMimeAliases.has(mime))) return '图片扩展名与文件类型不一致'
+  }
   const configValue = fileType === 0 ? limits.maxImageSize : fileType === 1 ? limits.maxVideoSize : limits.maxFileSize
   const defaultLimitMb = fileType === 0 ? 200 : fileType === 1 ? 500 : 5000
   const parsedLimit = Number(configValue)

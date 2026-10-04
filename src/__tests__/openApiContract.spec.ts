@@ -286,6 +286,14 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(contract.components.schemas.MessageSendDTO.properties.status.enum).toEqual([0, 1, 2, 3])
   })
 
+  it('keeps mjpeg as a chat JPEG alias without widening profile or group upload types', () => {
+    const attachment = contract.components.schemas.UploadChatFileRequest.properties.file
+    expect(attachment['x-chat-image-extensions']).toContain('mjpeg')
+    expect(attachment['x-mjpeg-mime-aliases']).toEqual(['image/jpeg', 'video/x-motion-jpeg', 'image/x-mjpeg', 'video/mjpeg'])
+    expect(attachment.description).toContain('requires a JPEG signature')
+    expect(contract.components.schemas.SaveGroupRequest.properties.avatarFile['x-content-types']).not.toContain('video/x-motion-jpeg')
+  })
+
   it('requires safe positive file metadata and documents immutable attachment retries and download gating', () => {
     const request = contract.components.schemas.SendChatMessageRequest
     expect(request.allOf[0].if.properties.messageType.const).toBe(5)

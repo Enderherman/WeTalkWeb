@@ -1,6 +1,7 @@
 import { postDownload, postForm, postMultipart } from '@/api/http'
 import type { ServerMessage } from '@/api/realtime'
 import type { ChatHistoryPage, InitialChatMessage } from '@/stores/chat'
+import { normalizeChatUploadFile } from '@/utils/fileValidation'
 
 export const chatApi = {
   sendTextMessage: (
@@ -33,8 +34,8 @@ export const chatApi = {
   ): Promise<string> => {
     const body = new FormData()
     body.set('messageId', String(messageId))
-    body.set('file', file)
-    if (cover) body.set('cover', cover)
+    body.set('file', normalizeChatUploadFile(file))
+    if (cover) body.set('cover', normalizeChatUploadFile(cover))
     return postMultipart<string>('/chat/uploadFile', body, {
       timeoutMs: 0,
       onUploadProgress: onProgress,
