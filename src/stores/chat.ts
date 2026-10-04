@@ -177,8 +177,6 @@ export const useChatStore = defineStore('chat', {
           this.sessionList.map((session) => [
             session.contactId,
             {
-              groupClosed: session.groupClosed,
-              groupAccessRevoked: session.groupAccessRevoked,
               memberCount: session.memberCount,
               noReadCount: session.noReadCount,
               peerReadMessageId: session.peerReadMessageId,
@@ -189,8 +187,8 @@ export const useChatStore = defineStore('chat', {
           const previous = currentGroupState.get(session.contactId)
           return {
             ...session,
-            groupClosed: previous?.groupClosed,
-            groupAccessRevoked: previous?.groupAccessRevoked,
+            groupClosed: Boolean(session.groupClosed),
+            groupAccessRevoked: Boolean(session.groupAccessRevoked),
             memberCount: session.memberCount ?? previous?.memberCount,
             noReadCount: Math.max(0, Number(session.noReadCount ?? previous?.noReadCount) || 0),
             peerReadMessageId: Math.max(

@@ -4,6 +4,24 @@ import { useChatStore } from '@/stores/chat'
 import { AUTH_EXPIRED_EVENT } from '@/utils/authEvents'
 
 describe('chat initialization state', () => {
+  it('clears stale group removal flags when a fresh INIT restores valid membership', () => {
+    setActivePinia(createPinia())
+    const store = useChatStore()
+    store.accountId = 'U100'
+    const session = { sessionId: 'SG1', contactId: 'G1', contactName: 'Group', contactType: 1,
+      lastMessage: '', lastReceiveTime: 1, memberCount: 2 }
+    const init = { messageType: 0, extentData: { chatSessionList: [session], chatMessageList: [], applyCount: 0 } }
+    store.receiveMessage(init)
+    store.receiveMessage({ messageType: 12, messageId: 11, sessionId: 'SG1', contactId: 'G1',
+      messageContent: 'Removed', extentData: 'U100', memberCount: 1, sendTime: 2 })
+    expect(store.sessionList[0]?.groupAccessRevoked).toBe(true)
+    // The user rejoined through another device while this connection was offline.
+    store.receiveMessage(init)
+    expect(store.sessionList[0]?.groupAccessRevoked).toBe(false)
+    expect(store.sessionList[0]?.groupClosed).toBe(false)
+    expect(store.sessionList[0]?.memberCount).toBe(2)
+  })
+
   it('restores private remarks and applies type 18 updates without changing real nicknames', () => {
     setActivePinia(createPinia())
     const store = useChatStore()
