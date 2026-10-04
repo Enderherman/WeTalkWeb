@@ -1,5 +1,11 @@
 # WeTalkWeb
 
+## WebKit 快速刷新生命周期修复（2026-10-04）
+
+- 修复刷新时旧页面 XHR 被中止后误导入服务错误页，进而产生未处理模块导入错误的问题；只有明确的 beforeunload/pagehide 阶段抑制导航，pageshow/BFCache 返回后恢复。
+- 保留 Axios 主动取消判断、真实网络错误及后台标签页的错误提示。335项全量测试、类型检查/生产构建和带未完成XHR的真实WebKit快速刷新回归通过。
+- 因果链、失败模块和前后证据见 `docs/webkit-navigation-lifecycle.md`。
+
 ## 聊天 JPEG 别名与空 MIME 兼容（2026-10-04）
 
 - 保留 `.mjpeg` 聊天图片，将旧 MJPEG MIME 别名规范为 `image/jpeg`；浏览器未提供 `File.type` 时按已支持的图片/音视频扩展名补 MIME，原名与字节保持不变。

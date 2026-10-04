@@ -2,6 +2,7 @@ import axios, { type AxiosProgressEvent, type AxiosRequestConfig } from 'axios'
 import { readStoredSession } from '@/stores/auth'
 import { notifyApiUnavailable } from '@/utils/apiEvents'
 import { notifySessionExpired } from '@/utils/authEvents'
+import { isPageLeaving } from '@/utils/pageNavigationLifecycle'
 
 export interface BaseResponse<T> {
   status: string
@@ -22,8 +23,10 @@ export class ApiError extends Error {
 
 export function unwrapResponse<T>(response: BaseResponse<T>): T {
   if (response.code !== 200) {
-    if (response.code === 901) notifySessionExpired()
-    else if (response.code >= 500 && response.code < 600) notifyApiUnavailable()
+    if (!isPageLeaving()) {
+      if (response.code === 901) notifySessionExpired()
+      else if (response.code >= 500 && response.code < 600) notifyApiUnavailable()
+    }
     throw new ApiError(response.message || '请求失败', response.code)
   }
   return response.data
@@ -31,6 +34,7 @@ export function unwrapResponse<T>(response: BaseResponse<T>): T {
 
 export function reportApiFailure(error: unknown) {
   if (axios.isCancel(error)) return
+  if (isPageLeaving()) return
   if (!axios.isAxiosError(error)) return
 
   const responseBody = error.response?.data as Partial<BaseResponse<unknown>> | undefined
