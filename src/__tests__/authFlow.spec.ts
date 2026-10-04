@@ -247,6 +247,55 @@ beforeEach(() => {
 })
 
 describe('authentication flow', () => {
+  it('opens a friend conversation from the directory and restores a locally hidden chat', async () => {
+    vi.mocked(contactApi.loadContacts).mockResolvedValue([{ userId: 'U100', contactId: 'U200', contactType: 0, status: 1, contactName: 'Friend' }])
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [
+      { sessionId: 'S200', contactId: 'U200', contactName: 'Friend', contactType: 0, lastMessage: '', lastReceiveTime: 100 },
+    ], chatMessageList: [], applyCount: 0 } })
+    await flushPromises()
+    await wrapper.get('[data-testid="remove-conversation"]').trigger('click')
+    await wrapper.get('[data-testid="open-contact-directory"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="start-contact-chat-U200"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="contact-directory-overlay"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="chat-session-S200"]').classes()).toContain('is-active')
+    expect(chatApi.sendTextMessage).not.toHaveBeenCalled()
+  })
+
+  it('waits for the authenticated server session when a friend chat is not yet loaded', async () => {
+    vi.mocked(contactApi.loadContacts).mockResolvedValue([{ userId: 'U100', contactId: 'U200', contactType: 0, status: 1, contactName: 'Friend' }])
+    const { wrapper, chatStore } = await mountChat()
+    await wrapper.get('[data-testid="open-contact-directory"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="start-contact-chat-U200"]').trigger('click')
+    expect(chatStore.sessionList).toEqual([])
+    expect(wrapper.find('[data-testid="contact-directory-overlay"]').exists()).toBe(true)
+    chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [
+      { sessionId: 'actual-server-session', contactId: 'U200', contactName: 'Friend', contactType: 0, lastMessage: '', lastReceiveTime: 100 },
+    ], chatMessageList: [], applyCount: 0 } })
+    await flushPromises()
+    expect(wrapper.get('[data-testid="chat-session-actual-server-session"]').classes()).toContain('is-active')
+    expect(wrapper.find('[data-testid="contact-directory-overlay"]').exists()).toBe(false)
+  })
+
+  it('keeps the directory open with a retryable error instead of inventing a session on sync timeout', async () => {
+    vi.mocked(contactApi.loadContacts).mockResolvedValue([{ userId: 'U100', contactId: 'U200', contactType: 0, status: 1, contactName: 'Friend' }])
+    const { wrapper, chatStore } = await mountChat()
+    await wrapper.get('[data-testid="open-contact-directory"]').trigger('click')
+    await flushPromises()
+    vi.useFakeTimers()
+    try {
+      await wrapper.get('[data-testid="start-contact-chat-U200"]').trigger('click')
+      await vi.advanceTimersByTimeAsync(10_000)
+      await flushPromises()
+      expect(wrapper.get('[data-testid="contact-chat-error"]').text()).toContain('会话尚未同步')
+      expect(chatStore.sessionList).toEqual([])
+      expect(wrapper.get('[data-testid="start-contact-chat-U200"]').attributes('disabled')).toBeUndefined()
+    } finally { vi.useRealTimers() }
+  })
+
   it('updates session titles and sender searches from a private type 18 remark event', async () => {
     const { wrapper, chatStore } = await mountChat()
     chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [

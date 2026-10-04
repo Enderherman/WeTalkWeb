@@ -62,6 +62,10 @@ let flushingReadCursors = false
 const contactSearchOpen = ref(false)
 const contactApplicationsOpen = ref(false)
 const contactDirectoryOpen = ref(false)
+const chattingContactId = ref('')
+const contactChatError = ref('')
+let contactChatRequestId = 0
+let cancelContactChatWait: (() => void) | null = null
 const groupDirectoryOpen = ref(false)
 const groupDirectoryRefreshKey = ref(0)
 const profileMenuOpen = ref(false)
@@ -339,6 +343,8 @@ function syncChatViewportHeight() {
 }
 
 onBeforeUnmount(() => {
+  contactChatRequestId += 1
+  cancelContactChatWait?.()
   window.removeEventListener('online', handlePendingMessagesOnline)
   window.removeEventListener('resize', syncChatViewportHeight)
   chatVisualViewport?.removeEventListener('resize', syncChatViewportHeight)
@@ -735,7 +741,51 @@ function closeContactApplicationsDialog() {
 }
 
 function closeContactDirectoryDialog() {
+  contactChatRequestId += 1
+  cancelContactChatWait?.()
+  chattingContactId.value = ''
+  contactChatError.value = ''
   contactDirectoryOpen.value = false
+}
+
+async function startContactChat(contactId: string) {
+  if (chattingContactId.value || !authStore.session?.userId) return
+  const requestId = ++contactChatRequestId
+  chattingContactId.value = contactId
+  contactChatError.value = ''
+  try {
+    let session = chatStore.sessionList.find((item) => item.contactType === 0 && item.contactId === contactId)
+    if (!session) {
+      const waiting = new Promise<ChatSessionSummary>((resolve, reject) => {
+        let stop = () => {}
+        const finish = (value?: ChatSessionSummary, error?: Error) => {
+          clearTimeout(timeout)
+          stop()
+          cancelContactChatWait = null
+          if (value) resolve(value)
+          else reject(error || new Error('会话尚未同步，请稍后重试'))
+        }
+        const timeout = setTimeout(() => finish(), 10_000)
+        stop = watch(() => chatStore.sessionList, (sessions) => {
+          const found = sessions.find((item) => item.contactType === 0 && item.contactId === contactId)
+          if (found) finish(found)
+        }, { flush: 'sync' })
+        cancelContactChatWait = () => finish(undefined, new Error('已取消打开会话'))
+      })
+      chatStore.connect(authStore.session.userId)
+      session = await waiting
+    }
+    if (requestId !== contactChatRequestId || !contactDirectoryOpen.value) return
+    selectChatSession(session.sessionId)
+    contactDirectoryOpen.value = false
+    sidebarOpen.value = false
+    await nextTick()
+    messageComposer.value?.focus()
+  } catch (error: unknown) {
+    if (requestId === contactChatRequestId) contactChatError.value = error instanceof Error ? error.message : '无法打开会话，请重试'
+  } finally {
+    if (requestId === contactChatRequestId) chattingContactId.value = ''
+  }
 }
 
 function closeGroupDirectoryDialog() {
@@ -784,6 +834,7 @@ function openContactApplications(event: MouseEvent) {
 }
 
 function openContactDirectory(event: MouseEvent) {
+  contactChatError.value = ''
   sidebarDialogReturnFocusTarget.value = event.currentTarget instanceof HTMLElement ? event.currentTarget : null
   contactDirectoryOpen.value = true
 }
@@ -2279,6 +2330,9 @@ async function signOut() {
       v-if="contactDirectoryOpen"
       :refresh-key="chatStore.contactEventVersion"
       :remarks="chatStore.contactRemarks"
+      :chatting-contact-id="chattingContactId"
+      :chat-error="contactChatError"
+      @start-chat="startContactChat"
       @remark-saved="chatStore.updateContactRemark"
       :return-focus-target="sidebarDialogReturnFocusTarget"
       @close="closeContactDirectoryDialog"

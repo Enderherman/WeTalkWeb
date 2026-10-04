@@ -4,11 +4,12 @@ import { contactApi, type ContactProfile, type UserContactEntry } from '@/api/co
 import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
 import { useDialogFocus } from '@/composables/useDialogFocus'
 
-const props = defineProps<{ returnFocusTarget?: HTMLElement | null; refreshKey?: number; remarks?: Record<string, string> }>()
+const props = defineProps<{ returnFocusTarget?: HTMLElement | null; refreshKey?: number; remarks?: Record<string, string>; chattingContactId?: string; chatError?: string }>()
 const emit = defineEmits<{
   close: []
   contactsChanged: []
   remarkSaved: [contactId: string, remark: string]
+  startChat: [contactId: string]
 }>()
 
 type ContactAction = 'delete' | 'block'
@@ -178,6 +179,7 @@ function sexLabel(sex?: number | null) {
       <input id="contact-directory-filter" v-model="filter" data-testid="contact-directory-filter" placeholder="昵称、备注或编号" type="search" />
       <p v-if="loadError" class="contact-error" role="alert">{{ loadError }}</p>
       <p v-if="actionError" class="contact-error" role="alert">{{ actionError }}</p>
+      <p v-if="chatError" class="contact-error" role="alert" data-testid="contact-chat-error">{{ chatError }}</p>
       <p v-if="loading" class="contact-status" role="status">正在读取联系人…</p>
       <p v-else-if="!loadError && contacts.length === 0" class="contact-empty" data-testid="contacts-empty">
         还没有联系人，可以先搜索并添加好友。
@@ -207,6 +209,9 @@ function sexLabel(sex?: number | null) {
               <span class="contact-relationship">{{ statusLabel(contact.status) }}</span>
             </button>
             <div v-if="contact.status === 1" class="contact-directory-actions">
+              <button type="button" :data-testid="`start-contact-chat-${contact.contactId}`" :disabled="Boolean(chattingContactId)"
+                @click="emit('startChat', contact.contactId)"
+              >{{ chattingContactId === contact.contactId ? '正在打开…' : '发消息' }}</button>
               <button type="button" data-testid="delete-contact" @click="requestAction(contact.contactId, 'delete')">删除</button>
               <button type="button" data-testid="block-contact" @click="requestAction(contact.contactId, 'block')">拉黑</button>
             </div>

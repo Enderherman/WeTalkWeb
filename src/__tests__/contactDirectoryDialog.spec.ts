@@ -47,6 +47,21 @@ beforeEach(() => {
 })
 
 describe('contact directory dialog', () => {
+  it('offers direct chat only for active friends and emits the selected contact ID', async () => {
+    const wrapper = mount(ContactDirectoryDialog)
+    await flushPromises()
+    await wrapper.get('[data-testid="start-contact-chat-U200"]').trigger('click')
+    expect(wrapper.emitted('startChat')).toEqual([['U200']])
+    await wrapper.setProps({ chattingContactId: 'U200' })
+    expect(wrapper.get('[data-testid="start-contact-chat-U200"]').attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+    vi.mocked(contactApi.loadContacts).mockResolvedValue([{ ...friend, status: 3 }])
+    const removed = mount(ContactDirectoryDialog)
+    await flushPromises()
+    expect(removed.find('[data-testid="start-contact-chat-U200"]').exists()).toBe(false)
+    removed.unmount()
+  })
+
   it('saves a trimmed remark, filters by it and keeps the original nickname visible', async () => {
     vi.mocked(contactApi.saveRemark).mockResolvedValue({ contactId: 'U200', remark: '同事' })
     const wrapper = mount(ContactDirectoryDialog)
