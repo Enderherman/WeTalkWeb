@@ -145,7 +145,7 @@ let fullHistorySearchRequestId = 0
 let fullHistorySearchAbortController: AbortController | null = null
 const conversationMessages = computed(() =>
   chatStore.initialMessages
-    .filter((message) => message.sessionId === selectedSessionId.value && [2, 3, 5, 8, 9, 11, 12, 14].includes(message.messageType))
+    .filter((message) => message.sessionId === selectedSessionId.value && [1, 2, 3, 5, 8, 9, 11, 12, 14].includes(message.messageType))
     .sort(compareMessagesByServerOrder)
 )
 const selectedMessages = computed(() => {
@@ -167,7 +167,7 @@ const messageSearchResults = computed(() => {
   for (const message of [...chatStore.initialMessages, ...fullHistorySearchMatches.value]) {
     if (
       message.sessionId === selectedSessionId.value &&
-      [2, 5, 14].includes(message.messageType) &&
+      [1, 2, 5, 14].includes(message.messageType) &&
       matchesMessageSearch(message, query)
     ) candidates.set(message.messageId, message)
   }
@@ -2006,12 +2006,12 @@ async function signOut() {
             </time>
             <article
               class="message-row"
-              :class="{ 'is-mine': (message.messageType === 2 || message.messageType === 5) && message.sendUserId === authStore.session?.userId, 'is-system': ![2, 5, 14, 15, 16].includes(message.messageType), 'is-ai': isAiMessage(message) }"
+              :class="{ 'is-mine': [1, 2, 5].includes(message.messageType) && message.sendUserId === authStore.session?.userId, 'is-system': ![1, 2, 5, 14, 15, 16].includes(message.messageType), 'is-ai': isAiMessage(message) }"
               :data-testid="`message-${message.messageId}`"
             >
               <div class="message-bubble">
                 <strong
-                  v-if="((message.messageType === 2 || message.messageType === 5) && message.sendUserId !== authStore.session?.userId) || isAiMessage(message)"
+                  v-if="([1, 2, 5].includes(message.messageType) && message.sendUserId !== authStore.session?.userId) || isAiMessage(message)"
                   class="message-sender"
                 >
                   {{ message.sendUserNickName }}
@@ -2269,6 +2269,7 @@ async function signOut() {
 
     <ContactDirectoryDialog
       v-if="contactDirectoryOpen"
+      :refresh-key="chatStore.contactEventVersion"
       :return-focus-target="sidebarDialogReturnFocusTarget"
       @close="closeContactDirectoryDialog"
       @contacts-changed="refreshChatSession"

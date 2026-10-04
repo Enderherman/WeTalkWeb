@@ -247,6 +247,16 @@ beforeEach(() => {
 })
 
 describe('authentication flow', () => {
+  it('shows a newly accepted friend and their greeting without refreshing the page', async () => {
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.initialized = true
+    chatStore.receiveMessage({ messageType: 1, messageId: 8, sessionId: 'Snew', contactId: 'U200', contactName: 'New friend',
+      messageContent: 'Hello new friend', sendUserId: 'U200', sendUserNickName: 'New friend', sendTime: 3000 })
+    await flushPromises()
+    expect(wrapper.get('[data-testid="chat-session-Snew"]').text()).toContain('New friend')
+    expect(wrapper.get('[data-testid="message-8"]').text()).toContain('Hello new friend')
+  })
+
   it('sends a pasted picture through the image upload flow only after preview confirmation', async () => {
     const originalCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL')
     const originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL')

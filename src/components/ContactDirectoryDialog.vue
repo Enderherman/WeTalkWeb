@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { contactApi, type ContactProfile, type UserContactEntry } from '@/api/contacts'
 import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
 import { useDialogFocus } from '@/composables/useDialogFocus'
 
-const props = defineProps<{ returnFocusTarget?: HTMLElement | null }>()
+const props = defineProps<{ returnFocusTarget?: HTMLElement | null; refreshKey?: number }>()
 const emit = defineEmits<{
   close: []
   contactsChanged: []
@@ -29,6 +29,7 @@ let profileRequestId = 0
 const selectedContact = computed(() => contacts.value.find((item) => item.contactId === selectedId.value) || null)
 
 onMounted(() => void loadContacts())
+watch(() => props.refreshKey, () => void loadContacts())
 
 async function loadContacts() {
   loading.value = true

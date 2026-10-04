@@ -4,6 +4,30 @@ import { useChatStore } from '@/stores/chat'
 import { AUTH_EXPIRED_EVENT } from '@/utils/authEvents'
 
 describe('chat initialization state', () => {
+  it('creates a new direct conversation immediately on the delivered friend-accepted frame', () => {
+    setActivePinia(createPinia())
+    const store = useChatStore()
+    store.accountId = 'U100'
+    const frame = { messageType: 1, messageId: 8, sessionId: 'Sfriend', contactId: 'U200', contactName: 'New friend',
+      messageContent: 'Let us chat', sendUserId: 'U200', sendUserNickName: 'New friend', sendTime: 3000 }
+    store.receiveMessage(frame)
+    store.receiveMessage(frame)
+    expect(store.sessionList).toMatchObject([{ sessionId: 'Sfriend', contactId: 'U200', contactName: 'New friend', noReadCount: 1 }])
+    expect(store.initialMessages).toHaveLength(1)
+    expect(store.contactEventVersion).toBe(1)
+  })
+
+  it('keeps the other party as the contact for the applicant self-notification', () => {
+    setActivePinia(createPinia())
+    const store = useChatStore()
+    store.accountId = 'U100'
+    store.receiveMessage({ messageType: 13, messageId: 9, sessionId: 'Sfriend', contactId: 'U100',
+      extentData: { userId: 'U200', nickName: 'Acceptor' },
+      messageContent: 'Hello', sendUserId: 'U100', sendUserNickName: 'Me', sendTime: 3000 })
+    expect(store.sessionList).toMatchObject([{ contactId: 'U200', contactName: 'Acceptor', noReadCount: 0 }])
+    expect(store.initialMessages[0]?.messageType).toBe(1)
+  })
+
   afterEach(() => {
     useChatStore().clear()
     vi.useRealTimers()

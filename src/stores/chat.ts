@@ -107,6 +107,7 @@ export const useChatStore = defineStore('chat', {
     historyBySession: {} as Record<string, SessionHistoryState>,
     applyCount: 0,
     groupEventVersion: 0,
+    contactEventVersion: 0,
     connectionError: '',
   }),
   getters: {
@@ -124,6 +125,7 @@ export const useChatStore = defineStore('chat', {
         this.historyBySession = {}
         this.applyCount = 0
         this.groupEventVersion = 0
+        this.contactEventVersion = 0
       }
       this.accountId = accountId
       this.connectionError = ''
@@ -216,6 +218,11 @@ export const useChatStore = defineStore('chat', {
         return
       }
 
+      if (message.messageType === 1 || message.messageType === 13) {
+        this.receiveFriendEvent(message)
+        return
+      }
+
       if (message.messageType === 2) {
         this.appendMessage(message as unknown as InitialChatMessage, false)
         return
@@ -255,6 +262,28 @@ export const useChatStore = defineStore('chat', {
         this.disconnect()
         if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
       }
+    },
+    receiveFriendEvent(message: ServerMessage) {
+      const peer = message.messageType === 13 && message.extentData && typeof message.extentData === 'object'
+        ? message.extentData as { userId?: unknown; nickName?: unknown }
+        : null
+      const contactId = typeof peer?.userId === 'string' ? peer.userId
+        : typeof message.contactId === 'string' ? message.contactId : ''
+      const sessionId = typeof message.sessionId === 'string' ? message.sessionId : ''
+      const messageId = Number(message.messageId)
+      if (!contactId || contactId === this.accountId || !sessionId || !Number.isSafeInteger(messageId) || messageId < 1) return
+      if (this.initialMessages.some((item) => item.messageId === messageId)) return
+      if (!this.sessionList.some((session) => session.sessionId === sessionId)) {
+        this.sessionList = [...this.sessionList, {
+          sessionId, contactId, contactType: 0,
+          contactName: typeof peer?.nickName === 'string' ? peer.nickName
+            : typeof message.contactName === 'string' ? message.contactName : contactId,
+          lastMessage: '', lastReceiveTime: Number(message.sendTime) || 0, noReadCount: 0,
+        }]
+      }
+      this.appendMessage({ ...message, messageId, sessionId, contactId, messageType: 1 } as unknown as InitialChatMessage,
+        message.sendUserId === this.accountId)
+      this.contactEventVersion += 1
     },
     receiveReadReceipt(message: ServerMessage) {
       const sessionId = typeof message.sessionId === 'string' ? message.sessionId : ''
@@ -538,6 +567,7 @@ export const useChatStore = defineStore('chat', {
       this.accountId = ''
       this.applyCount = 0
       this.groupEventVersion = 0
+      this.contactEventVersion = 0
       this.connectionError = ''
     },
   },
