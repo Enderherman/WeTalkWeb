@@ -8,13 +8,14 @@ import { useDialogFocus } from '@/composables/useDialogFocus'
 import { useLocalImagePreview } from '@/composables/useLocalImagePreview'
 import { useSystemSettingsStore } from '@/stores/systemSettings'
 
-const props = defineProps<{ currentUserId?: string; refreshKey?: number; returnFocusTarget?: HTMLElement | null }>()
+const props = defineProps<{ currentUserId?: string; refreshKey?: number; returnFocusTarget?: HTMLElement | null; chattingContactId?: string; chatError?: string }>()
 const systemSettingsStore = useSystemSettingsStore()
 const { dialog, trapFocus } = useDialogFocus('.profile-close', props.returnFocusTarget)
 
 const emit = defineEmits<{
   close: []
   groupChanged: []
+  startChat: [groupId: string]
 }>()
 
 interface GroupDirectoryEntry {
@@ -556,6 +557,11 @@ function formatGroupTime(value?: string | null) {
           <p class="eyebrow">群聊资料</p>
           <p v-if="profileLoading" class="contact-status" role="status">正在读取群资料…</p>
           <p v-else-if="profileError" class="contact-error" role="alert">{{ profileError }}</p>
+          <p v-if="chatError" class="contact-error" role="alert">{{ chatError }}</p>
+          <button v-if="groupProfile?.status === 1" class="password-submit" type="button"
+            :data-testid="`start-group-chat-${groupProfile.groupId}`" :disabled="Boolean(chattingContactId)"
+            @click="emit('startChat', groupProfile.groupId)"
+          >{{ chattingContactId === groupProfile.groupId ? '正在打开…' : '发消息' }}</button>
           <AvatarThumbnail
             v-if="groupProfile"
             class="profile-cover-thumbnail"

@@ -247,6 +247,22 @@ beforeEach(() => {
 })
 
 describe('authentication flow', () => {
+  it('opens the existing server group conversation directly from its directory', async () => {
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [
+      { sessionId: 'SG300', contactId: 'G300', contactName: 'Group', contactType: 1, lastMessage: '', lastReceiveTime: 100 },
+    ], chatMessageList: [], applyCount: 0 } })
+    await flushPromises()
+    await wrapper.get('[data-testid="remove-conversation"]').trigger('click')
+    await wrapper.get('[data-testid="open-group-directory"]').trigger('click')
+    await flushPromises()
+    wrapper.findComponent({ name: 'GroupDirectoryDialog' }).vm.$emit('startChat', 'G300')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="group-directory-overlay"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="chat-session-SG300"]').classes()).toContain('is-active')
+    expect(chatApi.sendTextMessage).not.toHaveBeenCalled()
+  })
+
   it('opens a friend conversation from the directory and restores a locally hidden chat', async () => {
     vi.mocked(contactApi.loadContacts).mockResolvedValue([{ userId: 'U100', contactId: 'U200', contactType: 0, status: 1, contactName: 'Friend' }])
     const { wrapper, chatStore } = await mountChat()

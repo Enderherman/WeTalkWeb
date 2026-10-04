@@ -748,13 +748,13 @@ function closeContactDirectoryDialog() {
   contactDirectoryOpen.value = false
 }
 
-async function startContactChat(contactId: string) {
+async function startContactChat(contactId: string, contactType: 0 | 1 = 0) {
   if (chattingContactId.value || !authStore.session?.userId) return
   const requestId = ++contactChatRequestId
   chattingContactId.value = contactId
   contactChatError.value = ''
   try {
-    let session = chatStore.sessionList.find((item) => item.contactType === 0 && item.contactId === contactId)
+    let session = chatStore.sessionList.find((item) => item.contactType === contactType && item.contactId === contactId)
     if (!session) {
       const waiting = new Promise<ChatSessionSummary>((resolve, reject) => {
         let stop = () => {}
@@ -767,7 +767,7 @@ async function startContactChat(contactId: string) {
         }
         const timeout = setTimeout(() => finish(), 10_000)
         stop = watch(() => chatStore.sessionList, (sessions) => {
-          const found = sessions.find((item) => item.contactType === 0 && item.contactId === contactId)
+          const found = sessions.find((item) => item.contactType === contactType && item.contactId === contactId)
           if (found) finish(found)
         }, { flush: 'sync' })
         cancelContactChatWait = () => finish(undefined, new Error('已取消打开会话'))
@@ -775,9 +775,10 @@ async function startContactChat(contactId: string) {
       chatStore.connect(authStore.session.userId)
       session = await waiting
     }
-    if (requestId !== contactChatRequestId || !contactDirectoryOpen.value) return
+    if (requestId !== contactChatRequestId || !(contactType === 0 ? contactDirectoryOpen.value : groupDirectoryOpen.value)) return
     selectChatSession(session.sessionId)
-    contactDirectoryOpen.value = false
+    if (contactType === 0) contactDirectoryOpen.value = false
+    else groupDirectoryOpen.value = false
     sidebarOpen.value = false
     await nextTick()
     messageComposer.value?.focus()
@@ -789,6 +790,10 @@ async function startContactChat(contactId: string) {
 }
 
 function closeGroupDirectoryDialog() {
+  contactChatRequestId += 1
+  cancelContactChatWait?.()
+  chattingContactId.value = ''
+  contactChatError.value = ''
   groupDirectoryOpen.value = false
 }
 
@@ -840,6 +845,7 @@ function openContactDirectory(event: MouseEvent) {
 }
 
 function openGroupDirectory(event: MouseEvent) {
+  contactChatError.value = ''
   sidebarDialogReturnFocusTarget.value = event.currentTarget instanceof HTMLElement ? event.currentTarget : null
   groupDirectoryOpen.value = true
 }
@@ -2341,6 +2347,9 @@ async function signOut() {
 
     <GroupDirectoryDialog
       v-if="groupDirectoryOpen"
+      :chatting-contact-id="chattingContactId"
+      :chat-error="contactChatError"
+      @start-chat="(groupId) => startContactChat(groupId, 1)"
       :current-user-id="authStore.session?.userId || ''"
       :refresh-key="groupDirectoryRefreshKey"
       :return-focus-target="sidebarDialogReturnFocusTarget"

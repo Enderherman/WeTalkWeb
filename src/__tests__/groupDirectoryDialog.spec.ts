@@ -96,6 +96,18 @@ beforeEach(() => {
 })
 
 describe('group directory dialog', () => {
+  it('offers direct chat for a group whose authenticated details are active', async () => {
+    const wrapper = mount(GroupDirectoryDialog, { props: { currentUserId: 'U100' } })
+    await flushPromises()
+    await wrapper.get('[data-testid="group-G300"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="start-group-chat-G300"]').trigger('click')
+    expect(wrapper.emitted('startChat')).toEqual([['G300']])
+    await wrapper.setProps({ chattingContactId: 'G300' })
+    expect(wrapper.get('[data-testid="start-group-chat-G300"]').attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
   it('previews and uploads an optional cover when creating a group and releases previews afterward', async () => {
     const revoke = vi.fn()
     vi.stubGlobal('URL', Object.assign(class extends URL {}, { createObjectURL: (file: File) => `blob:${file.name}`, revokeObjectURL: revoke }))
