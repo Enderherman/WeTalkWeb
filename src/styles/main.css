@@ -450,7 +450,7 @@ select:focus-visible {
 
 .notice-error {
   color: #9f1d15;
-  background: var(--wt-white)3f1;
+  background: var(--wt-danger-soft);
 }
 
 .notice-success {
@@ -2246,7 +2246,7 @@ select:focus-visible {
   padding: 14px;
   border: 1px solid var(--wt-neutral-100);
   border-radius: 14px;
-  background: var(--wt-surface);
+  background: var(--wt-soft);
 }
 
 .download-preference-controls h3 {
@@ -3668,7 +3668,7 @@ select:focus-visible {
 }
 
 .beauty-table th {
-  background: var(--wt-surface);
+  background: var(--wt-soft);
   color: var(--wt-muted);
   font-size: 11px;
   font-weight: 600;
@@ -3952,7 +3952,7 @@ select:focus-visible {
 }
 
 .admin-settings-field input[readonly] {
-  background: var(--wt-surface);
+  background: var(--wt-soft);
   color: var(--wt-muted);
 }
 
