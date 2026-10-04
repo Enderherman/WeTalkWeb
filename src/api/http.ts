@@ -1,5 +1,5 @@
 import axios, { type AxiosProgressEvent, type AxiosRequestConfig } from 'axios'
-import { readStoredSession } from '@/stores/auth'
+import { captureAuthRequestContext, isCurrentAuthRequest, readStoredSession, type AuthRequestContext } from '@/stores/auth'
 import { notifyApiUnavailable } from '@/utils/apiEvents'
 import { notifySessionExpired } from '@/utils/authEvents'
 import { isPageLeaving } from '@/utils/pageNavigationLifecycle'
@@ -19,6 +19,21 @@ export class ApiError extends Error {
     super(message)
     this.name = 'ApiError'
   }
+}
+
+class StaleSessionResponseError extends Error {
+  readonly __CANCEL__ = true
+  readonly code = 'ERR_CANCELED'
+  constructor() {
+    super('请求所属登录会话已变化')
+    this.name = 'CanceledError'
+  }
+}
+
+type ScopedRequestConfig = AxiosRequestConfig & { wetalkSession: AuthRequestContext }
+
+function assertCurrentSession(context: AuthRequestContext) {
+  if (!isCurrentAuthRequest(context)) throw new StaleSessionResponseError()
 }
 
 export function unwrapResponse<T>(response: BaseResponse<T>): T {
@@ -52,7 +67,9 @@ const client = axios.create({
 })
 
 client.interceptors.request.use((config) => {
-  const token = readStoredSession()?.token
+  const context = (config as typeof config & { wetalkSession?: AuthRequestContext }).wetalkSession
+  if (context) assertCurrentSession(context)
+  const token = context ? context.token : readStoredSession()?.token
   if (token) config.headers.set('token', token)
   return config
 })
@@ -62,20 +79,25 @@ export async function postForm<T>(
   values: Record<string, string | number | boolean | null | undefined>,
   options: { signal?: AbortSignal } = {},
 ): Promise<T> {
+  const context = captureAuthRequestContext()
   const body = new URLSearchParams()
   for (const [key, value] of Object.entries(values)) {
     if (value !== null && value !== undefined) body.set(key, String(value))
   }
 
   try {
-    const response = await client.post<BaseResponse<T>>(path, body, {
+    const config: ScopedRequestConfig = {
+      wetalkSession: context,
       headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
       ...(options.signal ? { signal: options.signal } : {}),
-    })
+    }
+    const response = await client.post<BaseResponse<T>>(path, body, config)
+    assertCurrentSession(context)
     return unwrapResponse(response.data)
   } catch (error: unknown) {
-    if (axios.isCancel(error)) throw error
     if (error instanceof ApiError) throw error
+    assertCurrentSession(context)
+    if (axios.isCancel(error)) throw error
     if (axios.isAxiosError(error)) {
       const responseBody = error.response?.data as Partial<BaseResponse<unknown>> | undefined
       reportApiFailure(error)
@@ -99,8 +121,9 @@ export async function postMultipart<T>(
   body: FormData,
   options?: MultipartRequestOptions,
 ): Promise<T> {
+  const context = captureAuthRequestContext()
   try {
-    const requestOptions: AxiosRequestConfig = {}
+    const requestOptions: ScopedRequestConfig = { wetalkSession: context }
     if (options?.timeoutMs !== undefined) requestOptions.timeout = options.timeoutMs
     if (options?.onUploadProgress) {
       requestOptions.onUploadProgress = (event: AxiosProgressEvent) => {
@@ -108,12 +131,13 @@ export async function postMultipart<T>(
         options.onUploadProgress?.(Math.min(100, Math.round((event.loaded / event.total) * 100)))
       }
     }
-    const response = options
-      ? await client.post<BaseResponse<T>>(path, body, requestOptions)
-      : await client.post<BaseResponse<T>>(path, body)
+    const response = await client.post<BaseResponse<T>>(path, body, requestOptions)
+    assertCurrentSession(context)
     return unwrapResponse(response.data)
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error
+    assertCurrentSession(context)
+    if (error instanceof StaleSessionResponseError) throw error
     if (axios.isAxiosError(error)) {
       const responseBody = error.response?.data as Partial<BaseResponse<unknown>> | undefined
       reportApiFailure(error)
@@ -136,11 +160,14 @@ function readBlobText(blob: Blob): Promise<string> {
   })
 }
 
-async function unwrapBlobError(blob: Blob): Promise<never> {
+async function unwrapBlobError(blob: Blob, context: AuthRequestContext): Promise<never> {
   let response: Partial<BaseResponse<unknown>>
   try {
-    response = JSON.parse(await readBlobText(blob)) as Partial<BaseResponse<unknown>>
+    const text = await readBlobText(blob)
+    assertCurrentSession(context)
+    response = JSON.parse(text) as Partial<BaseResponse<unknown>>
   } catch {
+    assertCurrentSession(context)
     throw new ApiError('文件下载失败，请稍后重试')
   }
   if (typeof response.code === 'number' && response.code !== 200) {
@@ -153,26 +180,32 @@ export async function postDownload(
   path: string,
   values: Record<string, string | number | boolean | null | undefined>,
 ): Promise<Blob> {
+  const context = captureAuthRequestContext()
   const body = new URLSearchParams()
   for (const [key, value] of Object.entries(values)) {
     if (value !== null && value !== undefined) body.set(key, String(value))
   }
 
   try {
-    const response = await client.post<Blob>(path, body, {
+    const config: ScopedRequestConfig = {
+      wetalkSession: context,
       headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
       responseType: 'blob',
       timeout: 0,
-    })
+    }
+    const response = await client.post<Blob>(path, body, config)
+    assertCurrentSession(context)
     if (String(response.headers['content-type'] || '').toLowerCase().includes('json')) {
-      return await unwrapBlobError(response.data)
+      return await unwrapBlobError(response.data, context)
     }
     return response.data
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error
+    assertCurrentSession(context)
+    if (error instanceof StaleSessionResponseError) throw error
     if (axios.isAxiosError(error)) {
       const responseData = error.response?.data
-      if (responseData instanceof Blob) return await unwrapBlobError(responseData)
+      if (responseData instanceof Blob) return await unwrapBlobError(responseData, context)
       const responseBody = responseData as Partial<BaseResponse<unknown>> | undefined
       reportApiFailure(error)
       throw new ApiError(

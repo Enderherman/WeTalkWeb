@@ -12,7 +12,7 @@ import ContactSearchDialog from '@/components/ContactSearchDialog.vue'
 import GroupDirectoryDialog from '@/components/GroupDirectoryDialog.vue'
 import EmojiPicker from '@/components/EmojiPicker.vue'
 import ClipboardImageDraft from '@/components/ClipboardImageDraft.vue'
-import { useAuthStore } from '@/stores/auth'
+import { captureAuthRequestContext, isCurrentAuthRequest, useAuthStore, type AuthRequestContext } from '@/stores/auth'
 import { compareMessagesByServerOrder, useChatStore, type ChatHistoryPage, type InitialChatMessage, type ChatSessionSummary } from '@/stores/chat'
 import { useDownloadPreferencesStore } from '@/stores/downloadPreferences'
 import { useConversationPreferencesStore } from '@/stores/conversationPreferences'
@@ -30,6 +30,9 @@ import { webClientVersion } from '@/config/version'
 
 const router = useRouter()
 const authStore = useAuthStore()
+let componentActive = true
+let profileRequestId = 0
+const ownsRequest = (context: AuthRequestContext) => componentActive && isCurrentAuthRequest(context)
 const chatStore = useChatStore()
 const conversationPreferences = useConversationPreferencesStore()
 conversationPreferences.load(authStore.session?.userId || '')
@@ -111,6 +114,20 @@ const webReleaseNotice = ref<AppUpdateNotice | null>(null)
 const webReleaseNoticeDismissed = ref(false)
 const downloadPreferenceNotice = ref('')
 const downloadPreferenceError = ref('')
+
+watch(() => authStore.generation, () => {
+  profileRequestId += 1
+  profile.value = null
+  profileLoading.value = false
+  profileSaving.value = false
+  profileEditOpen.value = false
+  profileError.value = ''
+  profileSaveError.value = ''
+  profileSaveNotice.value = ''
+  profileAvatarFile.value = null
+  profileCoverFile.value = null
+  userSessions.value = []
+})
 
 const displayName = computed(() => profile.value?.nickName || authStore.session?.nickName || 'WeTalk 用户')
 const avatarInitial = computed(() => displayName.value.slice(0, 1).toUpperCase())
@@ -346,6 +363,8 @@ function syncChatViewportHeight() {
 }
 
 onBeforeUnmount(() => {
+  componentActive = false
+  profileRequestId += 1
   document.removeEventListener('pointerdown', handleProfileMenuPointerDown)
   window.removeEventListener('blur', closeProfileMenu)
   contactChatRequestId += 1
@@ -426,23 +445,20 @@ async function loadOlderMessages() {
 }
 
 async function loadProfile() {
+  const context = captureAuthRequestContext()
+  const requestId = ++profileRequestId
+  const current = () => ownsRequest(context) && requestId === profileRequestId
   profileLoading.value = true
   profileError.value = ''
   try {
-    profile.value = await authApi.getUserInfo()
-    const session = authStore.session
-    if (session) {
-      authStore.setSession({
-        ...session,
-        email: profile.value.email || session.email,
-        nickName: profile.value.nickName || session.nickName,
-        admin: profile.value.admin,
-      })
-    }
+    const loaded = await authApi.getUserInfo()
+    if (!current() || !authStore.applyProfile(loaded, context)) return
+    profile.value = loaded
   } catch (error: unknown) {
+    if (!current()) return
     profileError.value = error instanceof Error ? error.message : '个人资料暂时无法读取'
   } finally {
-    profileLoading.value = false
+    if (current()) profileLoading.value = false
   }
 }
 
@@ -493,6 +509,10 @@ function cancelProfileEdit() {
 }
 
 async function saveProfile() {
+  if (profileSaving.value) return
+  const context = captureAuthRequestContext()
+  const requestId = ++profileRequestId
+  const current = () => ownsRequest(context) && requestId === profileRequestId
   const nickName = profileForm.nickName.trim()
   if (!nickName || nickName.length > 40) {
     profileSaveError.value = '昵称不能为空且不能超过 40 个字符'
@@ -519,25 +539,18 @@ async function saveProfile() {
   profileSaveNotice.value = ''
   try {
     const updated = await authApi.saveUserInfo(input)
+    if (!current() || !authStore.applyProfile(updated, context)) return
     profile.value = updated
-    const session = authStore.session
-    if (session) {
-      authStore.setSession({
-        ...session,
-        email: updated.email || session.email,
-        nickName: updated.nickName || session.nickName,
-        admin: updated.admin,
-      })
-    }
     profileAvatarVersion.value += 1
     profileSaveNotice.value = '个人资料已保存'
     profileAvatarFile.value = null
     profileCoverFile.value = null
     profileEditOpen.value = false
   } catch (error: unknown) {
+    if (!current()) return
     profileSaveError.value = error instanceof Error ? error.message : '资料保存失败，请稍后重试'
   } finally {
-    profileSaving.value = false
+    if (current()) profileSaving.value = false
   }
 }
 
@@ -1093,6 +1106,7 @@ async function clearDownloadFolder() {
 }
 
 async function changePassword() {
+  const context = captureAuthRequestContext()
   passwordError.value = validatePassword(passwordForm.password) || ''
   if (passwordError.value) return
   if (passwordForm.confirmPassword !== passwordForm.password) {
@@ -1103,15 +1117,17 @@ async function changePassword() {
   changingPassword.value = true
   try {
     await authApi.updatePassword(passwordForm.password)
+    if (!ownsRequest(context)) return
     chatStore.clear()
     systemSettingsStore.reset()
     downloadPreferencesStore.reset()
     authStore.clearSession()
     await router.replace({ name: 'login', query: { passwordUpdated: '1' } })
   } catch (error: unknown) {
+    if (!ownsRequest(context)) return
     passwordError.value = error instanceof Error ? error.message : '密码修改失败，请稍后重试'
   } finally {
-    changingPassword.value = false
+    if (componentActive) changingPassword.value = false
   }
 }
 
@@ -1569,6 +1585,7 @@ function isAiMessage(message: InitialChatMessage) {
 }
 
 async function signOut() {
+  const context = captureAuthRequestContext()
   closeProfileMenu()
   signingOut.value = true
   try {
@@ -1576,6 +1593,7 @@ async function signOut() {
   } catch {
     // Clear the browser session even if the server is unreachable.
   } finally {
+    if (!ownsRequest(context)) return
     chatStore.clear()
     systemSettingsStore.reset()
     downloadPreferencesStore.reset()

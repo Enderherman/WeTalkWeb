@@ -247,6 +247,69 @@ beforeEach(() => {
 })
 
 describe('authentication flow', () => {
+  it('ignores a profile completing after component unmount even if the account is unchanged', async () => {
+    let resolveProfile!: (profile: Awaited<ReturnType<typeof authApi.getUserInfo>>) => void
+    vi.mocked(authApi.getUserInfo).mockReturnValueOnce(new Promise((resolve) => { resolveProfile = resolve }))
+    const { wrapper, authStore } = await mountChat()
+    const before = { ...authStore.session! }
+    wrapper.unmount()
+    resolveProfile({ userId: 'U100', email: 'other@example.com', nickName: 'Late', admin: true })
+    await flushPromises()
+    expect(authStore.session).toEqual(before)
+  })
+
+  it('does not let a late logout completion clear a newer login', async () => {
+    const { wrapper, authStore } = await mountChat()
+    let resolveLogout!: () => void
+    vi.mocked(authApi.logout).mockReturnValueOnce(new Promise((resolve) => { resolveLogout = resolve }))
+    await wrapper.get('[data-testid="profile-menu-trigger"]').trigger('click')
+    await wrapper.get('[data-testid="signout"]').trigger('click')
+    const next = { token: '', userId: 'U900', email: 'next@example.com', nickName: 'Next', admin: false }
+    authStore.setSession(next)
+    resolveLogout()
+    await flushPromises()
+    expect(authStore.session).toEqual(next)
+  })
+
+  it('does not merge a late profile from an unmounted account into a newer account', async () => {
+    let resolveProfile!: (profile: Awaited<ReturnType<typeof authApi.getUserInfo>>) => void
+    vi.mocked(authApi.getUserInfo).mockReturnValueOnce(new Promise((resolve) => { resolveProfile = resolve }))
+    const { wrapper, authStore } = await mountChat()
+    wrapper.unmount()
+    const next = { token: '', userId: 'U900', email: 'new@example.com', nickName: 'New account', admin: false }
+    authStore.setSession(next)
+    resolveProfile({ userId: 'U100', email: 'old@example.com', nickName: 'Old admin', admin: true })
+    await flushPromises()
+    expect(authStore.session).toEqual(next)
+  })
+
+  it('does not accept a slow profile from the previous login of the same cookie account', async () => {
+    let resolveProfile!: (profile: Awaited<ReturnType<typeof authApi.getUserInfo>>) => void
+    vi.mocked(authApi.getUserInfo).mockReturnValueOnce(new Promise((resolve) => { resolveProfile = resolve }))
+    const { wrapper, authStore } = await mountChat()
+    const next = { token: '', userId: 'U100', email: 'fresh@example.com', nickName: 'Fresh login', admin: false }
+    authStore.setSession(next)
+    resolveProfile({ userId: 'U100', email: 'old@example.com', nickName: 'Old admin', admin: true })
+    await flushPromises()
+    expect(authStore.session).toEqual(next)
+    wrapper.unmount()
+  })
+
+  it('does not apply a profile-save result after its component unmounts and the account changes', async () => {
+    const { wrapper, authStore } = await mountChat()
+    await openProfileDialog(wrapper)
+    await wrapper.get('[data-testid="edit-profile"]').trigger('click')
+    let resolveSave!: (profile: Awaited<ReturnType<typeof authApi.saveUserInfo>>) => void
+    vi.mocked(authApi.saveUserInfo).mockReturnValueOnce(new Promise((resolve) => { resolveSave = resolve }))
+    await wrapper.get('[data-testid="profile-edit-form"]').trigger('submit')
+    wrapper.unmount()
+    const next = { token: '', userId: 'U900', email: 'next@example.com', nickName: 'Next', admin: false }
+    authStore.setSession(next)
+    resolveSave({ userId: 'U100', email: 'old@example.com', nickName: 'Old save', admin: true })
+    await flushPromises()
+    expect(authStore.session).toEqual(next)
+  })
+
   it('opens the existing server group conversation directly from its directory', async () => {
     const { wrapper, chatStore } = await mountChat()
     chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [

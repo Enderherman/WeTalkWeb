@@ -21,7 +21,8 @@ describe('multipart API helper', () => {
     mocks.post.mockResolvedValue({ data: { status: 'success', code: 200, data: null } })
 
     await expect(postMultipart('/group/saveGroup', body)).resolves.toBeNull()
-    expect(mocks.post).toHaveBeenCalledWith('/group/saveGroup', body)
+    expect(mocks.post).toHaveBeenCalledWith('/group/saveGroup', body, expect.objectContaining({ wetalkSession: expect.any(Object) }))
+    expect(mocks.post.mock.calls[0]![2].headers).toBeUndefined()
   })
 
   it('supports long file uploads and reports byte progress as a percentage', async () => {
