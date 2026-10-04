@@ -247,6 +247,23 @@ beforeEach(() => {
 })
 
 describe('authentication flow', () => {
+  it('inserts an emoji at the selected caret range and retains the text around it', async () => {
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [
+      { sessionId: 'S1', contactId: 'U200', contactName: 'Friend', contactType: 0, lastMessage: '', lastReceiveTime: 100 },
+    ], chatMessageList: [], applyCount: 0 } })
+    await flushPromises()
+    const composer = wrapper.get('[data-testid="message-composer"]')
+    await composer.setValue('Hello replace world')
+    ;(composer.element as HTMLTextAreaElement).setSelectionRange(6, 13)
+    await wrapper.get('[data-testid="emoji-picker-toggle"]').trigger('click')
+    await wrapper.get('[aria-label="赞"]').trigger('click')
+    await flushPromises()
+    expect((composer.element as HTMLTextAreaElement).value).toBe('Hello 👍 world')
+    expect((composer.element as HTMLTextAreaElement).selectionStart).toBe(8)
+    expect(chatApi.sendTextMessage).not.toHaveBeenCalled()
+  })
+
   it('pins, removes and restores conversations without deleting server messages', async () => {
     const { wrapper, chatStore } = await mountChat()
     chatStore.receiveMessage({ messageType: 0, extentData: {

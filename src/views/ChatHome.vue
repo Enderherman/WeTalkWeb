@@ -10,6 +10,7 @@ import ContactApplicationsDialog from '@/components/ContactApplicationsDialog.vu
 import ContactDirectoryDialog from '@/components/ContactDirectoryDialog.vue'
 import ContactSearchDialog from '@/components/ContactSearchDialog.vue'
 import GroupDirectoryDialog from '@/components/GroupDirectoryDialog.vue'
+import EmojiPicker from '@/components/EmojiPicker.vue'
 import { useAuthStore } from '@/stores/auth'
 import { compareMessagesByServerOrder, useChatStore, type ChatHistoryPage, type InitialChatMessage } from '@/stores/chat'
 import { useDownloadPreferencesStore } from '@/stores/downloadPreferences'
@@ -1222,6 +1223,23 @@ async function stopAiGeneration(message: InitialChatMessage) {
   }
 }
 
+async function insertEmoji(emoji: string) {
+  const composer = messageComposer.value
+  if (!composer || composer.disabled) return
+  const start = composer.selectionStart ?? messageDraft.value.length
+  const end = composer.selectionEnd ?? start
+  const next = messageDraft.value.slice(0, start) + emoji + messageDraft.value.slice(end)
+  if (next.length > 500) {
+    messageError.value = '消息不能超过 500 个字符'
+    return
+  }
+  messageDraft.value = next
+  await nextTick()
+  composer.focus()
+  composer.setSelectionRange(start + emoji.length, start + emoji.length)
+  resizeMessageComposer()
+}
+
 function chooseAttachment() {
   fileUploadError.value = ''
   fileInput.value?.click()
@@ -2173,6 +2191,7 @@ async function signOut() {
           :disabled="!selectedSession || selectedSession.groupClosed || selectedSession.groupAccessRevoked || fileUploading"
           @click="chooseAttachment"
         >＋</button>
+        <EmojiPicker :disabled="!selectedSession || selectedSession.groupClosed || selectedSession.groupAccessRevoked || sendingMessage || replayingPendingMessages" @select="insertEmoji" />
         <textarea
           v-model="messageDraft"
           :disabled="!selectedSession || selectedSession.groupClosed || selectedSession.groupAccessRevoked || sendingMessage || replayingPendingMessages"
