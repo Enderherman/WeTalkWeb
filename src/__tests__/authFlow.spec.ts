@@ -162,6 +162,7 @@ async function openProfileDialog(wrapper: Awaited<ReturnType<typeof mountChat>>[
 
 beforeEach(() => {
   window.sessionStorage.clear()
+  window.localStorage.clear()
   vi.clearAllMocks()
   downloadPreferences.mode = 'browser'
   downloadPreferences.directoryName = ''
@@ -246,6 +247,35 @@ beforeEach(() => {
 })
 
 describe('authentication flow', () => {
+  it('pins, removes and restores conversations without deleting server messages', async () => {
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({ messageType: 0, extentData: {
+      chatSessionList: [
+        { sessionId: 'S1', contactId: 'U200', contactName: 'Older', contactType: 0, lastMessage: 'Old', lastReceiveTime: 100 },
+        { sessionId: 'S2', contactId: 'U300', contactName: 'Newer', contactType: 0, lastMessage: 'New', lastReceiveTime: 200 },
+      ], chatMessageList: [], applyCount: 0,
+    } })
+    await flushPromises()
+    await wrapper.get('[data-testid="chat-session-S1"]').trigger('click')
+    await wrapper.get('[data-testid="pin-conversation"]').trigger('click')
+    expect(wrapper.findAll('.chat-session-entry')[0]?.attributes('data-testid')).toBe('chat-session-S1')
+    expect(wrapper.get('[data-testid="pin-conversation"]').attributes('aria-pressed')).toBe('true')
+    await wrapper.get('[data-testid="remove-conversation"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="chat-session-S1"]').exists()).toBe(false)
+    expect(chatStore.sessionList).toHaveLength(2)
+    await wrapper.get('[data-testid="toggle-removed-conversations"]').trigger('click')
+    await wrapper.get('[data-testid="restore-conversation-S1"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="chat-session-S1"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="remove-conversation"]').trigger('click')
+    chatStore.receiveMessage({ messageType: 2, messageId: 5, sessionId: 'S1', contactId: 'U200',
+      messageContent: 'Another message', sendUserId: 'U200', sendUserNickName: 'Older', sendTime: 300 })
+    await flushPromises()
+    expect(wrapper.find('[data-testid="chat-session-S1"]').exists()).toBe(true)
+    expect(chatStore.initialMessages.some((message) => message.messageId === 5)).toBe(true)
+  })
+
   it('shows the password changed notice on the login page', async () => {
     const pinia = createPinia()
     const router = createTestRouter()

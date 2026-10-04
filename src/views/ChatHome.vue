@@ -13,6 +13,7 @@ import GroupDirectoryDialog from '@/components/GroupDirectoryDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { compareMessagesByServerOrder, useChatStore, type ChatHistoryPage, type InitialChatMessage } from '@/stores/chat'
 import { useDownloadPreferencesStore } from '@/stores/downloadPreferences'
+import { useConversationPreferencesStore } from '@/stores/conversationPreferences'
 import { useSystemSettingsStore } from '@/stores/systemSettings'
 import type { DownloadLocationMode } from '@/storage/downloadPreferences'
 import { textMessageCache, type PendingTextMessage } from '@/storage/textMessageCache'
@@ -28,6 +29,14 @@ import { webClientVersion } from '@/config/version'
 const router = useRouter()
 const authStore = useAuthStore()
 const chatStore = useChatStore()
+const conversationPreferences = useConversationPreferencesStore()
+conversationPreferences.load(authStore.session?.userId || '')
+const showRemovedConversations = ref(false)
+const visibleSessions = computed(() => chatStore.sessionList
+  .filter((session) => !conversationPreferences.isHidden(session))
+  .sort((left, right) => Number(conversationPreferences.pinned.includes(right.sessionId))
+    - Number(conversationPreferences.pinned.includes(left.sessionId)) || right.lastReceiveTime - left.lastReceiveTime))
+const removedSessions = computed(() => chatStore.sessionList.filter((session) => conversationPreferences.isHidden(session)))
 const downloadPreferencesStore = useDownloadPreferencesStore()
 const systemSettingsStore = useSystemSettingsStore()
 const sidebarOpen = ref(false)
@@ -221,7 +230,7 @@ const connectionLabel = computed(() => {
 })
 
 watch(
-  () => chatStore.sessionList,
+  visibleSessions,
   (sessions) => {
     if (!sessions.some((session) => session.sessionId === selectedSessionId.value)) {
       selectedSessionId.value = sessions[0]?.sessionId || ''
@@ -229,6 +238,8 @@ watch(
   },
   { immediate: true },
 )
+
+watch(() => chatStore.sessionList, (sessions) => conversationPreferences.restoreUpdated(sessions), { deep: true })
 
 watch(selectedSessionId, (sessionId) => {
   chatStore.setActiveSession(sessionId)
@@ -537,6 +548,7 @@ function expandDesktopSidebar() {
 }
 
 function selectChatSession(sessionId: string) {
+  conversationPreferences.restore(sessionId)
   selectedSessionId.value = sessionId
   if (sidebarOpen.value) {
     sidebarOpen.value = false
@@ -1635,10 +1647,10 @@ async function signOut() {
         <p v-if="!chatStore.initialized" class="history-empty">
           {{ chatStore.connectionError || connectionLabel }}
         </p>
-        <p v-else-if="chatStore.sessionList.length === 0" class="history-empty">还没有聊天会话</p>
+        <p v-else-if="visibleSessions.length === 0" class="history-empty">还没有聊天会话</p>
         <div v-else class="chat-session-list">
           <button
-            v-for="session in chatStore.sessionList"
+            v-for="session in visibleSessions"
             :key="session.sessionId"
             class="chat-session-entry"
             :data-testid="`chat-session-${session.sessionId}`"
@@ -1654,7 +1666,7 @@ async function signOut() {
               :fallback="(session.contactName || 'W').slice(0, 1)"
             />
             <span class="session-entry-copy">
-              <strong>{{ session.contactName || session.contactId }}</strong>
+              <strong>{{ conversationPreferences.pinned.includes(session.sessionId) ? '↑ ' : '' }}{{ session.contactName || session.contactId }}</strong>
               <small>{{ session.lastMessage || '开始一段新对话' }}</small>
             </span>
             <span
@@ -1665,6 +1677,19 @@ async function signOut() {
             >{{ session.noReadCount > 99 ? '99+' : session.noReadCount }}</span>
           </button>
         </div>
+        <button
+          v-if="removedSessions.length" class="pending-apply-count" type="button"
+          data-testid="toggle-removed-conversations" :aria-expanded="showRemovedConversations"
+          :aria-label="`已移除的会话，${removedSessions.length} 个`"
+          @click="showRemovedConversations = !showRemovedConversations; sidebarCollapsed = false"
+        ><span class="sidebar-action-icon" aria-hidden="true">↶</span><span class="sidebar-action-label">已移除（{{ removedSessions.length }}）</span></button>
+        <div v-if="showRemovedConversations && removedSessions.length" class="chat-session-list" aria-label="已移除的会话">
+          <small>仅从本浏览器列表移除，消息和联系人保留；收到新消息会重新显示。</small>
+          <button v-for="session in removedSessions" :key="session.sessionId" class="chat-session-entry" type="button"
+            :data-testid="`restore-conversation-${session.sessionId}`" @click="selectChatSession(session.sessionId)"
+          >恢复 {{ session.contactName || session.contactId }}</button>
+        </div>
+        <p v-if="conversationPreferences.storageError" class="contact-error" role="status">{{ conversationPreferences.storageError }}</p>
         <button
           v-if="chatStore.initialized"
           class="pending-apply-count"
@@ -1793,6 +1818,17 @@ async function signOut() {
           <i aria-hidden="true"></i>{{ connectionLabel }}
         </span>
       </header>
+
+      <div v-if="selectedSession" class="conversation-actions" aria-label="当前会话操作">
+        <button class="message-search-clear" type="button" data-testid="pin-conversation"
+          :aria-pressed="conversationPreferences.pinned.includes(selectedSession.sessionId)"
+          @click="conversationPreferences.togglePin(selectedSession.sessionId)"
+        >{{ conversationPreferences.pinned.includes(selectedSession.sessionId) ? '取消置顶' : '置顶会话' }}</button>
+        <button class="message-search-clear" type="button" data-testid="remove-conversation"
+          title="仅从本浏览器列表移除，保留联系人和历史消息"
+          @click="conversationPreferences.hide(selectedSession)"
+        >从列表移除</button>
+      </div>
 
       <section
         v-if="webReleaseNotice && !webReleaseNoticeDismissed"

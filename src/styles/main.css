@@ -2540,6 +2540,15 @@ select:focus-visible {
   white-space: nowrap;
 }
 
+.conversation-actions {
+  display: flex;
+  width: min(100% - 28px, 720px);
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0 auto 8px;
+}
+
 .message-search-toggle {
   flex: 0 0 auto;
 }
