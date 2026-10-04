@@ -1,29 +1,23 @@
-# WebKit 刷新时的模块导入异常
+# WebKit 页面卸载与请求中止
 
-2026-10-04，生产静态资源下 WebKit 手机模拟视口出现 `TypeError: Importing a module script failed.`，页面仍能完成后续操作。诊断没有发现缺失模块或 HTTP 4xx/5xx。
+[首页](../README.md) · [更新日志](../CHANGELOG.md) · [请求归属](session-request-ownership.md)
 
-## 已复现的因果链
+## 当前行为
 
-对既有测试账号执行登录后快速刷新。自然快速路径可以复现；另给只读 `getUserInfo` 请求增加 300ms 延迟，使待完成请求稳定存在，并在内存中包装原 Vue Router loader 记录调用（不修改产品文件、不更改账号资料）。
+[页面生命周期模块](../src/utils/pageNavigationLifecycle.ts) 在 `beforeunload/pagehide` 标记正在离开，在 `pageshow` 恢复，包括 BFCache 返回。HTTP 层此时不派发全局认证/服务导航，App 不在正在卸载的文档中启动登录页或错误页导入。
 
-1. 原聊天文档触发 `beforeunload`。
-2. WebKit 将资料、系统设置、版本、头像与 WebSocket ticket 的 XHR 标为 `Load request cancelled`。它们表现为 Axios 网络中断，不是 `CanceledError`。
-3. 旧文档仍然派发 5 次 `wetalk:api-unavailable`，App 每次尝试替换到懒加载的 `service-error` 路由。
-4. 当时的确切模块为 `/assets/ServiceErrorView-jIaLzRUZ.js`；原 loader 的 5 次 import 都在文档卸载中拒绝，随后出现未处理 Promise 错误。
-5. `pagehide` / 新文档 `pageshow` 后，正常聊天页面继续加载。
+已启动而随卸载被取消的路由 Promise 只在此条件下处理。活动页面的导航错误、真实网络/服务错误继续抛出或提示；Axios 主动取消保持独立语义。没有用 `visibilityState=hidden` 代替卸载判断，后台活动标签页仍处理真实失败。
 
-## 修复范围
+## 因果证据
 
-- 独立生命周期模块在 `beforeunload` / `pagehide` 标记正在离开页面，在 `pageshow` 恢复，包括 BFCache 返回。
-- HTTP 层在正在离开的文档中不再广播全局服务/认证导航事件；原有 Axios 主动取消识别保持不变。
-- App 在相同阶段不启动错误页/登录页导航；对已经启动而后随卸载取消的路由 Promise 进行条件处理。活动文档中的导航失败仍会抛出，真实网络和服务错误仍保留原行为。
-- 不使用 `visibilityState === hidden` 判定。仅切换到后台的活动标签页仍处理真实 API 失败。
+2026-10-04 的生产静态资源下，快速刷新可复现 `Importing a module script failed`。给只读资料请求增加 300ms 延迟后观察到：旧文档触发 `beforeunload`，WebKit 把五个 XHR 标为 `Load request cancelled`，Axios 将其视为网络中断；旧逻辑随后五次派发可用性事件并导入错误页，导入在卸载中拒绝。没有发现缺失资源或对应 HTTP 4xx/5xx。
 
-## 验证
+修复构建仍有五个因刷新取消的 XHR，但错误事件、错误页导入和 pageerror 均为零，登录→刷新→设置→退出成功。这是识别卸载阶段后的结果，并非忽略 pageerror。
 
-- 修改前两个专门回归失败：卸载中仍导入错误页、pagehide 仍响应错误事件。修复后5项专门用例通过，涵盖 BFCache恢复、后台页真实错误和待完成路由拒绝；与HTTP/服务错误页合计15项通过。
-- 全量46个测试文件、335项单元/组件测试通过，Vue类型检查与生产构建通过。
-- 原快速刷新+300ms资料延迟的真实 WebKit 390×844 用例，在修复构建上仍记录5个被刷新取消的 XHR，但全局错误事件/错误页导入为0、pageerror为0，登录→刷新→设置→退出完成。
-- 为避免扰动并行集成服务，该回归只在浏览器拦截静态资源并读取修复后的生产 `dist`；API和WebSocket继续访问原同源隔离服务。随后由总体验收者在更新的固定生产快照复验完整矩阵。
+## 验证范围
 
-独立诊断脚本：工作区 `audit/webkit-module-debug.mjs`。原始日志位于私有测试目录，未提交账号或凭据。
+修复前两个专门用例失败；修复后五项生命周期用例及 HTTP/错误页相关共 15 项通过，覆盖 BFCache、后台真实错误和待完成路由拒绝。功能纳入最终 373 项基线。
+
+独立 WebKit 390×844 复验通过浏览器拦截静态文件读取修复后的 `dist`，API/WS 保持原同源隔离服务；后续固定生产快照又完成五组浏览器矩阵。两项证据分别记录，不能将浏览器静态拦截称为 NAS 部署。
+
+诊断脚本在联合工作区 `audit/webkit-module-debug.mjs`，原始日志保存在私有测试目录。当前测试服务已停止；本次文档重写没有重跑上述环境。

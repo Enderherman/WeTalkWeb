@@ -1,14 +1,28 @@
-# 长历史消息布局回归
+# 长历史聊天布局
 
-2026-10-04，真实后端页面发现长历史、版本提示与会话工具栏同时出现时，输入框位于视口下方。CSS Grid 的隐式行使用内容最小高度，`.chat-main` 没有允许收缩，导致 `.conversation-panel` 的滚动属性无法发挥作用。
+[首页](../README.md) · [更新日志](../CHANGELOG.md) · [真实页面验收](ui-regression-20261004.md)
 
-修复为 `.chat-shell` 声明 `grid-template-rows: minmax(0, 1fr)`，并为 `.chat-main` 设置 `min-height: 0`；版本提示限制高度并在自身滚动。
+聊天壳用 `grid-template-rows: minmax(0, 1fr)` 限制可用高度，聊天主列设 `min-height: 0`，让长历史在消息区内部滚动；长版本提示在自身区域滚动。输入框应始终位于可视区，页面不能横向溢出。
 
-`scripts/check-chat-layout.cjs` 用仓库真实 CSS、40 条消息、版本提示和会话操作构建布局夹具，在真实 Chromium 测量输入框边界及消息滚动。它不代替真实登录/API 流程。
+## 可重复布局检查
 
-- 修复前 390×844：聊天列高 3550.75px，输入框底部 3504.75px，断言失败。
-- 修复后 390×844：输入框底部 798px；768×1024 为 982px；1280×900 为 858px；390×450 为 404px。
-- 四组均无横向溢出，长历史在消息区域内部滚动。
-- 69 项相关单元/组件测试、类型检查和生产构建通过。
+[check-chat-layout.cjs](../scripts/check-chat-layout.cjs) 读取仓库真实 CSS，构造 40 条消息、版本提示与会话操作的夹具，再以真实 Chromium 测量。它验证布局，不代表登录或真实 API 流程。
 
-运行需要已安装的 Playwright 和 Chromium：`node scripts/check-chat-layout.cjs`。Playwright 不在当前项目依赖目录时，可通过 `WETALK_PLAYWRIGHT_PACKAGE` 指向其包目录；浏览器缓存可通过标准 `PLAYWRIGHT_BROWSERS_PATH` 配置。本轮复用 `D:/environment/WeTalkBrowserQA/node_modules/playwright` 和 `D:/environment/WeTalkBrowserQA/browsers`，未安装新依赖。
+```sh
+node scripts/check-chat-layout.cjs
+```
+
+需要可用的 Playwright 与 Chromium。若 Playwright 不在本项目依赖中，用 `WETALK_PLAYWRIGHT_PACKAGE` 指定包目录，`PLAYWRIGHT_BROWSERS_PATH` 指定浏览器缓存；这些环境变量不会改产品配置。本轮已有工具目录为 `D:/environment/WeTalkBrowserQA/`。
+
+## 已保存的测量
+
+2026-10-04 修复前，390×844 视口的输入框底部为 3504.75px，超出页面；修复后结果如下：
+
+| 视口 | 输入框底部 | 结果 |
+|---|---:|---|
+| 390×844 | 798px | 可见、内部滚动、无横向溢出 |
+| 768×1024 | 982px | 同上 |
+| 1280×900 | 858px | 同上 |
+| 390×450 | 404px | 同上 |
+
+当时相关单元/组件测试 69 项、类型检查和构建通过；随后另有真实后端页面验证。手机视口与 WebKit 仿真不替代实体设备软键盘、安全区域和触控验收。本次仅改文档，未重启浏览器或重跑布局夹具。
