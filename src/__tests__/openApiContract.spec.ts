@@ -1,8 +1,9 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const contract = JSON.parse(readFileSync(resolve(process.cwd(), 'docs/openapi.web.json'), 'utf8'))
+const backendControllerDirectory = resolve(process.cwd(), '../backend/src/main/java/top/enderherman/wetalk/controller')
 
 describe('WeTalkWeb OpenAPI contract', () => {
   it('documents the currently integrated account, contact, and text-chat endpoints', () => {
@@ -51,6 +52,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/contact/getContactUserInfo',
       '/contact/loadApply',
       '/contact/loadContact',
+      '/contact/saveRemark',
       '/contact/search',
       '/contact/searchByKeyword',
       '/group/addOrRemoveGroupUser',
@@ -64,6 +66,9 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/userInfoBeauty/loadBeautyAccountList',
       '/userInfoBeauty/saveBeautyAccount',
     ])
+    expect(Object.keys(contract.paths)).toHaveLength(55)
+    expect(contract['x-backend-rest-path-count']).toBe(55)
+    expect(contract.info.description).toContain('55 REST paths')
 
     const operationIds = Object.values(contract.paths).flatMap((path: any) =>
       ['get', 'post'].filter((method) => path[method]).map((method) => path[method].operationId),
@@ -71,6 +76,17 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(new Set(operationIds).size).toBe(operationIds.length)
     expect(contract.components.responses.BusinessError.description).toContain('429')
     expect(contract.components.responses.BusinessError.headers['X-Request-Id'].schema.format).toBe('uuid')
+  })
+
+  it.skipIf(!existsSync(backendControllerDirectory))('matches every currently declared backend controller path when the backend checkout is available', () => {
+    const paths = readdirSync(backendControllerDirectory).filter((name) => name.endsWith('.java')).flatMap((name) => {
+      const source = readFileSync(resolve(backendControllerDirectory, name), 'utf8')
+      if (!source.includes('@RestController')) return []
+      const mappings = [...source.matchAll(/@(?:Request|Get|Post)Mapping\("([^\"]+)"\)/g)].map((match) => match[1]!)
+      const prefix = mappings.shift()
+      return mappings.map((path) => `${prefix}${path}`)
+    })
+    expect(paths.sort()).toEqual(Object.keys(contract.paths).sort())
   })
 
   it('marks protected operations with the backend token header', () => {
@@ -93,6 +109,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
       '/contact/loadApply',
       '/contact/dealWithApply',
       '/contact/loadContact',
+      '/contact/saveRemark',
       '/contact/getContactInfo',
       '/contact/getContactUserInfo',
       '/contact/delContact',
@@ -226,7 +243,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
     ).toBe(100)
     expect(
       contract.paths['/contact/loadContact'].post.requestBody.content['application/x-www-form-urlencoded'].schema.properties.contactType.enum,
-    ).toEqual(['0', '1'])
+    ).toEqual(['USER', 'GROUP'])
     expect(
       contract.paths['/contact/dealWithApply'].post.requestBody.content['application/x-www-form-urlencoded'].schema.properties.status.enum,
     ).toEqual([1, 2, 3])
@@ -277,6 +294,40 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(contract.paths['/account/saveUserInfo'].post.description).toContain('coverFile is an optional thumbnail')
     expect(contract.components.schemas.SaveUserInfoRequest.properties).not.toHaveProperty('password')
     expect(contract.components.schemas.SaveUserInfoRequest.properties).not.toHaveProperty('email')
+    expect(contract.components.schemas.SaveUserInfoRequest.properties.joinType.enum).toEqual([0, 1])
+    expect(contract.components.schemas.UserInfoVO.properties.joinType.enum).toEqual([0, 1, null])
+  })
+
+  it('documents private remark persistence, isolation and WebSocket recovery', () => {
+    const operation = contract.paths['/contact/saveRemark'].post
+    expect(operation.requestBody.content['application/x-www-form-urlencoded'].schema.$ref).toBe('#/components/schemas/SaveContactRemarkRequest')
+    expect(operation.responses['200'].content['application/json'].schema.oneOf[0].$ref).toBe('#/components/schemas/ContactRemarkResponse')
+    expect(contract.components.schemas.SaveContactRemarkRequest.required).toEqual(['contactId', 'remark'])
+    expect(contract.components.schemas.SaveContactRemarkRequest.properties.remark['x-trimmed-max-length']).toBe(40)
+    expect(operation.description).toContain("only to the owner's devices")
+    for (const schema of ['UserContact', 'UserInfoVO', 'ContactSearchResult', 'ChatSessionSummary']) {
+      expect(contract.components.schemas[schema].properties.remark.maxLength).toBe(40)
+    }
+    expect(contract.components.schemas.ContactRemarkEvent.properties.messageType.const).toBe(18)
+    expect(contract.components.schemas.ContactRemarkEvent.properties.extentData.$ref).toBe('#/components/schemas/ContactRemark')
+    expect(contract['x-websocket-events']['18'].$ref).toBe('#/components/schemas/ContactRemarkEvent')
+    expect(contract.components.schemas.WebSocketInitData.properties.chatSessionList.items.$ref).toBe('#/components/schemas/ChatSessionSummary')
+  })
+
+  it('documents release validation and supported group image types against current service rules', () => {
+    const release = contract.components.schemas.AppUpdateSaveRequest.properties
+    expect(release.version.maxLength).toBe(10)
+    expect(new RegExp(release.version.pattern).test('1.10.2')).toBe(true)
+    expect(new RegExp(release.version.pattern).test('1.2')).toBe(false)
+    expect(release.updateDesc.maxLength).toBe(500)
+    expect(release.outerLink.maxLength).toBe(200)
+    expect(release.file['x-max-bytes']).toBe(500 * 1024 * 1024)
+    expect(contract.components.schemas.PostAppUpdateRequest.properties.grayscaleUid['x-normalized-max-length']).toBe(1000)
+    const image = contract.components.schemas.SaveGroupRequest.properties.avatarFile
+    expect(image['x-content-types']).toEqual(['image/png', 'image/jpeg', 'image/gif', 'image/bmp', 'image/webp'])
+    expect(image['x-min-bytes']).toBe(1)
+    expect(image['x-max-bytes']).toBe(10 * 1024 * 1024)
+    expect(contract.paths['/app/saveUpdate'].post.description).toContain('Only drafts may be edited')
   })
 
   it('keeps administrative user payloads password-free and documents role limits', () => {
