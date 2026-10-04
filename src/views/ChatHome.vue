@@ -11,6 +11,7 @@ import ContactDirectoryDialog from '@/components/ContactDirectoryDialog.vue'
 import ContactSearchDialog from '@/components/ContactSearchDialog.vue'
 import GroupDirectoryDialog from '@/components/GroupDirectoryDialog.vue'
 import EmojiPicker from '@/components/EmojiPicker.vue'
+import ClipboardImageDraft from '@/components/ClipboardImageDraft.vue'
 import { useAuthStore } from '@/stores/auth'
 import { compareMessagesByServerOrder, useChatStore, type ChatHistoryPage, type InitialChatMessage } from '@/stores/chat'
 import { useDownloadPreferencesStore } from '@/stores/downloadPreferences'
@@ -48,6 +49,7 @@ const mobileMenuTrigger = ref<HTMLElement | null>(null)
 const mobileMenuCloseButton = ref<HTMLButtonElement | null>(null)
 const chatNavigation = ref<HTMLElement | null>(null)
 const messageComposer = ref<HTMLTextAreaElement | null>(null)
+const clipboardImageDraft = ref<InstanceType<typeof ClipboardImageDraft> | null>(null)
 const signingOut = ref(false)
 const selectedSessionId = ref('')
 const pendingTextMessage = ref<PendingTextMessage | null>(null)
@@ -2173,6 +2175,10 @@ async function signOut() {
       <p v-else-if="selectedSession?.groupAccessRevoked" class="group-session-notice" role="status">
         你已退出或被移出群聊，无法继续发送消息。
       </p>
+      <ClipboardImageDraft ref="clipboardImageDraft" :contact-id="selectedSession?.contactId || ''"
+        :disabled="!selectedSession || Boolean(selectedSession.groupClosed || selectedSession.groupAccessRevoked) || fileUploading"
+        :settings="systemSettingsStore.settings" @send="processAttachment"
+      />
       <div class="composer-preview" aria-label="聊天输入框">
         <input
           ref="fileInput"
@@ -2202,6 +2208,7 @@ async function signOut() {
           ref="messageComposer"
           data-testid="message-composer"
           @input="resizeMessageComposer"
+          @paste="clipboardImageDraft?.paste($event)"
           @keydown.enter.exact.prevent="sendTextMessage"
         ></textarea>
         <button

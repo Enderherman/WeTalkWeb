@@ -247,6 +247,38 @@ beforeEach(() => {
 })
 
 describe('authentication flow', () => {
+  it('sends a pasted picture through the image upload flow only after preview confirmation', async () => {
+    const originalCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL')
+    const originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL')
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:paste-test') })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() })
+    const { wrapper, chatStore } = await mountChat()
+    try {
+      chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [
+        { sessionId: 'S200', contactId: 'U200', contactName: 'Friend', contactType: 0, lastMessage: '', lastReceiveTime: 100 },
+      ], chatMessageList: [], applyCount: 0 } })
+      await flushPromises()
+      const image = new File(['image'], 'image.png', { type: 'image/png' })
+      const event = new Event('paste', { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'clipboardData', { value: { items: [{ kind: 'file', getAsFile: () => image }], getData: () => '' } })
+      wrapper.get('[data-testid="message-composer"]').element.dispatchEvent(event)
+      await flushPromises()
+      expect(wrapper.find('[data-testid="clipboard-image-draft"]').exists()).toBe(true)
+      expect(chatApi.sendFileMessage).not.toHaveBeenCalled()
+      await wrapper.get('[data-testid="send-clipboard-image"]').trigger('click')
+      await flushPromises()
+      expect(chatApi.sendFileMessage).toHaveBeenCalledWith('U200', expect.objectContaining({ type: 'image/png' }), 0)
+      expect(chatApi.uploadFile).toHaveBeenCalledOnce()
+      expect(wrapper.find('[data-testid="clipboard-image-draft"]').exists()).toBe(false)
+    } finally {
+      wrapper.unmount()
+      if (originalCreate) Object.defineProperty(URL, 'createObjectURL', originalCreate)
+      else Reflect.deleteProperty(URL, 'createObjectURL')
+      if (originalRevoke) Object.defineProperty(URL, 'revokeObjectURL', originalRevoke)
+      else Reflect.deleteProperty(URL, 'revokeObjectURL')
+    }
+  })
+
   it('inserts an emoji at the selected caret range and retains the text around it', async () => {
     const { wrapper, chatStore } = await mountChat()
     chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [
