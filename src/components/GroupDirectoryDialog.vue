@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { contactApi, type UserContactEntry } from '@/api/contacts'
 import { groupApi, type GroupInfoWithMembers } from '@/api/groups'
 import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
+import { validateProfileImageUpload } from '@/utils/imageValidation'
 import { useDialogFocus } from '@/composables/useDialogFocus'
 import { useSystemSettingsStore } from '@/stores/systemSettings'
 
@@ -175,15 +176,12 @@ async function createGroup() {
   }
   const avatar = avatarFile.value
   if (!avatar) {
-    createError.value = '请选择 PNG 群头像'
+    createError.value = '请选择群头像'
     return
   }
-  if (avatar.type !== 'image/png' || !avatar.name.toLowerCase().endsWith('.png')) {
-    createError.value = '群头像需使用 PNG 格式'
-    return
-  }
-  if (avatar.size > 10 * 1024 * 1024) {
-    createError.value = '群头像不能超过 10 MB'
+  const avatarError = validateProfileImageUpload(avatar)
+  if (avatarError) {
+    createError.value = avatarError
     return
   }
 
@@ -244,12 +242,9 @@ async function updateGroup() {
     editError.value = '群名最多 32 个字符，群公告最多 500 个字符'
     return
   }
-  if (avatar && (avatar.type !== 'image/png' || !avatar.name.toLowerCase().endsWith('.png'))) {
-    editError.value = '群头像需使用 PNG 格式'
-    return
-  }
-  if (avatar && avatar.size > 10 * 1024 * 1024) {
-    editError.value = '群头像不能超过 10 MB'
+  const avatarError = avatar ? validateProfileImageUpload(avatar) : null
+  if (avatarError) {
+    editError.value = avatarError
     return
   }
 
@@ -459,13 +454,13 @@ function formatGroupTime(value?: string | null) {
           <option :value="0">无需审核</option>
           <option :value="1">需要群主同意</option>
         </select>
-        <label for="new-group-avatar">群头像（PNG）</label>
+        <label for="new-group-avatar">群头像（PNG、JPEG、GIF、BMP 或 WebP）</label>
         <input
           id="new-group-avatar"
           ref="avatarInput"
           data-testid="new-group-avatar"
           type="file"
-          accept="image/png,.png"
+          accept="image/png,image/jpeg,image/gif,image/bmp,image/webp"
           :disabled="creatingGroup"
           @change="selectAvatar"
         />
@@ -554,13 +549,13 @@ function formatGroupTime(value?: string | null) {
               <option :value="0">无需审核</option>
               <option :value="1">需要群主同意</option>
             </select>
-            <label for="edit-group-avatar">更换群头像（可选 PNG）</label>
+            <label for="edit-group-avatar">更换群头像（可选图片）</label>
             <input
               id="edit-group-avatar"
               ref="editAvatarInput"
               data-testid="edit-group-avatar"
               type="file"
-              accept="image/png,.png"
+              accept="image/png,image/jpeg,image/gif,image/bmp,image/webp"
               :disabled="editingGroup"
               @change="selectEditAvatar"
             />

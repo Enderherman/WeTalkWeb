@@ -141,7 +141,7 @@ describe('group directory dialog', () => {
     expect(groupApi.create).not.toHaveBeenCalled()
   })
 
-  it('requires a PNG avatar before creating a group', async () => {
+  it('requires an avatar before creating a group', async () => {
     const wrapper = mount(GroupDirectoryDialog)
     await flushPromises()
     await wrapper.get('[data-testid="open-group-create"]').trigger('click')
@@ -149,7 +149,44 @@ describe('group directory dialog', () => {
     await wrapper.get('[data-testid="group-create-form"]').trigger('submit')
 
     expect(groupApi.create).not.toHaveBeenCalled()
-    expect(wrapper.get('[role="alert"]').text()).toContain('请选择 PNG 群头像')
+    expect(wrapper.get('[role="alert"]').text()).toContain('请选择群头像')
+  })
+
+  it.each([['jpg', 'image/jpeg'], ['webp', 'image/webp']])('creates groups with a supported %s avatar', async (extension, type) => {
+    const wrapper = mount(GroupDirectoryDialog)
+    await flushPromises()
+    await wrapper.get('[data-testid="open-group-create"]').trigger('click')
+    await wrapper.get('[data-testid="new-group-name"]').setValue('Supported image')
+    const avatar = new File(['image bytes'], `avatar.${extension}`, { type })
+    const input = wrapper.get('[data-testid="new-group-avatar"]')
+    Object.defineProperty(input.element, 'files', { value: [avatar] })
+    await input.trigger('change')
+    await wrapper.get('[data-testid="group-create-form"]').trigger('submit')
+    await flushPromises()
+    expect(groupApi.create).toHaveBeenCalledWith(expect.objectContaining({ avatarFile: avatar }))
+    wrapper.unmount()
+  })
+
+  it.each([true, false])('rejects empty avatar files on create=%s before requesting the backend', async (creating) => {
+    const wrapper = mount(GroupDirectoryDialog, { props: { currentUserId: 'U100' } })
+    await flushPromises()
+    if (creating) {
+      await wrapper.get('[data-testid="open-group-create"]').trigger('click')
+      await wrapper.get('[data-testid="new-group-name"]').setValue('Empty image')
+    } else {
+      await wrapper.get('[data-testid="group-G300"]').trigger('click')
+      await flushPromises()
+      await wrapper.get('[data-testid="open-edit-group"]').trigger('click')
+    }
+    const input = wrapper.get(creating ? '[data-testid="new-group-avatar"]' : '[data-testid="edit-group-avatar"]')
+    Object.defineProperty(input.element, 'files', { value: [new File([], 'empty.png', { type: 'image/png' })] })
+    await input.trigger('change')
+    await wrapper.get(creating ? '[data-testid="group-create-form"]' : '[data-testid="edit-group-form"]').trigger('submit')
+    await flushPromises()
+    expect(groupApi.create).not.toHaveBeenCalled()
+    expect(groupApi.update).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('不能为空')
+    wrapper.unmount()
   })
 
   it('creates a group and refreshes the combined directory', async () => {
