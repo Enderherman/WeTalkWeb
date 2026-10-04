@@ -14,6 +14,7 @@ vi.mock('@/api/contacts', () => ({
     getContactUserInfo: vi.fn(),
     deleteContact: vi.fn(),
     blockContact: vi.fn(),
+    saveRemark: vi.fn(),
   },
 }))
 
@@ -46,6 +47,58 @@ beforeEach(() => {
 })
 
 describe('contact directory dialog', () => {
+  it('saves a trimmed remark, filters by it and keeps the original nickname visible', async () => {
+    vi.mocked(contactApi.saveRemark).mockResolvedValue({ contactId: 'U200', remark: '同事' })
+    const wrapper = mount(ContactDirectoryDialog)
+    await flushPromises()
+    await wrapper.get('.contact-directory-select').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="contact-remark"]').setValue(' 同事 ')
+    await wrapper.get('[data-testid="contact-remark-form"]').trigger('submit')
+    await flushPromises()
+    expect(contactApi.saveRemark).toHaveBeenCalledWith('U200', '同事')
+    expect(wrapper.emitted('remarkSaved')).toEqual([['U200', '同事']])
+    expect(wrapper.get('[data-testid="contact-U200"]').text()).toContain('同事')
+    expect(wrapper.get('.contact-profile-details').text()).toContain('Friend')
+    await wrapper.get('[data-testid="contact-directory-filter"]').setValue('同事')
+    expect(wrapper.find('[data-testid="contact-U200"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="contact-directory-filter"]').setValue('absent')
+    expect(wrapper.text()).toContain('没有匹配的好友')
+    wrapper.unmount()
+  })
+
+  it('keeps a failed remark draft and allows clearing it after retry', async () => {
+    vi.mocked(contactApi.saveRemark).mockRejectedValueOnce(new Error('Save failed')).mockResolvedValueOnce({ contactId: 'U200', remark: '' })
+    const wrapper = mount(ContactDirectoryDialog)
+    await flushPromises()
+    await wrapper.get('.contact-directory-select').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="contact-remark"]').setValue('Draft')
+    await wrapper.get('[data-testid="contact-remark-form"]').trigger('submit')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Save failed')
+    expect((wrapper.get('[data-testid="contact-remark"]').element as HTMLInputElement).value).toBe('Draft')
+    await wrapper.get('[data-testid="contact-remark"]').setValue('')
+    await wrapper.get('[data-testid="contact-remark-form"]').trigger('submit')
+    await flushPromises()
+    expect(wrapper.emitted('remarkSaved')).toEqual([['U200', '']])
+    wrapper.unmount()
+  })
+
+  it('updates a displayed remark from another device without replacing an unsaved draft', async () => {
+    const wrapper = mount(ContactDirectoryDialog, { props: { remarks: { U200: 'Old' } } })
+    await flushPromises()
+    await wrapper.get('.contact-directory-select').trigger('click')
+    await flushPromises()
+    await wrapper.setProps({ remarks: { U200: 'From desktop' } })
+    expect((wrapper.get('[data-testid="contact-remark"]').element as HTMLInputElement).value).toBe('From desktop')
+    await wrapper.get('[data-testid="contact-remark"]').setValue('Unsaved draft')
+    await wrapper.setProps({ remarks: { U200: 'New remote' } })
+    expect((wrapper.get('[data-testid="contact-remark"]').element as HTMLInputElement).value).toBe('Unsaved draft')
+    expect(wrapper.get('[data-testid="contact-U200"] strong').text()).toBe('New remote')
+    wrapper.unmount()
+  })
+
   it('loads user contacts and shows safe profile details on selection', async () => {
     const wrapper = mount(ContactDirectoryDialog)
     await flushPromises()

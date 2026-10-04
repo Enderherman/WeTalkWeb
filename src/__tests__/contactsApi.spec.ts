@@ -7,6 +7,12 @@ vi.mock('@/api/http', () => ({ postForm: vi.fn() }))
 beforeEach(() => vi.clearAllMocks())
 
 describe('contact API', () => {
+  it('saves and clears a private remark without modifying the contact nickname', async () => {
+    vi.mocked(postForm).mockResolvedValue({ contactId: 'U200', remark: '' })
+    await expect(contactApi.saveRemark('U200', '')).resolves.toEqual({ contactId: 'U200', remark: '' })
+    expect(postForm).toHaveBeenCalledWith('/contact/saveRemark', { contactId: 'U200', remark: '' })
+  })
+
   it('searches by the exact user contact ID', async () => {
     const result = { contactId: 'U200', contactType: 'USER', nickName: 'Friend', status: null }
     vi.mocked(postForm).mockResolvedValue(result)

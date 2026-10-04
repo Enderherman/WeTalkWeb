@@ -15,6 +15,7 @@ export interface ChatSessionSummary {
   memberCount?: number | null
   groupClosed?: boolean
   groupAccessRevoked?: boolean
+  remark?: string | null
 }
 
 export interface InitialChatMessage {
@@ -108,6 +109,7 @@ export const useChatStore = defineStore('chat', {
     applyCount: 0,
     groupEventVersion: 0,
     contactEventVersion: 0,
+    contactRemarks: {} as Record<string, string>,
     connectionError: '',
   }),
   getters: {
@@ -126,6 +128,7 @@ export const useChatStore = defineStore('chat', {
         this.applyCount = 0
         this.groupEventVersion = 0
         this.contactEventVersion = 0
+        this.contactRemarks = {}
       }
       this.accountId = accountId
       this.connectionError = ''
@@ -197,6 +200,9 @@ export const useChatStore = defineStore('chat', {
           }
         })
         this.initialMessages = [...merged.values()].sort(compareMessagesByServerOrder)
+        this.contactRemarks = Object.fromEntries(this.sessionList
+          .filter((session) => session.contactType === 0)
+          .map((session) => [session.contactId, session.remark || '']))
         const pendingAiIds = new Set<number>()
         for (const item of this.initialMessages) {
           if (item.messageType === 14 && (item.aiStatus === 'waiting' || item.aiStatus === 'streaming')) {
@@ -238,6 +244,14 @@ export const useChatStore = defineStore('chat', {
         return
       }
 
+      if (message.messageType === 18) {
+        const update = message.extentData as { contactId?: unknown; remark?: unknown } | null
+        if (update && typeof update.contactId === 'string' && typeof update.remark === 'string') {
+          this.updateContactRemark(update.contactId, update.remark)
+        }
+        return
+      }
+
       if (message.messageType === 17) {
         this.receiveReadReceipt(message)
         return
@@ -262,6 +276,12 @@ export const useChatStore = defineStore('chat', {
         this.disconnect()
         if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
       }
+    },
+    updateContactRemark(contactId: string, remark: string) {
+      if (!contactId || contactId === this.accountId || remark.length > 40) return
+      this.contactRemarks = { ...this.contactRemarks, [contactId]: remark }
+      this.sessionList = this.sessionList.map((session) =>
+        session.contactType === 0 && session.contactId === contactId ? { ...session, remark } : session)
     },
     receiveFriendEvent(message: ServerMessage) {
       const peer = message.messageType === 13 && message.extentData && typeof message.extentData === 'object'
@@ -568,6 +588,7 @@ export const useChatStore = defineStore('chat', {
       this.applyCount = 0
       this.groupEventVersion = 0
       this.contactEventVersion = 0
+      this.contactRemarks = {}
       this.connectionError = ''
     },
   },

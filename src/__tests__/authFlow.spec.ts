@@ -247,6 +247,27 @@ beforeEach(() => {
 })
 
 describe('authentication flow', () => {
+  it('updates session titles and sender searches from a private type 18 remark event', async () => {
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [
+      { sessionId: 'S200', contactId: 'U200', contactName: 'Original name', contactType: 0, lastMessage: '', lastReceiveTime: 100 },
+    ], chatMessageList: [], applyCount: 0 } })
+    await flushPromises()
+    chatStore.receiveMessage({ messageType: 2, messageId: 10, sessionId: 'S200', contactId: 'U200',
+      messageContent: 'A message', sendUserId: 'U200', sendUserNickName: 'Original name', sendTime: 200 })
+    chatStore.receiveMessage({ messageType: 18, extentData: { contactId: 'U200', remark: '同事' } })
+    await flushPromises()
+    expect(wrapper.get('.chat-topbar-title').text()).toBe('同事')
+    expect(wrapper.get('.chat-topbar-title').attributes('title')).toBe('Original name')
+    expect(wrapper.get('[data-testid="chat-session-S200"]').text()).toContain('同事')
+    await wrapper.get('[data-testid="toggle-message-search"]').trigger('click')
+    await wrapper.get('[data-testid="message-search-input"]').setValue('同事')
+    expect(wrapper.get('[data-testid="message-search-result-10"]').text()).toContain('同事')
+    chatStore.receiveMessage({ messageType: 18, extentData: { contactId: 'U200', remark: '' } })
+    await flushPromises()
+    expect(wrapper.get('.chat-topbar-title').text()).toBe('Original name')
+  })
+
   it('shows a newly accepted friend and their greeting without refreshing the page', async () => {
     const { wrapper, chatStore } = await mountChat()
     chatStore.initialized = true

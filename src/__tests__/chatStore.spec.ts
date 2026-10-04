@@ -4,6 +4,23 @@ import { useChatStore } from '@/stores/chat'
 import { AUTH_EXPIRED_EVENT } from '@/utils/authEvents'
 
 describe('chat initialization state', () => {
+  it('restores private remarks and applies type 18 updates without changing real nicknames', () => {
+    setActivePinia(createPinia())
+    const store = useChatStore()
+    store.accountId = 'U100'
+    store.receiveMessage({ messageType: 0, extentData: { chatSessionList: [{ sessionId: 'S1', contactId: 'U200',
+      contactName: 'Original', remark: 'Old remark', contactType: 0, lastMessage: '', lastReceiveTime: 1 }], chatMessageList: [], applyCount: 0 } })
+    expect(store.contactRemarks.U200).toBe('Old remark')
+    store.receiveMessage({ messageType: 18, extentData: { contactId: 'U200', remark: 'New remark' } })
+    expect(store.sessionList[0]).toMatchObject({ contactName: 'Original', remark: 'New remark' })
+    expect(store.contactRemarks.U200).toBe('New remark')
+    store.receiveMessage({ messageType: 18, extentData: { contactId: 'U200', remark: '' } })
+    expect(store.contactRemarks.U200).toBe('')
+    expect(store.initialMessages).toEqual([])
+    store.clear()
+    expect(store.contactRemarks).toEqual({})
+  })
+
   it('creates a new direct conversation immediately on the delivered friend-accepted frame', () => {
     setActivePinia(createPinia())
     const store = useChatStore()

@@ -8,6 +8,7 @@ const props = defineProps<{
   currentUserId: string
   displayName: string
   returnFocusTarget?: HTMLElement | null
+  remarks?: Record<string, string>
 }>()
 
 const emit = defineEmits<{
@@ -28,6 +29,10 @@ const searchError = ref('')
 const applyError = ref('')
 const notice = ref('')
 const { dialog, trapFocus } = useDialogFocus('#contact-id-search', props.returnFocusTarget)
+
+function contactName(contact: ContactSearchResult) {
+  return (contact.contactType === 'USER' ? props.remarks?.[contact.contactId] ?? contact.remark : '') || contact.nickName || 'WeTalk 用户'
+}
 
 const canApply = computed(() => {
   const contact = result.value
@@ -173,7 +178,8 @@ async function sendRequest() {
             :fallback="(contact.nickName || contact.contactId).slice(0, 1)"
           />
           <span class="contact-search-result-option-copy">
-            <strong>{{ contact.nickName || 'WeTalk 用户' }}</strong>
+            <strong>{{ contactName(contact) }}</strong>
+            <small v-if="contactName(contact) !== contact.nickName && contact.nickName">昵称：{{ contact.nickName }}</small>
             <small>{{ contact.contactType === 'USER' ? '用户' : '群聊' }} · {{ contact.contactId }}</small>
           </span>
           <span v-if="selectedContactId === contact.contactId" class="contact-search-result-selected" aria-hidden="true">✓</span>
@@ -188,7 +194,8 @@ async function sendRequest() {
             :fallback="(result.nickName || result.contactId).slice(0, 1)"
           />
           <div class="contact-result-copy">
-            <strong>{{ result.nickName || 'WeTalk 用户' }}</strong>
+            <strong>{{ contactName(result) }}</strong>
+            <span v-if="contactName(result) !== result.nickName && result.nickName">昵称：{{ result.nickName }}</span>
             <span>{{ result.contactId }}</span>
           </div>
           <span class="contact-relationship">{{ relationshipLabel }}</span>

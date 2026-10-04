@@ -13,7 +13,7 @@ import GroupDirectoryDialog from '@/components/GroupDirectoryDialog.vue'
 import EmojiPicker from '@/components/EmojiPicker.vue'
 import ClipboardImageDraft from '@/components/ClipboardImageDraft.vue'
 import { useAuthStore } from '@/stores/auth'
-import { compareMessagesByServerOrder, useChatStore, type ChatHistoryPage, type InitialChatMessage } from '@/stores/chat'
+import { compareMessagesByServerOrder, useChatStore, type ChatHistoryPage, type InitialChatMessage, type ChatSessionSummary } from '@/stores/chat'
 import { useDownloadPreferencesStore } from '@/stores/downloadPreferences'
 import { useConversationPreferencesStore } from '@/stores/conversationPreferences'
 import { useSystemSettingsStore } from '@/stores/systemSettings'
@@ -157,8 +157,16 @@ const selectedMessages = computed(() => {
   return messages.slice(-80)
 })
 function matchesMessageSearch(message: InitialChatMessage, query: string) {
-  return [message.messageContent, message.fileName, message.sendUserNickName]
+  return [message.messageContent, message.fileName, message.sendUserNickName, message.sendUserId ? chatStore.contactRemarks[message.sendUserId] : '']
     .some((value) => typeof value === 'string' && value.toLocaleLowerCase().includes(query))
+}
+
+function sessionDisplayName(session: ChatSessionSummary) {
+  return (session.contactType === 0 ? chatStore.contactRemarks[session.contactId] ?? session.remark : '') || session.contactName || session.contactId
+}
+
+function messageSenderName(message: InitialChatMessage) {
+  return (message.sendUserId ? chatStore.contactRemarks[message.sendUserId] : '') || message.sendUserNickName || '消息'
 }
 const messageSearchResults = computed(() => {
   const query = messageSearchQuery.value.trim().toLocaleLowerCase()
@@ -1676,17 +1684,17 @@ async function signOut() {
             :data-testid="`chat-session-${session.sessionId}`"
             :class="{ 'is-active': session.sessionId === selectedSessionId }"
             type="button"
-            :aria-label="`${session.contactName || session.contactId}，${session.lastMessage || '开始一段新对话'}`"
+            :aria-label="`${sessionDisplayName(session)}，${session.lastMessage || '开始一段新对话'}`"
             :title="session.contactName || session.contactId"
             @click="selectChatSession(session.sessionId)"
           >
             <AvatarThumbnail
               class="session-avatar"
               :file-id="session.contactId"
-              :fallback="(session.contactName || 'W').slice(0, 1)"
+              :fallback="sessionDisplayName(session).slice(0, 1)"
             />
             <span class="session-entry-copy">
-              <strong>{{ conversationPreferences.pinned.includes(session.sessionId) ? '↑ ' : '' }}{{ session.contactName || session.contactId }}</strong>
+              <strong>{{ conversationPreferences.pinned.includes(session.sessionId) ? '↑ ' : '' }}{{ sessionDisplayName(session) }}</strong>
               <small>{{ session.lastMessage || '开始一段新对话' }}</small>
             </span>
             <span
@@ -1707,7 +1715,7 @@ async function signOut() {
           <small>仅从本浏览器列表移除，消息和联系人保留；收到新消息会重新显示。</small>
           <button v-for="session in removedSessions" :key="session.sessionId" class="chat-session-entry" type="button"
             :data-testid="`restore-conversation-${session.sessionId}`" @click="selectChatSession(session.sessionId)"
-          >恢复 {{ session.contactName || session.contactId }}</button>
+          >恢复 {{ sessionDisplayName(session) }}</button>
         </div>
         <p v-if="conversationPreferences.storageError" class="contact-error" role="status">{{ conversationPreferences.storageError }}</p>
         <button
@@ -1828,7 +1836,7 @@ async function signOut() {
         >
           ☰
         </button>
-        <span class="chat-topbar-title">{{ selectedSession?.contactName || 'WeTalk' }}</span>
+        <span class="chat-topbar-title" :title="selectedSession?.contactName">{{ selectedSession ? sessionDisplayName(selectedSession) : 'WeTalk' }}</span>
         <small
           v-if="selectedSession?.contactType === 1 && typeof selectedSession.memberCount === 'number'"
           class="group-member-count"
@@ -1941,7 +1949,7 @@ async function signOut() {
             @click="jumpToSearchResult(message.messageId)"
           >
             <span class="message-search-result-copy">
-              <strong>{{ message.sendUserId === authStore.session?.userId ? '我' : message.sendUserNickName || '消息' }}</strong>
+              <strong>{{ message.sendUserId === authStore.session?.userId ? '我' : messageSenderName(message) }}</strong>
               <small>{{ message.fileName || message.messageContent }}</small>
             </span>
             <time>{{ formatMessageTime(message.sendTime) }}</time>
@@ -1978,9 +1986,9 @@ async function signOut() {
           <p v-if="historyError" class="message-history-error" role="alert">{{ historyError }}</p>
         </div>
         <div v-else-if="selectedMessages.length === 0" class="conversation-empty">
-          <div class="welcome-mark" aria-hidden="true">{{ (selectedSession.contactName || 'W').slice(0, 1) }}</div>
+          <div class="welcome-mark" aria-hidden="true">{{ sessionDisplayName(selectedSession).slice(0, 1) }}</div>
           <p class="eyebrow">会话已同步</p>
-          <h1>{{ selectedSession.contactName || selectedSession.contactId }}</h1>
+          <h1>{{ sessionDisplayName(selectedSession) }}</h1>
           <p class="welcome-copy">还没有文字消息，发送一条消息开始对话。</p>
           <p v-if="historyError" class="message-history-error" role="alert">{{ historyError }}</p>
         </div>
@@ -2014,7 +2022,7 @@ async function signOut() {
                   v-if="([1, 2, 5].includes(message.messageType) && message.sendUserId !== authStore.session?.userId) || isAiMessage(message)"
                   class="message-sender"
                 >
-                  {{ message.sendUserNickName }}
+                  {{ messageSenderName(message) }}
                 </strong>
                 <div v-if="message.messageType === 5" class="file-message-card" data-testid="file-attachment">
                   <div class="file-message-main">
@@ -2270,6 +2278,8 @@ async function signOut() {
     <ContactDirectoryDialog
       v-if="contactDirectoryOpen"
       :refresh-key="chatStore.contactEventVersion"
+      :remarks="chatStore.contactRemarks"
+      @remark-saved="chatStore.updateContactRemark"
       :return-focus-target="sidebarDialogReturnFocusTarget"
       @close="closeContactDirectoryDialog"
       @contacts-changed="refreshChatSession"
@@ -2292,6 +2302,7 @@ async function signOut() {
 
     <ContactSearchDialog
       v-if="contactSearchOpen"
+      :remarks="chatStore.contactRemarks"
       :current-user-id="authStore.session?.userId || ''"
       :display-name="displayName"
       :return-focus-target="sidebarDialogReturnFocusTarget"

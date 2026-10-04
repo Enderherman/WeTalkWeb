@@ -8,6 +8,7 @@ export interface ContactSearchResult {
   statusName?: string | null
   sex?: number | null
   areaName?: string | null
+  remark?: string | null
 }
 
 export interface ContactApplication {
@@ -41,6 +42,7 @@ export interface UserContactEntry {
   contactName?: string | null
   sex?: number | null
   memberCount?: number | null
+  remark?: string | null
 }
 
 export interface ContactProfile {
@@ -50,6 +52,12 @@ export interface ContactProfile {
   personalSignature?: string | null
   areaName?: string | null
   contactStatus?: number | null
+  remark?: string | null
+}
+
+export interface ContactRemark {
+  contactId: string
+  remark: string
 }
 
 export interface GroupProfile {
@@ -64,6 +72,8 @@ export interface GroupProfile {
 }
 
 export const contactApi = {
+  saveRemark: (contactId: string, remark: string): Promise<ContactRemark> =>
+    postForm<ContactRemark>('/contact/saveRemark', { contactId, remark }),
   search: (contactId: string): Promise<ContactSearchResult | null> =>
     postForm<ContactSearchResult | null>('/contact/search', { contactId }),
   searchByKeyword: (keyword: string): Promise<ContactSearchResult[]> =>

@@ -34,6 +34,17 @@ function mountDialog(extraProps: { returnFocusTarget?: HTMLElement | null } = {}
 }
 
 describe('contact search dialog', () => {
+  it('displays the private remark without replacing the real nickname in search results', async () => {
+    vi.mocked(contactApi.searchByKeyword).mockResolvedValue([{ ...result, remark: '同学', status: 1 }])
+    const wrapper = mountDialog()
+    await wrapper.get('[data-testid="contact-id-search"]').setValue('Friend')
+    await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="contact-result"] strong').text()).toBe('同学')
+    expect(wrapper.get('[data-testid="contact-result"]').text()).toContain('昵称：Friend')
+    wrapper.unmount()
+  })
+
   it('requires a search keyword before calling the backend', async () => {
     const wrapper = mountDialog()
     await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')

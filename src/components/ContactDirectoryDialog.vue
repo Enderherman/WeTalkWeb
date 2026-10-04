@@ -4,10 +4,11 @@ import { contactApi, type ContactProfile, type UserContactEntry } from '@/api/co
 import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
 import { useDialogFocus } from '@/composables/useDialogFocus'
 
-const props = defineProps<{ returnFocusTarget?: HTMLElement | null; refreshKey?: number }>()
+const props = defineProps<{ returnFocusTarget?: HTMLElement | null; refreshKey?: number; remarks?: Record<string, string> }>()
 const emit = defineEmits<{
   close: []
   contactsChanged: []
+  remarkSaved: [contactId: string, remark: string]
 }>()
 
 type ContactAction = 'delete' | 'block'
@@ -22,11 +23,28 @@ const loadError = ref('')
 const profileError = ref('')
 const actionError = ref('')
 const notice = ref('')
+const filter = ref('')
+const remarkDraft = ref('')
+const remarkDirty = ref(false)
+const savingRemark = ref(false)
 const { dialog, trapFocus } = useDialogFocus('.profile-close', props.returnFocusTarget)
 const pendingAction = ref<{ contactId: string; action: ContactAction } | null>(null)
 let profileRequestId = 0
 
 const selectedContact = computed(() => contacts.value.find((item) => item.contactId === selectedId.value) || null)
+const filteredContacts = computed(() => {
+  const query = filter.value.trim().toLocaleLowerCase()
+  return contacts.value.filter((contact) => [contact.contactName, contact.contactId, contactRemark(contact.contactId, contact.remark)]
+    .some((value) => (value || '').toLocaleLowerCase().includes(query)))
+})
+
+function contactRemark(contactId: string, fallback?: string | null) {
+  return props.remarks?.[contactId] ?? fallback ?? ''
+}
+
+watch(() => props.remarks, () => {
+  if (!remarkDirty.value && selectedId.value) remarkDraft.value = contactRemark(selectedId.value, selectedProfile.value?.remark)
+}, { deep: true })
 
 onMounted(() => void loadContacts())
 watch(() => props.refreshKey, () => void loadContacts())
@@ -44,19 +62,46 @@ async function loadContacts() {
 }
 
 async function viewContact(contact: UserContactEntry) {
+  if (savingRemark.value) return
   selectedId.value = contact.contactId
+  remarkDraft.value = contactRemark(contact.contactId, contact.remark)
+  remarkDirty.value = false
   selectedProfile.value = null
   profileError.value = ''
   profileLoading.value = true
   const requestId = ++profileRequestId
   try {
     const profile = await contactApi.getContactUserInfo(contact.contactId)
-    if (requestId === profileRequestId && selectedId.value === contact.contactId) selectedProfile.value = profile
+    if (requestId === profileRequestId && selectedId.value === contact.contactId) {
+      selectedProfile.value = profile
+      if (!remarkDirty.value) remarkDraft.value = contactRemark(contact.contactId, profile.remark)
+    }
   } catch (error: unknown) {
     if (requestId === profileRequestId) profileError.value = error instanceof Error ? error.message : '好友资料暂时无法读取'
   } finally {
     if (requestId === profileRequestId) profileLoading.value = false
   }
+}
+
+async function saveRemark() {
+  const contactId = selectedId.value
+  if (!contactId || selectedContact.value?.status !== 1 || savingRemark.value) return
+  const remark = remarkDraft.value.trim()
+  if (remark.length > 40) { actionError.value = '备注不能超过 40 个字符'; return }
+  savingRemark.value = true
+  actionError.value = ''
+  notice.value = ''
+  try {
+    const saved = await contactApi.saveRemark(contactId, remark)
+    contacts.value = contacts.value.map((contact) => contact.contactId === saved.contactId ? { ...contact, remark: saved.remark } : contact)
+    if (selectedProfile.value?.userId === saved.contactId) selectedProfile.value = { ...selectedProfile.value, remark: saved.remark }
+    remarkDraft.value = saved.remark
+    remarkDirty.value = false
+    emit('remarkSaved', saved.contactId, saved.remark)
+    notice.value = saved.remark ? '备注已保存，仅自己可见' : '备注已清除'
+  } catch (error: unknown) {
+    actionError.value = error instanceof Error ? error.message : '备注保存失败，请重试'
+  } finally { savingRemark.value = false }
 }
 
 function requestAction(contactId: string, action: ContactAction) {
@@ -129,6 +174,8 @@ function sexLabel(sex?: number | null) {
       </header>
 
       <p v-if="notice" class="contact-notice" role="status">{{ notice }}</p>
+      <label for="contact-directory-filter">查找好友</label>
+      <input id="contact-directory-filter" v-model="filter" data-testid="contact-directory-filter" placeholder="昵称、备注或编号" type="search" />
       <p v-if="loadError" class="contact-error" role="alert">{{ loadError }}</p>
       <p v-if="actionError" class="contact-error" role="alert">{{ actionError }}</p>
       <p v-if="loading" class="contact-status" role="status">正在读取联系人…</p>
@@ -138,8 +185,9 @@ function sexLabel(sex?: number | null) {
 
       <div v-else-if="!loadError && contacts.length > 0" class="contact-directory-layout">
         <div class="contact-directory-list" data-testid="contact-directory-list">
+          <p v-if="!filteredContacts.length" class="contact-empty">没有匹配的好友。</p>
           <article
-            v-for="contact in contacts"
+            v-for="contact in filteredContacts"
             :key="contact.contactId"
             class="contact-directory-card"
             :class="{ 'is-selected': contact.contactId === selectedId }"
@@ -149,10 +197,11 @@ function sexLabel(sex?: number | null) {
               <AvatarThumbnail
                 class="contact-result-avatar"
                 :file-id="contact.contactId"
-                :fallback="(contact.contactName || contact.contactId).slice(0, 1)"
+                :fallback="(contactRemark(contact.contactId, contact.remark) || contact.contactName || contact.contactId).slice(0, 1)"
               />
               <span class="contact-result-copy">
-                <strong>{{ contact.contactName || contact.contactId }}</strong>
+                <strong>{{ contactRemark(contact.contactId, contact.remark) || contact.contactName || contact.contactId }}</strong>
+                <span v-if="contactRemark(contact.contactId, contact.remark)">昵称：{{ contact.contactName || contact.contactId }}</span>
                 <span>{{ contact.contactId }}</span>
               </span>
               <span class="contact-relationship">{{ statusLabel(contact.status) }}</span>
@@ -200,6 +249,11 @@ function sexLabel(sex?: number | null) {
             <div><dt>地区</dt><dd>{{ selectedProfile.areaName || '未设置' }}</dd></div>
             <div><dt>个性签名</dt><dd>{{ selectedProfile.personalSignature || '未填写' }}</dd></div>
           </dl>
+          <form v-if="selectedProfile && selectedContact?.status === 1" class="profile-edit-form" data-testid="contact-remark-form" @submit.prevent="saveRemark">
+            <label for="contact-remark">好友备注（仅自己可见）</label>
+            <input id="contact-remark" v-model="remarkDraft" data-testid="contact-remark" maxlength="40" :disabled="savingRemark" placeholder="留空可清除备注" @input="remarkDirty = true" />
+            <button class="password-submit" type="submit" :disabled="savingRemark">{{ savingRemark ? '正在保存…' : '保存备注' }}</button>
+          </form>
         </section>
       </div>
     </section>
