@@ -19,6 +19,9 @@ function handleSessionExpired() {
 }
 
 function handleApiUnavailable() {
+  // Keep the mounted workspace and durable queue available when offline. The
+  // request still rejects to its caller, which can show its local retry state.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return
   if (isPageLeaving() || router.currentRoute.value.name === 'service-error') return
   void navigateWhilePageActive(() => router.replace({
     name: 'service-error',

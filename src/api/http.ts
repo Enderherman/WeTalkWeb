@@ -36,18 +36,26 @@ function assertCurrentSession(context: AuthRequestContext) {
   if (!isCurrentAuthRequest(context)) throw new StaleSessionResponseError()
 }
 
-export function unwrapResponse<T>(response: BaseResponse<T>): T {
+export interface ApiFailureOptions {
+  availability?: 'global' | 'local'
+}
+
+function announceAvailability(options: ApiFailureOptions): boolean {
+  return options.availability !== 'local' && (typeof navigator === 'undefined' || navigator.onLine !== false)
+}
+
+export function unwrapResponse<T>(response: BaseResponse<T>, options: ApiFailureOptions = {}): T {
   if (response.code !== 200) {
     if (!isPageLeaving()) {
       if (response.code === 901) notifySessionExpired()
-      else if (response.code >= 500 && response.code < 600) notifyApiUnavailable()
+      else if (response.code >= 500 && response.code < 600 && announceAvailability(options)) notifyApiUnavailable()
     }
     throw new ApiError(response.message || '请求失败', response.code)
   }
   return response.data
 }
 
-export function reportApiFailure(error: unknown) {
+export function reportApiFailure(error: unknown, options: ApiFailureOptions = {}) {
   if (axios.isCancel(error)) return
   if (isPageLeaving()) return
   if (!axios.isAxiosError(error)) return
@@ -57,7 +65,7 @@ export function reportApiFailure(error: unknown) {
     notifySessionExpired()
     return
   }
-  if (!error.response || error.response.status >= 500) notifyApiUnavailable()
+  if ((!error.response || error.response.status >= 500) && announceAvailability(options)) notifyApiUnavailable()
 }
 
 const client = axios.create({
@@ -77,7 +85,7 @@ client.interceptors.request.use((config) => {
 export async function postForm<T>(
   path: string,
   values: Record<string, string | number | boolean | null | undefined>,
-  options: { signal?: AbortSignal } = {},
+  options: ApiFailureOptions & { signal?: AbortSignal } = {},
 ): Promise<T> {
   const context = captureAuthRequestContext()
   const body = new URLSearchParams()
@@ -93,14 +101,14 @@ export async function postForm<T>(
     }
     const response = await client.post<BaseResponse<T>>(path, body, config)
     assertCurrentSession(context)
-    return unwrapResponse(response.data)
+    return unwrapResponse(response.data, options)
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error
     assertCurrentSession(context)
     if (axios.isCancel(error)) throw error
     if (axios.isAxiosError(error)) {
       const responseBody = error.response?.data as Partial<BaseResponse<unknown>> | undefined
-      reportApiFailure(error)
+      reportApiFailure(error, options)
       throw new ApiError(
         typeof responseBody?.message === 'string' ? responseBody.message : '连接服务器失败，请稍后重试',
         typeof responseBody?.code === 'number' ? responseBody.code : null,

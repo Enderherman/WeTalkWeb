@@ -65,7 +65,7 @@ describe('auth API compatibility', () => {
     vi.mocked(postForm).mockResolvedValue({ ticket: 'one-time-ticket' })
 
     await expect(authApi.createWebSocketTicket()).resolves.toEqual({ ticket: 'one-time-ticket' })
-    expect(postForm).toHaveBeenCalledWith('/account/webSocketTicket', {})
+    expect(postForm).toHaveBeenCalledWith('/account/webSocketTicket', {}, { availability: 'local' })
   })
 
   it('lists browser sessions without asking for or exposing credentials', async () => {

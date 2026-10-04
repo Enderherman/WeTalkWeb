@@ -86,6 +86,7 @@ export function createRealtimeClient(
       if (!ticket) throw new Error('WebSocket ticket was empty')
       url = createWebSocketUrl(ticket, location)
     } catch {
+      if (stopped) return
       handlers.onError?.('无法取得实时连接票据，请稍后重试')
       scheduleReconnect()
       return

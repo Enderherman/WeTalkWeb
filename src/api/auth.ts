@@ -110,7 +110,8 @@ export const authApi = {
   login: (input: LoginInput): Promise<WebAuthSession> =>
     postForm<WebAuthSession>('/account/webLogin', { ...input, password: hashLoginPassword(input.password) }),
 
-  createWebSocketTicket: (): Promise<WebSocketTicket> => postForm<WebSocketTicket>('/account/webSocketTicket', {}),
+  createWebSocketTicket: (): Promise<WebSocketTicket> =>
+    postForm<WebSocketTicket>('/account/webSocketTicket', {}, { availability: 'local' }),
 
   listSessions: (): Promise<UserSessionInfo[]> => postForm<UserSessionInfo[]>('/account/listSessions', {}),
 

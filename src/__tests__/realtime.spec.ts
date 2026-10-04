@@ -43,6 +43,20 @@ const location = { protocol: 'http:', host: '127.0.0.1:5173' }
 afterEach(() => vi.useRealTimers())
 
 describe('realtime websocket client', () => {
+  it('ignores a late ticket failure after its connection owner has disconnected', async () => {
+    let rejectTicket!: (reason: Error) => void
+    const onError = vi.fn()
+    const client = createRealtimeClient({ onStatus: vi.fn(), onMessage: vi.fn(), onError }, {
+      location,
+      ticketProvider: () => new Promise((resolve, reject) => { rejectTicket = reject }),
+    })
+    client.disconnect()
+    rejectTicket(new Error('old request failed'))
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(onError).not.toHaveBeenCalled()
+  })
+
   it('builds a same-origin ws or wss URL and encodes the short-lived ticket', () => {
     expect(createWebSocketUrl('a+b', { protocol: 'http:', host: 'localhost:5173' })).toBe(
       'ws://localhost:5173/ws?ticket=a%2Bb',
