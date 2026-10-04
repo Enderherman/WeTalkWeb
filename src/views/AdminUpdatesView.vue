@@ -200,15 +200,15 @@ async function submit() {
 
 <style scoped>
 .release-toolbar { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0; }
-.release-toolbar button { padding: 9px 14px; border: 1px solid var(--wt-border); border-radius: 8px; background: var(--wt-white); cursor: pointer; }
+.release-toolbar button { padding: 9px 14px; border: 1px solid var(--wt-line); border-radius: 8px; background: var(--wt-white); cursor: pointer; }
 .release-list { display: grid; gap: 16px; }
-.release-card { padding: 20px; border: 1px solid var(--wt-border); border-radius: 12px; background: var(--wt-white); min-width: 0; }
+.release-card { padding: 20px; border: 1px solid var(--wt-line); border-radius: 12px; background: var(--wt-white); min-width: 0; }
 .release-card header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .release-card h2 { margin: 0; font-size: 18px; }
 .release-card li, .release-url { overflow-wrap: anywhere; }
 .release-dialog { max-height: calc(100dvh - 32px); overflow-y: auto; }
 .release-form fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 14px; }
 .release-form label { display: grid; gap: 7px; }
-.release-form input, .release-form textarea, .release-form select { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--wt-border); border-radius: 8px; background: var(--wt-white); color: inherit; font: inherit; }
+.release-form input, .release-form textarea, .release-form select { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--wt-line); border-radius: 8px; background: var(--wt-white); color: inherit; font: inherit; }
 .release-form textarea { resize: vertical; }
 </style>

@@ -3565,6 +3565,7 @@ select:focus-visible {
 
 .admin-users-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
@@ -3574,7 +3575,9 @@ select:focus-visible {
 
 .admin-page-links {
   display: flex;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  max-width: 100%;
   gap: 6px;
 }
 
@@ -4072,7 +4075,17 @@ select:focus-visible {
 
   .admin-page-links {
     flex-wrap: wrap;
-    justify-content: flex-end;
+    justify-content: flex-start;
+  }
+
+  .admin-users-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-users-header > div {
+    max-width: 100%;
+    min-width: 0;
   }
 
   .admin-settings-grid {
