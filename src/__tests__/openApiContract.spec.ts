@@ -268,7 +268,7 @@ describe('WeTalkWeb OpenAPI contract', () => {
     )
     expect(contract.components.schemas.UploadChatFileRequest.properties.cover).toMatchObject({
       format: 'binary',
-      description: 'Optional cover or thumbnail image.',
+      'x-size-quota': 'SystemSettings.maxImageSize',
     })
     expect(contract.paths['/chat/downloadFile'].post.responses['200'].content['application/octet-stream'].schema.format).toBe(
       'binary',
@@ -284,6 +284,27 @@ describe('WeTalkWeb OpenAPI contract', () => {
     expect(contract.components.schemas.CancelAiMessageRequest.properties.messageId.minimum).toBe(1)
     expect(contract.components.schemas.ChatMessage.properties.status.enum).toEqual([0, 1, 2, 3])
     expect(contract.components.schemas.MessageSendDTO.properties.status.enum).toEqual([0, 1, 2, 3])
+  })
+
+  it('requires safe positive file metadata and documents immutable attachment retries and download gating', () => {
+    const request = contract.components.schemas.SendChatMessageRequest
+    expect(request.allOf[0].if.properties.messageType.const).toBe(5)
+    expect(request.allOf[0].then.required).toEqual(['fileName', 'fileSize', 'fileType'])
+    expect(request.properties.fileSize.minimum).toBe(1)
+    const filename = new RegExp(request.properties.fileName.pattern)
+    for (const valid of ['中文原名.txt', 'photo.png', 'audio.wav']) expect(filename.test(valid), valid).toBe(true)
+    for (const invalid of ['', '   ', '.', '..', '../file.txt', 'folder\\file.txt', 'x\ny.png', 'x\u0000.png']) expect(filename.test(invalid), invalid).toBe(false)
+    expect(contract.components.schemas.UploadChatFileRequest.properties.file['x-min-bytes']).toBe(1)
+    expect(contract.components.schemas.UploadChatFileRequest.properties.cover['x-min-bytes']).toBe(1)
+    const upload = contract.paths['/chat/uploadFile'].post.description
+    expect(upload).toContain('Only the original sender')
+    expect(upload).toContain('stricter quota')
+    expect(upload).toContain('same filename and identical file bytes')
+    expect(upload).toContain('never broadcasts completion twice')
+    const download = contract.paths['/chat/downloadFile'].post.description
+    expect(download).toContain('uploaded status 1 messageType 5')
+    expect(download).toContain('Non-numeric avatar/group IDs')
+    expect(contract.paths['/chat/downloadFile'].post.responses.default.$ref).toBe('#/components/responses/BusinessError')
   })
 
   it('documents account settings and profile-save fields without secrets', () => {
