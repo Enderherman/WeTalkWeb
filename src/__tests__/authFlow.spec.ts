@@ -647,6 +647,30 @@ describe('authentication flow', () => {
     expect(document.activeElement).toBe(avatarTrigger.element)
   })
 
+  it('keeps a menu action mounted when WebKit blurs a button to no related target before click', async () => {
+    const { wrapper } = await mountChat()
+    document.body.appendChild(wrapper.element)
+    await wrapper.get('[data-testid="profile-menu-trigger"]').trigger('click')
+    await wrapper.get('[data-testid="open-profile"]').trigger('pointerdown')
+    await wrapper.get('.profile-menu-anchor').trigger('focusout', { relatedTarget: null })
+    expect(wrapper.find('[data-testid="profile-actions-menu"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="open-profile"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="profile-overlay"]').exists()).toBe(true)
+  })
+
+  it('closes the account menu for outside pointer input and a real keyboard focus destination', async () => {
+    const { wrapper } = await mountChat()
+    document.body.appendChild(wrapper.element)
+    await wrapper.get('[data-testid="profile-menu-trigger"]').trigger('click')
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    await flushPromises()
+    expect(wrapper.find('[data-testid="profile-actions-menu"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="profile-menu-trigger"]').trigger('click')
+    await wrapper.get('.profile-menu-anchor').trigger('focusout', { relatedTarget: document.body })
+    expect(wrapper.find('[data-testid="profile-actions-menu"]').exists()).toBe(false)
+  })
+
   it('loads current profile details and refreshes the stored account summary', async () => {
     vi.mocked(authApi.getUserInfo).mockResolvedValue({
       userId: 'U100',

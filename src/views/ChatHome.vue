@@ -69,6 +69,7 @@ let cancelContactChatWait: (() => void) | null = null
 const groupDirectoryOpen = ref(false)
 const groupDirectoryRefreshKey = ref(0)
 const profileMenuOpen = ref(false)
+const profileMenuAnchor = ref<HTMLElement | null>(null)
 const profileMenu = ref<HTMLElement | null>(null)
 const profileMenuFirstAction = ref<HTMLButtonElement | null>(null)
 const profileOpen = ref(false)
@@ -293,6 +294,8 @@ watch(selectedMessages, async () => {
 })
 
 onMounted(() => {
+  document.addEventListener('pointerdown', handleProfileMenuPointerDown)
+  window.addEventListener('blur', closeProfileMenu)
   window.addEventListener('online', handlePendingMessagesOnline)
   chatVisualViewport = window.visualViewport
   window.addEventListener('resize', syncChatViewportHeight)
@@ -343,6 +346,8 @@ function syncChatViewportHeight() {
 }
 
 onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handleProfileMenuPointerDown)
+  window.removeEventListener('blur', closeProfileMenu)
   contactChatRequestId += 1
   cancelContactChatWait?.()
   window.removeEventListener('online', handlePendingMessagesOnline)
@@ -645,8 +650,16 @@ function openProfileFromMenu() {
 
 function handleProfileMenuFocusOut(event: FocusEvent) {
   const anchor = event.currentTarget as HTMLElement
-  if (event.relatedTarget instanceof Node && anchor.contains(event.relatedTarget)) return
+  // WebKit can blur a clicked button to null before dispatching its click.
+  // Outside pointer input is handled independently, without removing the action mid-click.
+  if (!(event.relatedTarget instanceof Node) || anchor.contains(event.relatedTarget)) return
   closeProfileMenu()
+}
+
+function handleProfileMenuPointerDown(event: PointerEvent) {
+  if (profileMenuOpen.value && event.target instanceof Node && !profileMenuAnchor.value?.contains(event.target)) {
+    closeProfileMenu()
+  }
 }
 
 function handleProfileMenuKeydown(event: KeyboardEvent) {
@@ -1793,7 +1806,7 @@ async function signOut() {
       </section>
 
       <div class="sidebar-bottom">
-        <div class="profile-menu-anchor" @click.stop @focusout="handleProfileMenuFocusOut">
+        <div ref="profileMenuAnchor" class="profile-menu-anchor" @click.stop @focusout="handleProfileMenuFocusOut">
           <button
             class="profile-trigger"
             data-testid="profile-menu-trigger"
