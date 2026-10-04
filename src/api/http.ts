@@ -15,6 +15,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly code: number | null = null,
+    readonly availabilityFailure: boolean = code !== null && code >= 500 && code < 600,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -112,6 +113,7 @@ export async function postForm<T>(
       throw new ApiError(
         typeof responseBody?.message === 'string' ? responseBody.message : '连接服务器失败，请稍后重试',
         typeof responseBody?.code === 'number' ? responseBody.code : null,
+        !error.response || error.response.status >= 500,
       )
     }
     throw error

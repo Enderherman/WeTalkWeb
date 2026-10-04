@@ -5,6 +5,7 @@ import { appUpdateApi, type AppUpdateNotice } from '@/api/appUpdates'
 import { authApi } from '@/api/auth'
 import type { SaveUserInfoInput, UserProfile, UserSessionInfo } from '@/api/auth'
 import { chatApi } from '@/api/chat'
+import { ApiError } from '@/api/http'
 import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
 import ContactApplicationsDialog from '@/components/ContactApplicationsDialog.vue'
 import ContactDirectoryDialog from '@/components/ContactDirectoryDialog.vue'
@@ -25,6 +26,8 @@ import { validatePassword } from '@/utils/authValidation'
 import { validateProfileImageUpload } from '@/utils/imageValidation'
 import { formatMessageTimeDivider, shouldShowMessageTime } from '@/utils/messageTime'
 import { createClientMessageId } from '@/utils/clientMessageId'
+import { findOwnTextAcknowledgement } from '@/utils/messageAcknowledgement'
+import { notifyApiUnavailable } from '@/utils/apiEvents'
 import { trapDialogTab } from '@/composables/useDialogFocus'
 import { webClientVersion } from '@/config/version'
 
@@ -308,6 +311,18 @@ watch(selectedMessages, async () => {
     return
   }
   if (messagePanel.value) messagePanel.value.scrollTop = messagePanel.value.scrollHeight
+})
+
+watch([() => chatStore.initialMessages, pendingTextMessages, pendingTextMessage], () => {
+  const context = captureAuthRequestContext()
+  if (!ownsRequest(context) || !context.userId) return
+  const attempts = [...pendingTextMessages.value]
+  if (pendingTextMessage.value) attempts.push(pendingTextMessage.value)
+  for (const attempt of attempts) {
+    if (findOwnTextAcknowledgement(chatStore.initialMessages, attempt, context.userId)) {
+      void settleConfirmedText(attempt, context)
+    }
+  }
 })
 
 onMounted(() => {
@@ -1152,25 +1167,62 @@ async function restorePendingTextMessages(accountId: string) {
   }
 }
 
+async function settleConfirmedText(attempt: PendingTextMessage, context: AuthRequestContext) {
+  if (!context.userId) return
+  if (ownsRequest(context)) {
+    pendingTextMessages.value = pendingTextMessages.value.filter(item => item.clientMessageId !== attempt.clientMessageId)
+    pendingQueueError.value = ''
+    if (pendingTextMessage.value?.clientMessageId === attempt.clientMessageId) {
+      pendingTextMessage.value = null
+      messageError.value = ''
+      if (messageDraft.value.trim() === attempt.messageContent && selectedSession.value?.sessionId === attempt.sessionId) {
+        messageDraft.value = ''
+        void nextTick(resizeMessageComposer)
+      }
+    }
+  }
+  try {
+    await textMessageCache.deletePendingTextMessage(context.userId, attempt.clientMessageId)
+  } catch {
+    if (ownsRequest(context)) pendingQueueError.value = '消息已送达，但本机待发记录暂时无法清理。'
+  }
+}
+
+function reportUnconfirmedSendFailure(error: unknown) {
+  // The queue must reconcile a valid WebSocket acknowledgement before a lost
+  // HTTP response is allowed to replace the current workspace with an error page.
+  if (browserIsOnline() && error instanceof ApiError && error.availabilityFailure) notifyApiUnavailable()
+}
+
 async function replayPendingTextMessages() {
+  const context = captureAuthRequestContext()
   const accountId = authStore.session?.userId
   if (!accountId || replayingPendingMessages.value || !browserIsOnline()) return
   replayingPendingMessages.value = true
   pendingQueueError.value = ''
   try {
     const pending = await textMessageCache.getPendingTextMessages(accountId)
+    if (!ownsRequest(context)) return
     pendingTextMessages.value = pending
     for (const item of pending) {
-      if (!browserIsOnline() || authStore.session?.userId !== accountId) break
+      if (!browserIsOnline() || !ownsRequest(context)) break
+      if (findOwnTextAcknowledgement(chatStore.initialMessages, item, accountId)) {
+        await settleConfirmedText(item, context)
+        continue
+      }
       try {
         const message = await chatApi.sendTextMessage(item.contactId, item.messageContent, item.clientMessageId)
+        if (!ownsRequest(context)) return
         chatStore.appendMessage(message, true)
-        await textMessageCache.deletePendingTextMessage(accountId, item.clientMessageId)
-        pendingTextMessages.value = pendingTextMessages.value.filter(
-          (pendingMessage) => pendingMessage.clientMessageId !== item.clientMessageId,
-        )
+        await settleConfirmedText(item, context)
       } catch (error: unknown) {
+        if (!ownsRequest(context)) return
+        if (findOwnTextAcknowledgement(chatStore.initialMessages, item, accountId)) {
+          await settleConfirmedText(item, context)
+          continue
+        }
         pendingQueueError.value = error instanceof Error ? error.message : '待发送消息仍未送达，请稍后重试。'
+        reportUnconfirmedSendFailure(error)
         break
       }
     }
@@ -1237,6 +1289,8 @@ async function flushPendingReadCursors() {
 }
 
 async function sendTextMessage() {
+  const context = captureAuthRequestContext()
+  let attempt: PendingTextMessage | null = null
   const content = messageDraft.value.trim()
   const selected = selectedSession.value
   if (
@@ -1266,12 +1320,14 @@ async function sendTextMessage() {
         ? existingAttempt.createdAt
         : Math.max(Date.now(), lastQueuedAt + 1),
     }
+    attempt = pending
     pendingTextMessage.value = pending
     const accountId = authStore.session?.userId || ''
     let persisted = false
     try {
       persisted = await textMessageCache.savePendingTextMessage(accountId, pending)
     } catch {}
+    if (!ownsRequest(context)) return
 
     if (persisted) {
       pendingTextMessages.value = [
@@ -1292,12 +1348,17 @@ async function sendTextMessage() {
     }
 
     const message = await chatApi.sendTextMessage(contactId, content, clientMessageId)
+    if (!ownsRequest(context)) return
     chatStore.appendMessage(message, true)
-    messageDraft.value = ''
-    void nextTick(resizeMessageComposer)
-    pendingTextMessage.value = null
+    await settleConfirmedText(pending, context)
   } catch (error: unknown) {
+    if (!ownsRequest(context)) return
+    if (attempt && context.userId && findOwnTextAcknowledgement(chatStore.initialMessages, attempt, context.userId)) {
+      await settleConfirmedText(attempt, context)
+      return
+    }
     messageError.value = error instanceof Error ? error.message : '消息发送失败，请稍后重试'
+    reportUnconfirmedSendFailure(error)
   } finally {
     sendingMessage.value = false
   }

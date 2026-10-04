@@ -3,6 +3,8 @@ import { createPinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { chatApi } from '@/api/chat'
+import { ApiError } from '@/api/http'
+import { API_UNAVAILABLE_EVENT } from '@/utils/apiEvents'
 import { appUpdateApi } from '@/api/appUpdates'
 import { authApi } from '@/api/auth'
 import { contactApi } from '@/api/contacts'
@@ -1932,6 +1934,69 @@ describe('authentication flow', () => {
     expect(chatApi.markRead).toHaveBeenCalledWith('U200', 90)
     expect(wrapper.find('[data-testid="chat-session-S200"] [aria-label="2 条未读消息"]').exists()).toBe(false)
     wrapper.unmount()
+  })
+
+  it.each([true, false])('accepts own WebSocket confirmation before a lost HTTP reply with persistent queue=%s', async (persisted) => {
+    let queued: Awaited<ReturnType<typeof textMessageCache.getPendingTextMessages>> = []
+    const save = vi.spyOn(textMessageCache, 'savePendingTextMessage').mockImplementation(async (_accountId, message) => {
+      if (persisted) queued.push(message)
+      return persisted
+    })
+    const load = vi.spyOn(textMessageCache, 'getPendingTextMessages').mockImplementation(async () => [...queued])
+    const remove = vi.spyOn(textMessageCache, 'deletePendingTextMessage').mockImplementation(async (_accountId, id) => {
+      queued = queued.filter(message => message.clientMessageId !== id)
+    })
+    let fail!: (error: Error) => void
+    vi.mocked(chatApi.sendTextMessage).mockReturnValue(new Promise((_resolve, reject) => { fail = reject }))
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [{ sessionId: 'S200', contactId: 'U200',
+      contactName: 'Friend', contactType: 0, lastMessage: '', lastReceiveTime: 1 }], chatMessageList: [], applyCount: 0 } })
+    await flushPromises()
+    try {
+      await wrapper.get('[data-testid="message-composer"]').setValue('Accepted by WebSocket')
+      await wrapper.get('[data-testid="send-message"]').trigger('click')
+      await flushPromises()
+      const clientMessageId = vi.mocked(chatApi.sendTextMessage).mock.calls[0]![2]!
+      chatStore.receiveMessage({ messageId: 812, messageType: 2, sessionId: 'S200', contactId: 'U200',
+        clientMessageId, sendUserId: 'U100', sendUserNickName: 'Me', messageContent: 'Accepted by WebSocket', sendTime: 2, status: 1 })
+      await flushPromises()
+      expect(wrapper.find('[data-testid="pending-text-queue"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="message-composer"]').element).toHaveProperty('value', '')
+      if (persisted) expect(queued).toEqual([])
+      fail(new ApiError('HTTP reply was lost', null, true))
+      await flushPromises()
+      expect(wrapper.find('[data-testid="retry-message-send"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="pending-queue-error"]').exists()).toBe(false)
+      expect(chatStore.initialMessages.filter(message => message.messageId === 812)).toHaveLength(1)
+      expect(wrapper.find('[data-testid="message-812"]').exists()).toBe(true)
+    } finally {
+      fail?.(new Error('test cleanup'))
+      wrapper.unmount()
+      await flushPromises()
+      save.mockRestore(); load.mockRestore(); remove.mockRestore()
+    }
+  })
+
+  it('still reports an unconfirmed online server failure and preserves the draft', async () => {
+    const save = vi.spyOn(textMessageCache, 'savePendingTextMessage').mockResolvedValue(false)
+    vi.mocked(chatApi.sendTextMessage).mockRejectedValue(new ApiError('服务暂时不可用', 503))
+    const unavailable = vi.fn()
+    window.addEventListener(API_UNAVAILABLE_EVENT, unavailable)
+    const { wrapper, chatStore } = await mountChat()
+    chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [{ sessionId: 'S200', contactId: 'U200',
+      contactName: 'Friend', contactType: 0, lastMessage: '', lastReceiveTime: 1 }], chatMessageList: [], applyCount: 0 } })
+    await flushPromises()
+    try {
+      await wrapper.get('[data-testid="message-composer"]').setValue('Unconfirmed draft')
+      await wrapper.get('[data-testid="send-message"]').trigger('click')
+      await flushPromises()
+      expect(unavailable).toHaveBeenCalledOnce()
+      expect(wrapper.get('[data-testid="message-composer"]').element).toHaveProperty('value', 'Unconfirmed draft')
+      expect(wrapper.find('[data-testid="retry-message-send"]').exists()).toBe(true)
+    } finally {
+      wrapper.unmount(); save.mockRestore()
+      window.removeEventListener(API_UNAVAILABLE_EVENT, unavailable)
+    }
   })
 
   it('persists an offline text message and replays it once the browser reconnects', async () => {

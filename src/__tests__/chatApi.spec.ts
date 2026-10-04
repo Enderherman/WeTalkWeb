@@ -35,7 +35,7 @@ describe('chat API', () => {
       contactId: 'U200',
       messageContent: 'Hello',
       messageType: 2,
-    })
+    }, { availability: 'local' })
   })
 
   it('sends a client idempotency key for retry-safe text messages', async () => {
@@ -49,7 +49,7 @@ describe('chat API', () => {
       messageContent: 'Hello',
       messageType: 2,
       clientMessageId,
-    })
+    }, { availability: 'local' })
   })
 
   it('requests cancellation of an AI message using its server message ID', async () => {

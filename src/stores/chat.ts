@@ -19,6 +19,7 @@ export interface ChatSessionSummary {
 }
 
 export interface InitialChatMessage {
+  clientMessageId?: string | null
   messageId: number
   sessionId: string
   messageType: number

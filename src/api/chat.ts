@@ -14,7 +14,7 @@ export const chatApi = {
       messageContent,
       messageType: 2,
       ...(clientMessageId ? { clientMessageId } : {}),
-    }),
+    }, { availability: 'local' }),
   cancelAiMessage: (messageId: number): Promise<ServerMessage> =>
     postForm<ServerMessage>('/chat/cancelAiMessage', { messageId }),
   sendFileMessage: (contactId: string, file: File, fileType: 0 | 1 | 2 = 2): Promise<InitialChatMessage> =>
