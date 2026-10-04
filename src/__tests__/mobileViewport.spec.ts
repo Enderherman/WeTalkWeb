@@ -5,6 +5,13 @@ import { describe, expect, it } from 'vitest'
 const stylesheet = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
 
 describe('mobile chat viewport sizing', () => {
+  it('bounds the grid row and allows the chat column to shrink around long history', () => {
+    expect(stylesheet).toMatch(/\.chat-shell\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\)/s)
+    expect(stylesheet).toMatch(/\.chat-main\s*\{[^}]*min-height:\s*0;/s)
+    expect(stylesheet).toMatch(/\.conversation-panel\s*\{[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/s)
+    expect(stylesheet).toMatch(/\.web-release-notice\s*\{[^}]*max-height:[^;]+;[^}]*overflow-y:\s*auto;/s)
+  })
+
   it('keeps the sidebar beside the chat area on desktop and collapses to one column on mobile', () => {
     expect(stylesheet).toMatch(/\.chat-shell\s*\{[^}]*grid-template-columns:\s*272px\s+minmax\(0,\s*1fr\)/s)
     expect(stylesheet).toMatch(/@media\s*\(max-width:\s*760px\)\s*\{[\s\S]*?\.chat-shell\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s)
