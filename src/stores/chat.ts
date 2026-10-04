@@ -228,17 +228,17 @@ export const useChatStore = defineStore('chat', {
       }
 
       if (message.messageType === 2) {
-        this.appendMessage(message as unknown as InitialChatMessage, false)
+        this.appendMessage(message as unknown as InitialChatMessage, message.sendUserId === this.accountId)
         return
       }
 
       if (message.messageType === 5) {
-        this.appendMessage(message as unknown as InitialChatMessage, false)
+        this.appendMessage(message as unknown as InitialChatMessage, message.sendUserId === this.accountId)
         return
       }
 
       if (message.messageType === 6) {
-        this.markFileUploadComplete(Number(message.messageId))
+        this.markFileUploadComplete(Number(message.messageId), message)
         return
       }
 
@@ -515,10 +515,18 @@ export const useChatStore = defineStore('chat', {
         item.messageId === messageId ? { ...item, uploadError: message } : item,
       )
     },
-    markFileUploadComplete(messageId: number) {
+    markFileUploadComplete(messageId: number, metadata: Record<string, unknown> = {}) {
+      const patch: Partial<InitialChatMessage> = { status: 1, uploadProgress: 100, uploadError: undefined }
+      if (typeof metadata.fileName === 'string' && metadata.fileName.length > 0 && metadata.fileName.length <= 200) {
+        patch.fileName = metadata.fileName
+      }
+      if (typeof metadata.fileSize === 'number' && Number.isSafeInteger(metadata.fileSize) && metadata.fileSize > 0) {
+        patch.fileSize = metadata.fileSize
+      }
+      if (metadata.fileType === 0 || metadata.fileType === 1 || metadata.fileType === 2) patch.fileType = metadata.fileType
       this.initialMessages = this.initialMessages.map((message) =>
-        message.messageId === messageId
-          ? { ...message, status: 1, uploadProgress: 100, uploadError: undefined }
+        message.messageId === messageId && message.messageType === 5
+          ? { ...message, ...patch }
           : message,
       )
     },

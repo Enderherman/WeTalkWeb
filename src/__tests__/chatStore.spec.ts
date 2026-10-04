@@ -63,6 +63,50 @@ describe('chat initialization state', () => {
     expect(store.initialMessages[0]?.messageType).toBe(1)
   })
 
+  it.each(['websocket-first', 'http-first'])('deduplicates own private messages with %s delivery without unread or self-name prefix', (order) => {
+    setActivePinia(createPinia())
+    const store = useChatStore()
+    store.accountId = 'U100'
+    store.receiveMessage({ messageType: 0, extentData: { chatSessionList: [{ sessionId: 'S1', contactId: 'U200',
+      contactName: 'Peer', contactType: 0, lastMessage: '', lastReceiveTime: 1, noReadCount: 0 }], chatMessageList: [], applyCount: 0 } })
+    const message = { messageId: 42, sessionId: 'S1', contactId: 'U200', contactType: 0, messageType: 2,
+      sendUserId: 'U100', sendUserNickName: 'Me', messageContent: 'From my other device', sendTime: 2, status: 1 }
+    if (order === 'websocket-first') { store.receiveMessage(message); store.appendMessage(message, true) }
+    else { store.appendMessage(message, true); store.receiveMessage(message) }
+    expect(store.initialMessages).toHaveLength(1)
+    expect(store.sessionList[0]).toMatchObject({ contactId: 'U200', contactName: 'Peer', noReadCount: 0, lastMessage: message.messageContent })
+  })
+
+  it('merges authoritative file completion metadata from another device without creating another message', () => {
+    setActivePinia(createPinia())
+    const store = useChatStore()
+    store.accountId = 'U100'
+    store.receiveMessage({ messageType: 0, extentData: { chatSessionList: [{ sessionId: 'S1', contactId: 'U200',
+      contactName: 'Peer', contactType: 0, lastMessage: '', lastReceiveTime: 1, noReadCount: 0 }], chatMessageList: [], applyCount: 0 } })
+    store.receiveMessage({ messageId: 43, sessionId: 'S1', contactId: 'U200', contactType: 0, messageType: 5,
+      sendUserId: 'U100', sendUserNickName: 'Me', messageContent: '[媒体]', sendTime: 2, status: 0,
+      fileName: '原始视频.mp4', fileSize: 9000, fileType: 1 })
+    const completion = { messageId: 43, sessionId: 'S1', contactId: 'U200', messageType: 6, sendUserId: 'U100',
+      fileName: '原始视频.mp4', fileSize: 4200, fileType: 1, status: 1 }
+    store.receiveMessage(completion)
+    store.receiveMessage(completion)
+    expect(store.initialMessages).toHaveLength(1)
+    expect(store.initialMessages[0]).toMatchObject({ messageType: 5, fileName: '原始视频.mp4', fileSize: 4200, fileType: 1, status: 1, uploadProgress: 100 })
+    expect(store.sessionList[0]?.noReadCount).toBe(0)
+    store.receiveMessage({ messageType: 6, messageId: 43, status: 1 })
+    expect(store.initialMessages[0]?.fileSize).toBe(4200)
+  })
+
+  it('does not turn a text message into a completed attachment on an invalid control frame', () => {
+    setActivePinia(createPinia())
+    const store = useChatStore()
+    const message = { messageId: 44, sessionId: 'S1', contactId: 'U200', messageType: 2,
+      sendUserId: 'U100', sendUserNickName: 'Me', messageContent: 'Text', sendTime: 2, status: 1 }
+    store.appendMessage(message, true)
+    store.receiveMessage({ messageType: 6, messageId: 44, status: 1, fileName: 'fake.txt', fileSize: 4, fileType: 2 })
+    expect(store.initialMessages).toEqual([message])
+  })
+
   afterEach(() => {
     useChatStore().clear()
     vi.useRealTimers()
