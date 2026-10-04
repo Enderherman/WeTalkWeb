@@ -178,6 +178,7 @@ async function confirmDelete() {
         <p>{{ totalCount }} 个靓号 · 注册后自动绑定到邮箱</p>
       </div>
       <div class="admin-page-links">
+        <button class="about-back-button" type="button" @click="router.push({ name: 'admin-updates' })">版本发布</button>
         <button class="about-back-button" data-testid="beauty-users-link" type="button" @click="router.push({ name: 'admin-users' })">用户管理</button>
         <button class="about-back-button" data-testid="beauty-groups-link" type="button" @click="router.push({ name: 'admin-groups' })">群聊管理</button>
         <button class="about-back-button" data-testid="beauty-settings-link" type="button" @click="router.push({ name: 'admin-settings' })">系统设置</button>

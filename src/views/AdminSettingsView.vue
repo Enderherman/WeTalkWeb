@@ -141,6 +141,7 @@ async function saveSettings() {
         <p>设置群组配额、上传大小和机器人资料</p>
       </div>
       <div class="admin-page-links">
+        <button class="about-back-button" type="button" @click="router.push({ name: 'admin-updates' })">版本发布</button>
         <button class="about-back-button" data-testid="admin-settings-users" type="button" @click="router.push({ name: 'admin-users' })">用户管理</button>
         <button class="about-back-button" data-testid="admin-settings-groups" type="button" @click="router.push({ name: 'admin-groups' })">群聊管理</button>
         <button class="about-back-button" data-testid="admin-beauty-link" type="button" @click="router.push({ name: 'admin-beauty-accounts' })">靓号管理</button>

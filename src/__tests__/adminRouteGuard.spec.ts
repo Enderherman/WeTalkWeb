@@ -7,6 +7,7 @@ const adminRoutes = [
   ['/admin/groups', 'admin-groups'],
   ['/admin/settings', 'admin-settings'],
   ['/admin/beauty-accounts', 'admin-beauty-accounts'],
+  ['/admin/updates', 'admin-updates'],
 ] as const
 
 beforeEach(async () => {

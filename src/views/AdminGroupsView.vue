@@ -95,6 +95,7 @@ function formatDate(value?: string | null) {
         <p>{{ totalCount }} 个群聊</p>
       </div>
       <div class="admin-page-links">
+        <button class="about-back-button" type="button" @click="router.push({ name: 'admin-updates' })">版本发布</button>
         <button class="about-back-button" data-testid="admin-users-link" type="button" @click="router.push({ name: 'admin-users' })">用户管理</button>
         <button class="about-back-button" data-testid="admin-settings-link" type="button" @click="router.push({ name: 'admin-settings' })">系统设置</button>
         <button class="about-back-button" data-testid="admin-beauty-link" type="button" @click="router.push({ name: 'admin-beauty-accounts' })">靓号管理</button>
