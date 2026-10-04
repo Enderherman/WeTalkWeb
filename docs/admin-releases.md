@@ -1,6 +1,6 @@
 # 管理员版本发布
 
-入口：管理员页面的「版本发布」，路径 `/admin/updates`。普通用户由路由守卫拦截，后端五个发布管理接口仍独立校验管理员权限。
+入口：管理员页面的「版本发布」，路径 `/admin/updates`。普通用户由路由守卫拦截；后端四个发布管理接口 `loadUpdateList`、`saveUpdate`、`postUpdate`、`deleteUpdate` 独立校验管理员权限，`checkUpdate` 和 `downloadUpdate` 使用当前登录账号及发布可见性校验。
 
 ## 功能
 

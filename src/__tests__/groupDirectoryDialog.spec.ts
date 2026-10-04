@@ -96,6 +96,71 @@ beforeEach(() => {
 })
 
 describe('group directory dialog', () => {
+  it('previews and uploads an optional cover when creating a group and releases previews afterward', async () => {
+    const revoke = vi.fn()
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, { createObjectURL: (file: File) => `blob:${file.name}`, revokeObjectURL: revoke }))
+    const wrapper = mount(GroupDirectoryDialog)
+    try {
+      await flushPromises()
+      await wrapper.get('[data-testid="open-group-create"]').trigger('click')
+      await wrapper.get('[data-testid="new-group-name"]').setValue('With cover')
+      const avatarFile = new File(['png'], 'avatar.png', { type: 'image/png' })
+      const coverFile = new File(['jpeg'], 'cover.jpg', { type: 'image/jpeg' })
+      for (const [selector, file] of [['new-group-avatar', avatarFile], ['new-group-cover', coverFile]] as const) {
+        const input = wrapper.get(`[data-testid="${selector}"]`)
+        Object.defineProperty(input.element, 'files', { configurable: true, value: [file] })
+        await input.trigger('change')
+      }
+      expect(wrapper.get('[alt="已选群封面预览"]').attributes('src')).toBe('blob:cover.jpg')
+      await wrapper.get('[data-testid="group-create-form"]').trigger('submit')
+      await flushPromises()
+      expect(groupApi.create).toHaveBeenCalledWith(expect.objectContaining({ avatarFile, coverFile }))
+      expect(revoke).toHaveBeenCalledWith('blob:cover.jpg')
+      expect(revoke).toHaveBeenCalledWith('blob:avatar.png')
+    } finally { wrapper.unmount(); vi.unstubAllGlobals() }
+  })
+
+  it('lets the owner replace only the cover and preserves selection on a failed save', async () => {
+    vi.mocked(groupApi.update).mockRejectedValueOnce(new Error('Try again')).mockResolvedValueOnce(null)
+    const wrapper = mount(GroupDirectoryDialog, { props: { currentUserId: 'U100' } })
+    await flushPromises()
+    await wrapper.get('[data-testid="group-G300"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="open-edit-group"]').trigger('click')
+    const coverFile = new File(['webp'], 'cover.webp', { type: 'image/webp' })
+    const input = wrapper.get('[data-testid="edit-group-cover"]')
+    Object.defineProperty(input.element, 'files', { value: [coverFile] })
+    await input.trigger('change')
+    await wrapper.get('[data-testid="edit-group-form"]').trigger('submit')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Try again')
+    await wrapper.get('[data-testid="edit-group-form"]').trigger('submit')
+    await flushPromises()
+    expect(groupApi.update).toHaveBeenLastCalledWith(expect.objectContaining({ avatarFile: null, coverFile }))
+    expect(wrapper.find('[data-testid="edit-group-form"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it.each([
+    new File([], 'empty.png', { type: 'image/png' }),
+    new File(['jpeg'], 'wrong.png', { type: 'image/jpeg' }),
+    new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'large.png', { type: 'image/png' }),
+  ])('rejects invalid optional covers without making a group update', async (file) => {
+    const wrapper = mount(GroupDirectoryDialog, { props: { currentUserId: 'U100' } })
+    await flushPromises()
+    await wrapper.get('[data-testid="group-G300"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="open-edit-group"]').trigger('click')
+    const input = wrapper.get('[data-testid="edit-group-cover"]')
+    Object.defineProperty(input.element, 'files', { value: [file] })
+    await input.trigger('change')
+    await wrapper.get('[data-testid="edit-group-form"]').trigger('submit')
+    await flushPromises()
+    expect(groupApi.update).not.toHaveBeenCalled()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
   it("loads the current user's groups and reads selected group details", async () => {
     const wrapper = mount(GroupDirectoryDialog)
     await flushPromises()

@@ -7,6 +7,18 @@ vi.mock('@/api/http', () => ({ postForm: vi.fn(), postMultipart: vi.fn() }))
 beforeEach(() => vi.clearAllMocks())
 
 describe('group API', () => {
+  it('uploads an optional group cover on create or update without requiring an avatar replacement', async () => {
+    vi.mocked(postMultipart).mockResolvedValue(null)
+    const avatarFile = new File(['png'], 'avatar.png', { type: 'image/png' })
+    const coverFile = new File(['jpg'], 'cover.jpg', { type: 'image/jpeg' })
+    await groupApi.create({ groupName: 'Group', groupNotice: '', joinType: 1, avatarFile, coverFile })
+    expect(vi.mocked(postMultipart).mock.calls[0]![1].get('coverFile')).toBe(coverFile)
+    await groupApi.update({ groupId: 'G300', groupName: 'Group', groupNotice: '', joinType: 1, coverFile })
+    const body = vi.mocked(postMultipart).mock.calls[1]![1]
+    expect(body.get('coverFile')).toBe(coverFile)
+    expect(body.has('avatarFile')).toBe(false)
+  })
+
   it('creates a group with multipart fields and the required PNG avatar', async () => {
     const avatarFile = new File(['png bytes'], 'avatar.png', { type: 'image/png' })
     vi.mocked(postMultipart).mockResolvedValue(null)

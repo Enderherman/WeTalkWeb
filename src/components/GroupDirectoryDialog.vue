@@ -5,6 +5,7 @@ import { groupApi, type GroupInfoWithMembers } from '@/api/groups'
 import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
 import { validateProfileImageUpload } from '@/utils/imageValidation'
 import { useDialogFocus } from '@/composables/useDialogFocus'
+import { useLocalImagePreview } from '@/composables/useLocalImagePreview'
 import { useSystemSettingsStore } from '@/stores/systemSettings'
 
 const props = defineProps<{ currentUserId?: string; refreshKey?: number; returnFocusTarget?: HTMLElement | null }>()
@@ -52,6 +53,10 @@ const createFormOpen = ref(false)
 const createForm = reactive({ groupName: '', groupNotice: '', joinType: 1 as 0 | 1 })
 const avatarFile = ref<File | null>(null)
 const avatarInput = ref<HTMLInputElement | null>(null)
+const coverFile = ref<File | null>(null)
+const coverInput = ref<HTMLInputElement | null>(null)
+const avatarPreview = useLocalImagePreview(avatarFile)
+const coverPreview = useLocalImagePreview(coverFile)
 const creatingGroup = ref(false)
 const createError = ref('')
 const createNotice = ref('')
@@ -59,6 +64,10 @@ const editGroupOpen = ref(false)
 const editForm = reactive({ groupName: '', groupNotice: '', joinType: 1 as 0 | 1 })
 const editAvatarFile = ref<File | null>(null)
 const editAvatarInput = ref<HTMLInputElement | null>(null)
+const editCoverFile = ref<File | null>(null)
+const editCoverInput = ref<HTMLInputElement | null>(null)
+const editAvatarPreview = useLocalImagePreview(editAvatarFile)
+const editCoverPreview = useLocalImagePreview(editCoverFile)
 const editingGroup = ref(false)
 const editError = ref('')
 const editNotice = ref('')
@@ -120,6 +129,10 @@ async function loadGroups() {
 }
 
 async function viewGroup(group: GroupDirectoryEntry) {
+  if (editingGroup.value) return
+  editGroupOpen.value = false
+  editAvatarFile.value = null
+  editCoverFile.value = null
   selectedGroupId.value = group.groupId
   groupInfo.value = null
   profileError.value = ''
@@ -139,6 +152,25 @@ function selectAvatar(event: Event) {
   const input = event.target as HTMLInputElement
   avatarFile.value = input.files?.[0] || null
   createError.value = ''
+}
+
+function selectCover(event: Event, editing = false) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0] || null
+  if (editing) {
+    editCoverFile.value = file
+    editError.value = file ? validateProfileImageUpload(file) || '' : ''
+  } else {
+    coverFile.value = file
+    createError.value = file ? validateProfileImageUpload(file) || '' : ''
+  }
+}
+
+function cancelGroupEdit() {
+  if (editingGroup.value) return
+  editGroupOpen.value = false
+  editAvatarFile.value = null
+  editCoverFile.value = null
 }
 
 async function toggleCreateForm() {
@@ -184,6 +216,8 @@ async function createGroup() {
     createError.value = avatarError
     return
   }
+  const coverError = coverFile.value ? validateProfileImageUpload(coverFile.value) : null
+  if (coverError) { createError.value = coverError; return }
 
   creatingGroup.value = true
   try {
@@ -192,13 +226,16 @@ async function createGroup() {
       groupNotice: createForm.groupNotice.trim(),
       joinType: createForm.joinType,
       avatarFile: avatar,
+      ...(coverFile.value ? { coverFile: coverFile.value } : {}),
     })
     createNotice.value = '群聊创建成功'
     createForm.groupName = ''
     createForm.groupNotice = ''
     createForm.joinType = 1
     avatarFile.value = null
+    coverFile.value = null
     if (avatarInput.value) avatarInput.value.value = ''
+    if (coverInput.value) coverInput.value.value = ''
     createFormOpen.value = false
     emit('groupChanged')
     await loadGroups()
@@ -216,7 +253,9 @@ function openEditGroup() {
   editForm.groupNotice = groupProfile.value.groupNotice || ''
   editForm.joinType = groupProfile.value.joinType
   editAvatarFile.value = null
+  editCoverFile.value = null
   if (editAvatarInput.value) editAvatarInput.value.value = ''
+  if (editCoverInput.value) editCoverInput.value.value = ''
   editError.value = ''
   editNotice.value = ''
   editGroupOpen.value = true
@@ -247,6 +286,8 @@ async function updateGroup() {
     editError.value = avatarError
     return
   }
+  const coverError = editCoverFile.value ? validateProfileImageUpload(editCoverFile.value) : null
+  if (coverError) { editError.value = coverError; return }
 
   editingGroup.value = true
   try {
@@ -256,10 +297,13 @@ async function updateGroup() {
       groupNotice: editForm.groupNotice.trim(),
       joinType: editForm.joinType,
       avatarFile: avatar,
+      ...(editCoverFile.value ? { coverFile: editCoverFile.value } : {}),
     })
     avatarRevision.value += 1
     editNotice.value = '群资料已更新'
     editGroupOpen.value = false
+    editAvatarFile.value = null
+    editCoverFile.value = null
     emit('groupChanged')
     await refreshSelectedGroup()
   } catch (error: unknown) {
@@ -465,6 +509,12 @@ function formatGroupTime(value?: string | null) {
           @change="selectAvatar"
         />
         <p v-if="avatarFile" class="group-avatar-selected">已选择：{{ avatarFile.name }}</p>
+        <img v-if="avatarPreview" class="group-upload-preview" :src="avatarPreview" alt="已选群头像预览" />
+        <label for="new-group-cover">群封面（可选图片，不超过 10 MiB）</label>
+        <input id="new-group-cover" ref="coverInput" data-testid="new-group-cover" type="file"
+          accept="image/png,image/jpeg,image/gif,image/bmp,image/webp" :disabled="creatingGroup" @change="selectCover($event)" />
+        <img v-if="coverPreview" class="group-upload-preview is-cover" :src="coverPreview" alt="已选群封面预览" />
+        <button v-if="coverFile" type="button" :disabled="creatingGroup" @click="coverFile = null; if (coverInput) coverInput.value = ''">取消选择封面</button>
         <p v-if="createError" class="contact-error" role="alert">{{ createError }}</p>
         <button class="contact-submit-button" data-testid="create-group-submit" type="submit" :disabled="creatingGroup">
           {{ creatingGroup ? '正在创建…' : '创建群聊' }}
@@ -560,8 +610,14 @@ function formatGroupTime(value?: string | null) {
               @change="selectEditAvatar"
             />
             <p v-if="editAvatarFile" class="group-avatar-selected">已选择：{{ editAvatarFile.name }}</p>
+            <img v-if="editAvatarPreview" class="group-upload-preview" :src="editAvatarPreview" alt="新群头像预览" />
+            <label for="edit-group-cover">更换群封面（可选图片，不选则保留）</label>
+            <input id="edit-group-cover" ref="editCoverInput" data-testid="edit-group-cover" type="file"
+              accept="image/png,image/jpeg,image/gif,image/bmp,image/webp" :disabled="editingGroup" @change="selectCover($event, true)" />
+            <img v-if="editCoverPreview" class="group-upload-preview is-cover" :src="editCoverPreview" alt="新群封面预览" />
+            <button v-if="editCoverFile" type="button" :disabled="editingGroup" @click="editCoverFile = null; if (editCoverInput) editCoverInput.value = ''">取消更换封面</button>
             <div class="group-member-picker-actions">
-              <button type="button" :disabled="editingGroup" @click="editGroupOpen = false">取消</button>
+              <button type="button" :disabled="editingGroup" @click="cancelGroupEdit">取消</button>
               <button class="contact-confirm-button" data-testid="save-group-changes" type="submit" :disabled="editingGroup">
                 {{ editingGroup ? '正在保存…' : '保存群资料' }}
               </button>
@@ -660,3 +716,8 @@ function formatGroupTime(value?: string | null) {
     </section>
   </div>
 </template>
+
+<style scoped>
+.group-upload-preview { width: 72px; height: 72px; max-width: 100%; object-fit: contain; border-radius: 10px; }
+.group-upload-preview.is-cover { width: 100%; height: 120px; object-fit: cover; }
+</style>

@@ -6,6 +6,7 @@ export interface SaveGroupInput {
   groupNotice: string
   joinType: 0 | 1
   avatarFile: File
+  coverFile?: File | null
 }
 
 export interface UpdateGroupInput {
@@ -14,6 +15,7 @@ export interface UpdateGroupInput {
   groupNotice: string
   joinType: 0 | 1
   avatarFile?: File | null
+  coverFile?: File | null
 }
 
 export interface GroupMember {
@@ -37,6 +39,7 @@ export const groupApi = {
     body.set('groupNotice', input.groupNotice)
     body.set('joinType', String(input.joinType))
     body.set('avatarFile', input.avatarFile)
+    if (input.coverFile) body.set('coverFile', input.coverFile)
     return postMultipart<null>('/group/saveGroup', body)
   },
   update: (input: UpdateGroupInput): Promise<null> => {
@@ -46,6 +49,7 @@ export const groupApi = {
     body.set('groupNotice', input.groupNotice)
     body.set('joinType', String(input.joinType))
     if (input.avatarFile) body.set('avatarFile', input.avatarFile)
+    if (input.coverFile) body.set('coverFile', input.coverFile)
     return postMultipart<null>('/group/saveGroup', body)
   },
   getInfoForChat: (groupId: string): Promise<GroupInfoWithMembers> =>
