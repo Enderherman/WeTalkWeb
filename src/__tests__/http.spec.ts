@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, reportApiFailure, unwrapResponse } from '@/api/http'
+import axios, { CanceledError } from 'axios'
+import { ApiError, postForm, reportApiFailure, unwrapResponse } from '@/api/http'
 import { API_UNAVAILABLE_EVENT } from '@/utils/apiEvents'
 import { AUTH_EXPIRED_EVENT } from '@/utils/authEvents'
 
@@ -8,6 +9,31 @@ describe('authenticated API responses', () => {
 
   it('returns successful response data', () => {
     expect(unwrapResponse({ status: 'success', code: 200, data: { ready: true } })).toEqual({ ready: true })
+  })
+
+  it('does not announce a server failure for a real Axios cancellation', () => {
+    const listener = vi.fn()
+    window.addEventListener(API_UNAVAILABLE_EVENT, listener)
+    try {
+      reportApiFailure(new CanceledError('search stopped'))
+      expect(listener).not.toHaveBeenCalled()
+    } finally {
+      window.removeEventListener(API_UNAVAILABLE_EVENT, listener)
+    }
+  })
+
+  it('preserves cancellation through the HTTP client without navigating away', async () => {
+    const listener = vi.fn()
+    window.addEventListener(API_UNAVAILABLE_EVENT, listener)
+    const controller = new AbortController()
+    controller.abort()
+    try {
+      const error = await postForm('/chat/loadHistory', {}, { signal: controller.signal }).catch((error) => error)
+      expect(axios.isCancel(error)).toBe(true)
+      expect(listener).not.toHaveBeenCalled()
+    } finally {
+      window.removeEventListener(API_UNAVAILABLE_EVENT, listener)
+    }
   })
 
   it('announces an expired session when the backend returns code 901', () => {

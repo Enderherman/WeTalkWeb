@@ -30,6 +30,7 @@ export function unwrapResponse<T>(response: BaseResponse<T>): T {
 }
 
 export function reportApiFailure(error: unknown) {
+  if (axios.isCancel(error)) return
   if (!axios.isAxiosError(error)) return
 
   const responseBody = error.response?.data as Partial<BaseResponse<unknown>> | undefined
@@ -69,6 +70,7 @@ export async function postForm<T>(
     })
     return unwrapResponse(response.data)
   } catch (error: unknown) {
+    if (axios.isCancel(error)) throw error
     if (error instanceof ApiError) throw error
     if (axios.isAxiosError(error)) {
       const responseBody = error.response?.data as Partial<BaseResponse<unknown>> | undefined
