@@ -328,6 +328,31 @@ describe('authentication flow', () => {
     expect(chatApi.sendTextMessage).not.toHaveBeenCalled()
   })
 
+  it('starts a new chat through contact selection and restores keyboard focus when cancelled', async () => {
+    vi.mocked(contactApi.loadContacts).mockResolvedValue([{ userId: 'U100', contactId: 'U200', contactType: 0, status: 1, contactName: 'Friend' }])
+    const { wrapper, chatStore } = await mountChat()
+    document.body.appendChild(wrapper.element)
+    chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [
+      { sessionId: 'S200', contactId: 'U200', contactName: 'Friend', contactType: 0, lastMessage: '', lastReceiveTime: 100 },
+    ], chatMessageList: [], applyCount: 0 } })
+    await flushPromises()
+    const trigger = wrapper.get('[aria-label="新聊天"]')
+    expect(trigger.attributes('disabled')).toBeUndefined()
+    await trigger.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="contact-directory-overlay"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="contact-directory-overlay"] [role="dialog"]').trigger('keydown', { key: 'Escape' })
+    await flushPromises()
+    expect(document.activeElement).toBe(trigger.element)
+    await trigger.trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="start-contact-chat-U200"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="contact-directory-overlay"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="chat-session-S200"]').classes()).toContain('is-active')
+    expect(chatApi.sendTextMessage).not.toHaveBeenCalled()
+  })
+
   it('opens a friend conversation from the directory and restores a locally hidden chat', async () => {
     vi.mocked(contactApi.loadContacts).mockResolvedValue([{ userId: 'U100', contactId: 'U200', contactType: 0, status: 1, contactName: 'Friend' }])
     const { wrapper, chatStore } = await mountChat()

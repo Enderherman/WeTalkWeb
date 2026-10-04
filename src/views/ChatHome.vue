@@ -1762,7 +1762,7 @@ async function signOut() {
         </div>
       </div>
 
-      <button class="new-chat-button" type="button" disabled aria-label="新聊天" title="新聊天">
+      <button class="new-chat-button" data-testid="new-chat" type="button" aria-label="新聊天" title="新聊天" @click="openContactDirectory">
         <span aria-hidden="true">＋</span>
         <span class="sidebar-action-label">新聊天</span>
       </button>
