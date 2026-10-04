@@ -87,6 +87,7 @@ vi.mock('@/utils/videoThumbnail', () => ({
 vi.mock('@/api/contacts', () => ({
   contactApi: {
     search: vi.fn(),
+    searchByKeyword: vi.fn(),
     applyAdd: vi.fn(),
     loadApplications: vi.fn(),
     handleApplication: vi.fn(),
@@ -213,6 +214,7 @@ beforeEach(() => {
   vi.mocked(contactApi.loadApplications).mockResolvedValue({ totalCount: 0, pageSize: 15, pageNo: 1, pageTotal: 0, list: [] })
   vi.mocked(contactApi.handleApplication).mockResolvedValue(null)
   vi.mocked(contactApi.loadContacts).mockResolvedValue([])
+  vi.mocked(contactApi.searchByKeyword).mockResolvedValue([])
   vi.mocked(contactApi.loadOwnedGroups).mockResolvedValue([])
   vi.mocked(contactApi.getContactUserInfo).mockResolvedValue({ userId: 'U200' })
   vi.mocked(contactApi.getGroupInfo).mockResolvedValue({
@@ -249,6 +251,80 @@ beforeEach(() => {
 })
 
 describe('authentication flow', () => {
+  it.each([
+    { contactId: 'U200', contactType: 'USER' as const, sessionType: 0 },
+    { contactId: 'G300', contactType: 'GROUP' as const, sessionType: 1 },
+  ])('opens an existing authenticated conversation from a friend or joined-group search result', async (contact) => {
+    vi.mocked(contactApi.searchByKeyword).mockResolvedValue([{ contactId: contact.contactId, contactType: contact.contactType, nickName: 'Target', status: 1 }])
+    const { wrapper, chatStore } = await mountChat()
+    document.body.appendChild(wrapper.element)
+    try {
+      chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [
+        { sessionId: 'Sother', contactId: 'U300', contactName: 'Other', contactType: 0, lastMessage: '', lastReceiveTime: 200 },
+        { sessionId: 'Starget', contactId: contact.contactId, contactName: 'Target', contactType: contact.sessionType, lastMessage: '', lastReceiveTime: 100 },
+      ], chatMessageList: [], applyCount: 0 } })
+      await flushPromises()
+      await wrapper.get('[data-testid="open-contact-search"]').trigger('click')
+      await wrapper.get('[data-testid="contact-id-search"]').setValue(contact.contactId)
+      await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')
+      await flushPromises()
+      await wrapper.get('[data-testid="start-search-chat"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.find('[data-testid="contact-search-overlay"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="chat-session-Starget"]').classes()).toContain('is-active')
+      expect(document.activeElement).toBe(wrapper.get('[data-testid="message-composer"]').element)
+      expect(chatApi.sendTextMessage).not.toHaveBeenCalled()
+      expect(contactApi.applyAdd).not.toHaveBeenCalled()
+    } finally { wrapper.unmount() }
+  })
+
+  it('keeps a failed search-result chat retryable and opens only the server-provided session', async () => {
+    vi.mocked(contactApi.searchByKeyword).mockResolvedValue([{ contactId: 'U200', contactType: 'USER', nickName: 'Target', status: 1 }])
+    const { wrapper, chatStore } = await mountChat()
+    await wrapper.get('[data-testid="open-contact-search"]').trigger('click')
+    await wrapper.get('[data-testid="contact-id-search"]').setValue('U200')
+    await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')
+    await flushPromises()
+    vi.useFakeTimers()
+    try {
+      await wrapper.get('[data-testid="start-search-chat"]').trigger('click')
+      expect(wrapper.get('[data-testid="start-search-chat"]').text()).toContain('正在打开')
+      expect(wrapper.get('[data-testid="contact-id-search"]').attributes('disabled')).toBeDefined()
+      expect(chatStore.sessionList).toEqual([])
+      await vi.advanceTimersByTimeAsync(10_000)
+      await flushPromises()
+      expect(wrapper.get('[data-testid="search-chat-error"]').text()).toContain('会话尚未同步')
+      expect(wrapper.get('[data-testid="start-search-chat"]').attributes('disabled')).toBeUndefined()
+      await wrapper.get('[data-testid="start-search-chat"]').trigger('click')
+      chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [
+        { sessionId: 'server-session', contactId: 'U200', contactName: 'Target', contactType: 0, lastMessage: '', lastReceiveTime: 100 },
+      ], chatMessageList: [], applyCount: 0 } })
+      await flushPromises()
+      expect(wrapper.get('[data-testid="chat-session-server-session"]').classes()).toContain('is-active')
+      expect(wrapper.find('[data-testid="contact-search-overlay"]').exists()).toBe(false)
+      expect(chatApi.sendTextMessage).not.toHaveBeenCalled()
+    } finally { vi.useRealTimers() }
+  })
+
+  it('cancels a pending search-result chat when the search dialog closes', async () => {
+    vi.mocked(contactApi.searchByKeyword).mockResolvedValue([{ contactId: 'U200', contactType: 'USER', nickName: 'Target', status: 1 }])
+    const { wrapper, chatStore } = await mountChat()
+    await wrapper.get('[data-testid="open-contact-search"]').trigger('click')
+    await wrapper.get('[data-testid="contact-id-search"]').setValue('U200')
+    await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')
+    await flushPromises()
+    await wrapper.get('[data-testid="start-search-chat"]').trigger('click')
+    await wrapper.get('[aria-label="关闭联系人搜索"]').trigger('click')
+    await wrapper.get('[data-testid="open-contact-search"]').trigger('click')
+    chatStore.receiveMessage({ messageType: 0, extentData: { chatSessionList: [
+      { sessionId: 'late-session', contactId: 'U200', contactName: 'Target', contactType: 0, lastMessage: '', lastReceiveTime: 100 },
+    ], chatMessageList: [], applyCount: 0 } })
+    await flushPromises()
+    expect(wrapper.find('[data-testid="contact-search-overlay"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="search-chat-error"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="contact-id-search"]').attributes('disabled')).toBeUndefined()
+  })
+
   it('ignores a profile completing after component unmount even if the account is unchanged', async () => {
     let resolveProfile!: (profile: Awaited<ReturnType<typeof authApi.getUserInfo>>) => void
     vi.mocked(authApi.getUserInfo).mockReturnValueOnce(new Promise((resolve) => { resolveProfile = resolve }))

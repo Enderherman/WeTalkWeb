@@ -5,6 +5,7 @@ import { appUpdateApi, type AppUpdateNotice } from '@/api/appUpdates'
 import { authApi } from '@/api/auth'
 import type { SaveUserInfoInput, UserProfile, UserSessionInfo } from '@/api/auth'
 import { chatApi } from '@/api/chat'
+import type { ContactSearchResult } from '@/api/contacts'
 import { ApiError } from '@/api/http'
 import AvatarThumbnail from '@/components/AvatarThumbnail.vue'
 import ContactApplicationsDialog from '@/components/ContactApplicationsDialog.vue'
@@ -774,6 +775,7 @@ async function revokeOtherSessions() {
 }
 
 function closeContactSearchDialog() {
+  cancelContactChatOpen()
   contactSearchOpen.value = false
 }
 
@@ -781,16 +783,26 @@ function closeContactApplicationsDialog() {
   contactApplicationsOpen.value = false
 }
 
-function closeContactDirectoryDialog() {
+function cancelContactChatOpen() {
   contactChatRequestId += 1
   cancelContactChatWait?.()
   chattingContactId.value = ''
   contactChatError.value = ''
+}
+
+function closeContactDirectoryDialog() {
+  cancelContactChatOpen()
   contactDirectoryOpen.value = false
 }
 
-async function startContactChat(contactId: string, contactType: 0 | 1 = 0) {
+function startSearchContactChat(contact: ContactSearchResult) {
+  if (contact.status !== 1 || contact.contactId === authStore.session?.userId) return
+  void startContactChat(contact.contactId, contact.contactType === 'GROUP' ? 1 : 0, 'search')
+}
+
+async function startContactChat(contactId: string, contactType: 0 | 1 = 0, source: 'directory' | 'search' = 'directory') {
   if (chattingContactId.value || !authStore.session?.userId) return
+  const context = captureAuthRequestContext()
   const requestId = ++contactChatRequestId
   chattingContactId.value = contactId
   contactChatError.value = ''
@@ -816,25 +828,24 @@ async function startContactChat(contactId: string, contactType: 0 | 1 = 0) {
       chatStore.connect(authStore.session.userId)
       session = await waiting
     }
-    if (requestId !== contactChatRequestId || !(contactType === 0 ? contactDirectoryOpen.value : groupDirectoryOpen.value)) return
+    const dialogOpen = source === 'search' ? contactSearchOpen.value : contactType === 0 ? contactDirectoryOpen.value : groupDirectoryOpen.value
+    if (requestId !== contactChatRequestId || !ownsRequest(context) || !dialogOpen) return
     selectChatSession(session.sessionId)
-    if (contactType === 0) contactDirectoryOpen.value = false
+    if (source === 'search') contactSearchOpen.value = false
+    else if (contactType === 0) contactDirectoryOpen.value = false
     else groupDirectoryOpen.value = false
     sidebarOpen.value = false
     await nextTick()
     messageComposer.value?.focus()
   } catch (error: unknown) {
-    if (requestId === contactChatRequestId) contactChatError.value = error instanceof Error ? error.message : '无法打开会话，请重试'
+    if (requestId === contactChatRequestId && ownsRequest(context)) contactChatError.value = error instanceof Error ? error.message : '无法打开会话，请重试'
   } finally {
     if (requestId === contactChatRequestId) chattingContactId.value = ''
   }
 }
 
 function closeGroupDirectoryDialog() {
-  contactChatRequestId += 1
-  cancelContactChatWait?.()
-  chattingContactId.value = ''
-  contactChatError.value = ''
+  cancelContactChatOpen()
   groupDirectoryOpen.value = false
 }
 
@@ -870,6 +881,7 @@ function openAdminBeautyAccounts() {
 }
 
 function openContactSearch(event: MouseEvent) {
+  contactChatError.value = ''
   sidebarDialogReturnFocusTarget.value = event.currentTarget instanceof HTMLElement ? event.currentTarget : null
   contactSearchOpen.value = true
 }
@@ -2457,6 +2469,10 @@ async function signOut() {
 
     <ContactSearchDialog
       v-if="contactSearchOpen"
+      :chatting-contact-id="chattingContactId"
+      :chat-error="contactChatError"
+      @start-chat="startSearchContactChat"
+      @search-changed="contactChatError = ''"
       :remarks="chatStore.contactRemarks"
       :current-user-id="authStore.session?.userId || ''"
       :display-name="displayName"

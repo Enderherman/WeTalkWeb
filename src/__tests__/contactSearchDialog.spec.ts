@@ -34,6 +34,38 @@ function mountDialog(extraProps: { returnFocusTarget?: HTMLElement | null } = {}
 }
 
 describe('contact search dialog', () => {
+  it.each([
+    { ...result, status: 1 },
+    { contactId: 'G300', contactType: 'GROUP' as const, nickName: 'Joined group', status: 1 },
+  ])('opens an existing friend or joined group from its search result', async (contact) => {
+    vi.mocked(contactApi.searchByKeyword).mockResolvedValue([contact])
+    const wrapper = mountDialog()
+    await wrapper.get('[data-testid="contact-id-search"]').setValue(contact.contactId)
+    await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="start-search-chat"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="start-search-chat"]').trigger('click')
+    expect(wrapper.emitted('startChat')).toEqual([[contact]])
+    expect(contactApi.applyAdd).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it.each([
+    { ...result, contactId: 'U100', status: 1 },
+    { ...result, status: null },
+    { ...result, status: 4 },
+    { contactId: 'G300', contactType: 'GROUP' as const, nickName: 'Not joined', status: null },
+  ])('does not offer direct chat to self, strangers, blocked contacts or unjoined groups', async (contact) => {
+    vi.mocked(contactApi.searchByKeyword).mockResolvedValue([contact])
+    const wrapper = mountDialog()
+    await wrapper.get('[data-testid="contact-id-search"]').setValue(contact.contactId)
+    await wrapper.get('[data-testid="contact-search-form"]').trigger('submit')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="start-search-chat"]').exists()).toBe(false)
+    expect(wrapper.emitted('startChat')).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it('displays the private remark without replacing the real nickname in search results', async () => {
     vi.mocked(contactApi.searchByKeyword).mockResolvedValue([{ ...result, remark: '同学', status: 1 }])
     const wrapper = mountDialog()

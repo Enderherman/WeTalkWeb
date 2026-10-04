@@ -9,11 +9,15 @@ const props = defineProps<{
   displayName: string
   returnFocusTarget?: HTMLElement | null
   remarks?: Record<string, string>
+  chattingContactId?: string
+  chatError?: string
 }>()
 
 const emit = defineEmits<{
   close: []
   contactAdded: []
+  startChat: [contact: ContactSearchResult]
+  searchChanged: []
 }>()
 
 const query = ref('')
@@ -40,6 +44,13 @@ const canApply = computed(() => {
   return !requestSent.value && ![1, 4, 5, 7].includes(contact.status ?? -1)
 })
 
+const canChat = computed(() => result.value?.status === 1 && result.value.contactId !== props.currentUserId)
+
+function startSelectedChat() {
+  if (!result.value || !canChat.value || searching.value || applying.value || props.chattingContactId) return
+  emit('startChat', result.value)
+}
+
 const relationshipLabel = computed(() => {
   const contact = result.value
   if (!contact) return ''
@@ -51,6 +62,7 @@ const relationshipLabel = computed(() => {
 })
 
 function resetSearchResult() {
+  emit('searchChanged')
   results.value = []
   selectedContactId.value = ''
   searched.value = false
@@ -61,6 +73,8 @@ function resetSearchResult() {
 }
 
 async function searchContact() {
+  if (searching.value || applying.value || props.chattingContactId) return
+  emit('searchChanged')
   const keyword = query.value.trim()
   results.value = []
   selectedContactId.value = ''
@@ -89,7 +103,7 @@ async function searchContact() {
 
 async function sendRequest() {
   const contact = result.value
-  if (!contact || !canApply.value || applying.value) return
+  if (!contact || !canApply.value || applying.value || props.chattingContactId) return
 
   applying.value = true
   applyError.value = ''
@@ -145,10 +159,10 @@ async function sendRequest() {
             data-testid="contact-id-search"
             autocomplete="off"
             placeholder="邮箱、用户昵称、群昵称或 U/G 编号"
-            :disabled="searching || applying"
+            :disabled="searching || applying || Boolean(chattingContactId)"
             @input="resetSearchResult"
           />
-          <button class="contact-search-button" data-testid="search-contact" type="submit" :disabled="searching || applying">
+          <button class="contact-search-button" data-testid="search-contact" type="submit" :disabled="searching || applying || Boolean(chattingContactId)">
             {{ searching ? '搜索中…' : '搜索' }}
           </button>
         </div>
@@ -170,6 +184,7 @@ async function sendRequest() {
           :data-testid="`contact-search-option-${contact.contactId}`"
           type="button"
           :aria-pressed="selectedContactId === contact.contactId"
+          :disabled="Boolean(chattingContactId)"
           @click="selectedContactId = contact.contactId"
         >
           <AvatarThumbnail
@@ -201,6 +216,10 @@ async function sendRequest() {
           <span class="contact-relationship">{{ relationshipLabel }}</span>
         </div>
         <p v-if="result.areaName" class="contact-area">{{ result.areaName }}</p>
+        <button v-if="canChat" class="contact-submit-button" data-testid="start-search-chat" type="button"
+          :disabled="Boolean(chattingContactId) || applying || searching" @click="startSelectedChat"
+        >{{ chattingContactId === result.contactId ? '正在打开…' : '发消息' }}</button>
+        <p v-if="chatError" class="contact-error" role="alert" data-testid="search-chat-error">{{ chatError }}</p>
 
         <form v-if="canApply" class="contact-request-form" data-testid="contact-request-form" @submit.prevent="sendRequest">
           <label for="contact-apply-info">
