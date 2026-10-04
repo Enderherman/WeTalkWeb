@@ -4064,8 +4064,9 @@ select:focus-visible {
   }
 
   .admin-user-actions {
-    width: 100%;
+    width: calc(100% - 48px);
     margin-left: 48px;
+    flex-wrap: wrap;
   }
 
   .admin-action-confirm {
