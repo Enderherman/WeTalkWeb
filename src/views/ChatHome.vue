@@ -83,6 +83,7 @@ const profileForm = reactive({
   personalSignature: '',
   areaName: '',
   areaCode: '',
+  joinType: 1 as 0 | 1,
 })
 const passwordForm = reactive({ password: '', confirmPassword: '' })
 const passwordError = ref('')
@@ -420,6 +421,7 @@ function openProfileEditor() {
   profileForm.personalSignature = current.personalSignature || ''
   profileForm.areaName = current.areaName || ''
   profileForm.areaCode = current.areaCode || ''
+  profileForm.joinType = current.joinType === 0 ? 0 : 1
   profileAvatarFile.value = null
   profileCoverFile.value = null
   if (profileAvatarInput.value) profileAvatarInput.value.value = ''
@@ -473,6 +475,7 @@ async function saveProfile() {
     personalSignature: profileForm.personalSignature.trim(),
     areaName: profileForm.areaName.trim(),
     areaCode: profileForm.areaCode.trim(),
+    joinType: profileForm.joinType,
     avatarFile: profileAvatarFile.value,
     coverFile: profileCoverFile.value,
   }
@@ -2320,6 +2323,11 @@ async function signOut() {
             <option value="0">男</option>
             <option value="1">女</option>
           </select>
+          <label for="profile-edit-join-type">添加好友方式</label>
+          <select id="profile-edit-join-type" v-model.number="profileForm.joinType" data-testid="profile-edit-join-type">
+            <option :value="1">需要我同意</option>
+            <option :value="0">允许直接添加</option>
+          </select>
           <label for="profile-edit-signature">个性签名</label>
           <textarea
             id="profile-edit-signature"
@@ -2374,6 +2382,10 @@ async function signOut() {
           <div>
             <dt>账号编号</dt>
             <dd>{{ profile?.userId || authStore.session?.userId || '—' }}</dd>
+          </div>
+          <div>
+            <dt>添加好友方式</dt>
+            <dd>{{ profile?.joinType === 0 ? '允许直接添加' : '需要我同意' }}</dd>
           </div>
         </dl>
 

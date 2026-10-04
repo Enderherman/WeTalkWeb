@@ -48,6 +48,7 @@ export interface UserProfile {
   personalSignature?: string | null
   areaName?: string | null
   areaCode?: string | null
+  joinType?: 0 | 1 | null
 }
 
 export interface SaveUserInfoInput {
@@ -56,6 +57,7 @@ export interface SaveUserInfoInput {
   personalSignature?: string
   areaName?: string
   areaCode?: string
+  joinType?: 0 | 1
   avatarFile?: File | null
   coverFile?: File | null
 }

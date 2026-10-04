@@ -1862,6 +1862,7 @@ describe('authentication flow', () => {
       personalSignature: 'Hello from Web',
       areaName: 'Suzhou',
       areaCode: '320500',
+      joinType: 0,
     })
     const { wrapper, authStore } = await mountChat()
     await openProfileDialog(wrapper)
@@ -1869,6 +1870,7 @@ describe('authentication flow', () => {
     await wrapper.get('[data-testid="edit-profile"]').trigger('click')
     await wrapper.get('[data-testid="profile-edit-name"]').setValue('New Student')
     await wrapper.get('[data-testid="profile-edit-sex"]').setValue('1')
+    await wrapper.get('[data-testid="profile-edit-join-type"]').setValue('0')
     await wrapper.get('[data-testid="profile-edit-signature"]').setValue('Hello from Web')
     await wrapper.get('[data-testid="profile-edit-area-name"]').setValue('Suzhou')
     await wrapper.get('[data-testid="profile-edit-area-code"]').setValue('320500')
@@ -1889,12 +1891,14 @@ describe('authentication flow', () => {
       personalSignature: 'Hello from Web',
       areaName: 'Suzhou',
       areaCode: '320500',
+      joinType: 0,
       avatarFile,
       coverFile,
     })
     expect(authStore.session?.nickName).toBe('New Student')
     expect(wrapper.text()).toContain('资料已保存')
     expect(wrapper.text()).toContain('Hello from Web')
+    expect(wrapper.text()).toContain('允许直接添加')
   })
 
   it('opens and closes the add-friend dialog from the chat sidebar', async () => {

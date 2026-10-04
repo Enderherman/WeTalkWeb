@@ -121,6 +121,7 @@ describe('auth API compatibility', () => {
     await expect(authApi.saveUserInfo({
       nickName: 'Student 2',
       sex: 1,
+      joinType: 0,
       personalSignature: 'Hello',
       avatarFile: avatar,
       coverFile: cover,
@@ -129,6 +130,7 @@ describe('auth API compatibility', () => {
     expect(path).toBe('/account/saveUserInfo')
     expect(body.get('nickName')).toBe('Student 2')
     expect(body.get('sex')).toBe('1')
+    expect(body.get('joinType')).toBe('0')
     expect(body.get('personalSignature')).toBe('Hello')
     expect(body.get('avatarFile')).toBe(avatar)
     expect(body.get('coverFile')).toBe(cover)
